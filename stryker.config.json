@@ -1,0 +1,28 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "testRunner": "tap",
+  "plugins": ["@stryker-mutator/tap-runner"],
+  "tap": {
+    "testFiles": ["shared/*.test.mts"],
+    "nodeArgs": ["--import", "tsx"]
+  },
+  "coverageAnalysis": "perTest",
+  "mutate": [
+    "shared/branches.mts",
+    "shared/config-block.mts",
+    "shared/extract.mts",
+    "shared/item.mts",
+    "shared/merge-record.mts",
+    "shared/names.mts",
+    "shared/parallel.mts",
+    "shared/pr-body.mts"
+  ],
+  "mutator": { "excludedMutations": ["Regex"] },
+  "tsconfigFile": "no-tsconfig.json",
+  "incremental": true,
+  "incrementalFile": ".stryker-tmp/incremental.json",
+  "tempDirName": ".stryker-tmp/sandbox",
+  "reporters": ["clear-text", "html"],
+  "htmlReporter": { "fileName": "reports/mutation/index.html" },
+  "thresholds": { "high": 100, "low": 100, "break": 100 }
+}

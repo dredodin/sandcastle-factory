@@ -1,0 +1,16 @@
+# Dependencies
+node_modules/
+
+# Mutation testing (`npm run mutate`)
+.stryker-tmp/
+reports/
+
+# Secrets and per-machine agent settings
+.env
+CLAUDE.local.md
+.claude/settings.local.json
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini

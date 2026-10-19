@@ -1,0 +1,16 @@
+import { mergeSubject, type Item } from "./item.mjs";
+
+const SUBJECT = "SANDCASTLE: merge ";
+const TRAILER = "Issue: #";
+
+// The `-m` messages of an item's merge commit.
+export const messagesFor = (item: Item): readonly string[] => [`${SUBJECT}${mergeSubject(item)}`, `${TRAILER}${item.issue}`];
+
+// Issue numbers the merge-commit messages record, each once, in first-seen order.
+export const issuesIn = (messages: readonly string[]): readonly number[] => {
+  const ids = messages.flatMap((message) => {
+    const id = new RegExp(`^${SUBJECT}#([0-9]+)$`, "m").exec(message)?.[1] ?? new RegExp(`^${TRAILER}([0-9]+)$`, "m").exec(message)?.[1];
+    return id === undefined ? [] : [Number(id)];
+  });
+  return [...new Set(ids)];
+};
