@@ -62,5 +62,5 @@ npx sandcastle podman build-image --containerfile .sandcastle/repos/<name>/Conta
 ## Release
 
 1. Merge to main, `npm run verify` green.
-2. `git tag vX.Y.Z && git push --tags`; notes in the GitHub Release.
+2. `npm version X.Y.Z && git push --follow-tags`; notes in the GitHub Release.
 3. `0.x`: a breaking change bumps the minor.
