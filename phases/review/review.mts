@@ -1,6 +1,6 @@
 import { logFileName, verifyCommand } from "../../shared/names.mjs";
 import { promptPath } from "../../shared/paths.mjs";
-import { logging, type Run } from "../../shared/run.mjs";
+import { IDLE_TIMEOUT_SECONDS, logging, type Run } from "../../shared/run.mjs";
 import { otherBranchesText } from "../../shared/text.mjs";
 import type { Repo } from "../../shared/workspace.mjs";
 
@@ -22,6 +22,7 @@ export const review = async (run: Run, repo: Repo): Promise<void> => {
       OTHER_BRANCHES: otherBranchesText(run.integrations.opened(), repo.name, run.branch),
     },
     name: "review",
+    idleTimeoutSeconds: IDLE_TIMEOUT_SECONDS,
     logging: logging(run, logFileName("review", repo.name, home.name)),
   });
 };

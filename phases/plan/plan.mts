@@ -4,7 +4,7 @@ import { itemFits, itemSchema, itemSlug } from "../../shared/item.mjs";
 import { log } from "../../shared/logger.mjs";
 import { promptPath } from "../../shared/paths.mjs";
 import { isMerged, itemBranch, mergedIssues } from "../../shared/repo.mjs";
-import { DISCLAIMER, logging, type Cycle, type Plan } from "../../shared/run.mjs";
+import { DISCLAIMER, IDLE_TIMEOUT_SECONDS, logging, type Cycle, type Plan } from "../../shared/run.mjs";
 import { reposText, stateText } from "../../shared/text.mjs";
 import { repoNamed } from "../../shared/workspace.mjs";
 
@@ -41,6 +41,7 @@ export const plan = async (cycle: Cycle, openPrsText: string): Promise<Plan> => 
     },
     maxIterations: 1,
     name: "plan",
+    idleTimeoutSeconds: IDLE_TIMEOUT_SECONDS,
     logging: logging(cycle, `${cycle.number}-plan`),
   });
 

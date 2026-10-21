@@ -28,3 +28,6 @@ export type Plan = { readonly defaults: readonly Repo[]; readonly items: readonl
 // Where an agent run writes its log: one file per agent run, inside the run's own log folder.
 export const logging = (run: Pick<Run, "logDir">, name: string): { readonly type: "file"; readonly path: string } =>
   ({ type: "file", path: `${run.logDir}/${name}.log` }) as const;
+
+// Seconds an agent may stay silent before its run fails; a repo's checks (verify, mutation runs) can outlast sandcastle's 600.
+export const IDLE_TIMEOUT_SECONDS = 3600;

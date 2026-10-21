@@ -11,7 +11,7 @@ import { inParallel } from "../../shared/parallel.mjs";
 import { mergedIssues } from "../../shared/repo.mjs";
 import { promptPath } from "../../shared/paths.mjs";
 import { closesLines, reposWithoutPr, runBlock, withRunBlock, type BlockedBy, type Pr } from "../../shared/pr-body.mjs";
-import { DISCLAIMER, logging, type Run } from "../../shared/run.mjs";
+import { DISCLAIMER, IDLE_TIMEOUT_SECONDS, logging, type Run } from "../../shared/run.mjs";
 import { sh } from "../../shared/shell.mjs";
 import { repoNamed, type Repo } from "../../shared/workspace.mjs";
 
@@ -45,6 +45,7 @@ const prOfRepo = async (run: Run, repo: Repo): Promise<Pr> => {
     },
     maxIterations: 1,
     name: "pr",
+    idleTimeoutSeconds: IDLE_TIMEOUT_SECONDS,
     logging: logging(run, logFileName("pr", repo.name, home.name)),
   });
   return { repo: repo.name, url: extract(result.stdout, "pull-request", pullRequestSchema).url, issues };
