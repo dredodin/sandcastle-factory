@@ -3,7 +3,7 @@ import { extract } from "../../shared/extract.mjs";
 import { itemFits, itemSchema, itemSlug } from "../../shared/item.mjs";
 import { log } from "../../shared/logger.mjs";
 import { promptPath } from "../../shared/paths.mjs";
-import { isMerged, itemBranch, mergedIssues } from "../../shared/repo.mjs";
+import { branchExists, isMerged, itemBranch, mergedIssues } from "../../shared/repo.mjs";
 import { DISCLAIMER, IDLE_TIMEOUT_SECONDS, logging, type Cycle, type Plan } from "../../shared/run.mjs";
 import { reposText, stateText } from "../../shared/text.mjs";
 import { repoNamed } from "../../shared/workspace.mjs";
@@ -13,17 +13,20 @@ import { repoNamed } from "../../shared/workspace.mjs";
 export const plan = async (cycle: Cycle, openPrsText: string): Promise<Plan> => {
   const { workspace, branch } = cycle;
   const { home, repos } = workspace;
-  const opened = new Set(cycle.integrations.opened().map((repo) => repo.name));
   const integration = await cycle.integrations.get(home);
+  // A repo's branch, not its worktree: a resume's first cycle has the branches of the open take, none opened yet.
   const state = stateText(
     branch,
-    repos.map((repo) => ({
-      repo: repo.name,
-      opened: opened.has(repo.name),
-      merged: opened.has(repo.name) ? mergedIssues(repo, branch) : [],
-      baseMerged: opened.has(repo.name) && isMerged(repo, repo.base, branch),
-      base: repo.base,
-    })),
+    repos.map((repo) => {
+      const opened = branchExists(repo, branch);
+      return {
+        repo: repo.name,
+        opened,
+        merged: opened ? mergedIssues(repo, branch) : [],
+        baseMerged: opened && isMerged(repo, repo.base, branch),
+        base: repo.base,
+      };
+    }),
   );
 
   const result = await integration.run({
