@@ -15,7 +15,7 @@ import type { Repo, Workspace } from "./workspace.mjs";
 const TEARDOWN_ATTEMPTS = 3;
 const TEARDOWN_BACKOFF_MS = 500;
 const NO_SUCH_CONTAINER = /no such container/i;
-const SCRIPTS = ["setup.sh", "verify.sh"] as const;
+const SCRIPTS = ["setup.sh", "verify.sh", "deep-verify.sh"] as const;
 const SETUP_OUTPUT_TAIL = 2000;
 
 const teardownRetry = retry(handleAll, { maxAttempts: TEARDOWN_ATTEMPTS - 1, backoff: new ConstantBackoff(TEARDOWN_BACKOFF_MS) });
@@ -55,12 +55,12 @@ const excludeFactoryFiles = (repo: Repo): void => {
   if (!present.includes("/.sandcastle/")) appendFileSync(exclude, `${present.at(-1) === "" || present.length === 0 ? "" : "\n"}/.sandcastle/\n`);
 };
 
-// The repo's own `setup.sh` and `verify.sh` live in the home repo; the worktree gets them at the same path.
+// The repo's own scripts live in the home repo; the worktree gets those that exist, at the same path.
 const copyScripts = (workspace: Workspace, repo: Repo, worktreePath: string): void => {
   for (const script of SCRIPTS) {
     const from = `${workspace.root}/${repoDir(repo.name)}/${script}`;
     const to = `${worktreePath}/${repoDir(repo.name)}/${script}`;
-    if (existsSync(to)) continue;
+    if (existsSync(to) || !existsSync(from)) continue;
     cpSync(from, to, { recursive: true });
   }
 };

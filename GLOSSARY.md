@@ -78,3 +78,7 @@ _Avoid_: dev image
 **Verify script**:
 The repo's own check every agent runs before each commit. A red verify script means no commit.
 _Avoid_: CI, pre-commit hook
+
+**Deep verify script**:
+The repo's own slow check, optional, run once over a whole branch at review. What it reports is fixed like any review finding.
+_Avoid_: slow verify, nightly check

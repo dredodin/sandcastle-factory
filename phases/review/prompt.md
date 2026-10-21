@@ -21,9 +21,10 @@ The spec is the root issue, its sub-issues, and the open PR's comments of this b
 Review and fix the whole branch.
 
 1. Read the diff: `git diff {{BASE_BRANCH}}...HEAD` and the commit list `git log {{BASE_BRANCH}}..HEAD --oneline`. Code in it (source, scripts, config, tests) → the **code review** below. Markdown in it → the **doc review** below. Both → code first.
-2. Fix every finding the reviews report, in this session. A finding that contradicts the issue or an ADR is not a fix: leave it, and say why in the commit body.
-3. `{{VERIFY}}` before committing. Red: fix, never commit.
-4. Commit. The body says what was fixed and which findings were left.
+2. Deep verify script: {{DEEP_VERIFY}}. Unless `none`, run it once now: it is slow, so leave the files it reads untouched while it runs. What it reports are findings too.
+3. Fix every finding the reviews and the script report, in this session. A finding that contradicts the issue or an ADR is not a fix: leave it, and say why in the commit body.
+4. `{{VERIFY}}` before committing. Red: fix, never commit.
+5. Commit. The body says what was fixed and which findings were left.
 
 Always commit, `--allow-empty` when nothing else changed: the summary must reach the PR.
 
