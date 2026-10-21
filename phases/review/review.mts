@@ -1,5 +1,4 @@
-import { existsSync } from "node:fs";
-import { deepVerifyCommand, logFileName, repoDir, verifyCommand } from "../../shared/names.mjs";
+import { deepVerifyCommand, logFileName, verifyCommand } from "../../shared/names.mjs";
 import { promptPath } from "../../shared/paths.mjs";
 import { IDLE_TIMEOUT_SECONDS, logging, type Run } from "../../shared/run.mjs";
 import { otherBranchesText } from "../../shared/text.mjs";
@@ -20,7 +19,7 @@ export const review = async (run: Run, repo: Repo): Promise<void> => {
       INTEGRATION_BRANCH: run.branch,
       BASE_BRANCH: repo.base,
       VERIFY: verifyCommand(repo.name),
-      DEEP_VERIFY: existsSync(`${run.workspace.root}/${repoDir(repo.name)}/deep-verify.sh`) ? `\`${deepVerifyCommand(repo.name, repo.base)}\`` : "none",
+      DEEP_VERIFY: deepVerifyCommand(repo.name, repo.base),
       OTHER_BRANCHES: otherBranchesText(run.integrations.opened(), repo.name, run.branch),
     },
     name: "review",
