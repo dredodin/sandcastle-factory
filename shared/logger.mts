@@ -3,6 +3,7 @@ import { Writable } from "node:stream";
 import { pino } from "pino";
 import pretty from "pino-pretty";
 import { runFolderName, type Mode, type RunKey } from "./branches.mjs";
+import { formatDuration } from "./duration.mjs";
 
 // Every harness message goes to the terminal and, once a run folder is open, to its `console.log`: same text.
 const files: { write: (text: Buffer) => void }[] = [];
@@ -27,4 +28,14 @@ export const openRunLog = (homePath: string, mode: Mode, key: RunKey, branch: st
   const fd = openSync(`${logDir}/console.log`, "a");
   files.push({ write: (text) => writeSync(fd, text) });
   return logDir;
+};
+
+// Runs `work` and logs `<label> took m:ss`, whether it succeeds or fails.
+export const timed = async <T,>(label: string, work: () => Promise<T>): Promise<T> => {
+  const started = Date.now();
+  try {
+    return await work();
+  } finally {
+    log.info(`${label} took ${formatDuration(Date.now() - started)}`);
+  }
 };

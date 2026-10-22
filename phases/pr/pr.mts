@@ -5,7 +5,7 @@ import { z } from "zod";
 import { extract } from "../../shared/extract.mjs";
 import type { OpenTake } from "../../shared/branches.mjs";
 import type { Item } from "../../shared/item.mjs";
-import { log } from "../../shared/logger.mjs";
+import { log, timed } from "../../shared/logger.mjs";
 import { logFileName, verifyCommand } from "../../shared/names.mjs";
 import { inParallel } from "../../shared/parallel.mjs";
 import { mergedIssues } from "../../shared/repo.mjs";
@@ -27,7 +27,7 @@ const prOfRepo = async (run: Run, repo: Repo): Promise<Pr> => {
   const { home } = run.workspace;
   const issues = subIssuesOn(run, repo);
   const integration = await run.integrations.get(repo);
-  const result = await integration.run({
+  const result = await timed(`pr in ${repo.name}`, () => integration.run({
     agent: run.agents.PR,
     promptFile: promptPath("pr"),
     promptArgs: {
@@ -48,7 +48,7 @@ const prOfRepo = async (run: Run, repo: Repo): Promise<Pr> => {
     name: "pr",
     idleTimeoutSeconds: IDLE_TIMEOUT_SECONDS,
     logging: logging(run, logFileName("pr", repo.name, home.name)),
-  });
+  }));
   return { repo: repo.name, url: extract(result.stdout, "pull-request", pullRequestSchema).url, issues };
 };
 

@@ -10,6 +10,7 @@
   "mutate": [
     "shared/branches.mts",
     "shared/config-block.mts",
+    "shared/duration.mts",
     "shared/extract.mts",
     "shared/item.mts",
     "shared/merge-record.mts",
