@@ -2,6 +2,7 @@ import { z } from "zod";
 import { extract } from "../../shared/extract.mjs";
 import { itemFits, itemSchema, itemSlug } from "../../shared/item.mjs";
 import { log } from "../../shared/logger.mjs";
+import { planCheckCommand } from "../../shared/names.mjs";
 import { promptPath } from "../../shared/paths.mjs";
 import { branchExists, isMerged, itemBranch, mergedIssues } from "../../shared/repo.mjs";
 import { DISCLAIMER, IDLE_TIMEOUT_SECONDS, logging, type Cycle, type Plan } from "../../shared/run.mjs";
@@ -41,6 +42,7 @@ export const plan = async (cycle: Cycle, openPrsText: string): Promise<Plan> => 
       REPOS: reposText(home.name, repos),
       STATE: state,
       OPEN_PRS: openPrsText,
+      PLAN_CHECK: planCheckCommand(home.name),
     },
     maxIterations: 1,
     name: "plan",
