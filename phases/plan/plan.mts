@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { extract } from "../../shared/extract.mjs";
 import { itemFits, itemSchema, itemSlug } from "../../shared/item.mjs";
-import { log } from "../../shared/logger.mjs";
+import { log, timed } from "../../shared/logger.mjs";
 import { planCheckCommand } from "../../shared/names.mjs";
 import { promptPath } from "../../shared/paths.mjs";
 import { branchExists, isMerged, itemBranch, mergedIssues } from "../../shared/repo.mjs";
@@ -30,7 +30,7 @@ export const plan = async (cycle: Cycle, openPrsText: string): Promise<Plan> => 
     }),
   );
 
-  const result = await integration.run({
+  const result = await timed(`plan, cycle ${cycle.number}`, () => integration.run({
     agent: cycle.agents.PLAN,
     promptFile: promptPath("plan"),
     promptArgs: {
@@ -49,7 +49,7 @@ export const plan = async (cycle: Cycle, openPrsText: string): Promise<Plan> => 
     name: "plan",
     idleTimeoutSeconds: IDLE_TIMEOUT_SECONDS,
     logging: logging(cycle, `${cycle.number}-plan`),
-  });
+  }));
 
   const planSchema = z.object({
     defaults: z.array(z.string()),

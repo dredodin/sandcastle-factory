@@ -6,6 +6,7 @@ import { docker } from "@ai-hero/sandcastle/sandboxes/docker";
 import { noSandbox } from "@ai-hero/sandcastle/sandboxes/no-sandbox";
 import { podman } from "@ai-hero/sandcastle/sandboxes/podman";
 import { message } from "./cli.mjs";
+import { formatDuration } from "./duration.mjs";
 import type { Env } from "./env.mjs";
 import { log } from "./logger.mjs";
 import { imageName, repoDir } from "./names.mjs";
@@ -74,7 +75,9 @@ type Opened = {
   readonly finish: () => Promise<void>;
 };
 
-const open = async (context: SandboxContext, { repo, branch, baseBranch }: SandboxSpec): Promise<Opened> => {
+// `label` names the sandbox in the console: the item, or `integration`.
+const open = async (context: SandboxContext, { repo, branch, baseBranch }: SandboxSpec, label: string): Promise<Opened> => {
+  const started = Date.now();
   if (!repo.isHome) excludeFactoryFiles(repo);
   const worktree = await createWorktree({ cwd: repo.path, branchStrategy: { type: "branch", branch, baseBranch } });
   const kept = (reason: string): Error => new Error(`${reason} (worktree kept: ${worktree.worktreePath})`);
@@ -84,9 +87,11 @@ const open = async (context: SandboxContext, { repo, branch, baseBranch }: Sandb
     throw kept(message(error));
   }
 
+  const worktreeDone = Date.now();
   const sandbox = await worktree.createSandbox({ sandbox: providerFor(context, repo) }).catch((error: unknown) => {
     throw kept(message(error));
   });
+  const sandboxDone = Date.now();
   const setup = await sandbox.exec(`bash ${repoDir(repo.name)}/setup.sh`).catch(async (error: unknown) => {
     await closeSandbox(sandbox, branch);
     throw kept(message(error));
@@ -95,6 +100,9 @@ const open = async (context: SandboxContext, { repo, branch, baseBranch }: Sandb
     await closeSandbox(sandbox, branch);
     throw kept(`${repoDir(repo.name)}/setup.sh exited ${setup.exitCode}: ${`${setup.stdout}\n${setup.stderr}`.trim().slice(-SETUP_OUTPUT_TAIL)}`);
   }
+  const ready = Date.now();
+  const [worktreeTook, sandboxTook, setupTook, total] = [worktreeDone - started, sandboxDone - worktreeDone, ready - sandboxDone, ready - started].map(formatDuration);
+  log.info(`Sandbox ${repo.name} ${label} took ${total}: worktree ${worktreeTook}, sandbox ${sandboxTook}, setup.sh ${setupTook}`);
 
   return {
     sandbox,
@@ -111,8 +119,8 @@ const open = async (context: SandboxContext, { repo, branch, baseBranch }: Sandb
 // The sandbox is always closed; a teardown failure is logged, never decides the outcome.
 // The worktree is removed only on success; on any failure,
 // or if `use` left uncommitted changes, it is kept for diagnosis and the error names its path.
-export const withSandbox = async <T,>(context: SandboxContext, spec: SandboxSpec, use: (sandbox: Sandbox) => Promise<T>): Promise<T> => {
-  const opened = await open(context, spec);
+export const withSandbox = async <T,>(context: SandboxContext, spec: SandboxSpec, label: string, use: (sandbox: Sandbox) => Promise<T>): Promise<T> => {
+  const opened = await open(context, spec, label);
   const result = await use(opened.sandbox)
     .catch((error: unknown) => {
       throw new Error(`${message(error)} (worktree kept: ${opened.worktreePath})`);
@@ -138,7 +146,7 @@ export const withIntegrations = async <T,>(
   const all = new Map<string, { readonly repo: Repo; readonly opening: Promise<Opened> }>();
   const integrations: Integrations = {
     get: async (repo) => {
-      const existing = all.get(repo.name) ?? { repo, opening: open(context, specFor(repo)) };
+      const existing = all.get(repo.name) ?? { repo, opening: open(context, specFor(repo), "integration") };
       all.set(repo.name, existing);
       return (await existing.opening).sandbox;
     },

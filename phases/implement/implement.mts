@@ -1,5 +1,6 @@
 import type { Sandbox } from "@ai-hero/sandcastle";
 import { implementRunOf, type Item } from "../../shared/item.mjs";
+import { timed } from "../../shared/logger.mjs";
 import { promptPath } from "../../shared/paths.mjs";
 import { IDLE_TIMEOUT_SECONDS, logging, type Cycle } from "../../shared/run.mjs";
 import { otherBranchesText } from "../../shared/text.mjs";
@@ -11,7 +12,7 @@ export const implement = async (cycle: Cycle, sandbox: Sandbox, item: Item): Pro
   const { home } = cycle.workspace;
   const otherBranches = otherBranchesText(cycle.integrations.opened(), item.repo, cycle.branch);
   const inputs = implementRunOf(item, cycle, { home, otherBranches });
-  const result = await sandbox.run({
+  const result = await timed(`${inputs.name} in ${item.repo}, cycle ${cycle.number}`, () => sandbox.run({
     agent: cycle.agents.IMPLEMENT,
     promptFile: promptPath("implement"),
     promptArgs: inputs.promptArgs,
@@ -19,6 +20,6 @@ export const implement = async (cycle: Cycle, sandbox: Sandbox, item: Item): Pro
     name: inputs.name,
     idleTimeoutSeconds: IDLE_TIMEOUT_SECONDS,
     logging: logging(cycle, inputs.logName),
-  });
+  }));
   return result.commits.length > 0;
 };
