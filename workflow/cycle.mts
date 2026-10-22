@@ -5,7 +5,7 @@ import type { Env } from "../shared/env.mjs";
 import { review } from "../phases/review/review.mjs";
 import { implement } from "../phases/implement/implement.mjs";
 import { merge, mergeDefaults } from "../phases/merge/merge.mjs";
-import { plan } from "../phases/plan/plan.mjs";
+import { freshPlan, plan, type PlanSession } from "../phases/plan/plan.mjs";
 import { pr } from "../phases/pr/pr.mjs";
 import { itemSlug, type Item } from "../shared/item.mjs";
 import { log, openRunLog } from "../shared/logger.mjs";
@@ -31,15 +31,20 @@ export const startRun = (
 };
 
 // One cycle: plan, merge default branches if asked, implement each item in parallel in its repo, merge.
-// Resolves to the planned items, none when the plan is empty.
-const cycle = async (run: Run, number: number, openPrsText: string): Promise<readonly Item[]> => {
+// Resolves to the planned items, none when the plan is empty, and the next cycle's plan session.
+const cycle = async (
+  run: Run,
+  number: number,
+  openPrsText: string,
+  session: PlanSession,
+): Promise<{ readonly items: readonly Item[]; readonly next: PlanSession }> => {
   log.info(`\n=== Cycle ${number}/${MAX_CYCLES} ===`);
   const current = { ...run, number };
 
-  const { defaults, items } = await plan(current, openPrsText);
+  const { defaults, items, next } = await plan(current, openPrsText, session);
   if (defaults.length === 0 && items.length === 0) {
     log.info("Nothing to do: plan is empty.");
-    return [];
+    return { items: [], next };
   }
   await mergeDefaults(current, defaults);
   await Promise.all([...new Set(items.map((item) => item.repo))].map((name) => current.integrations.get(repoNamed(run.workspace, name))));
@@ -54,22 +59,23 @@ const cycle = async (run: Run, number: number, openPrsText: string): Promise<rea
   const done = items.filter((_, index) => committed[index]);
   if (done.length === 0) log.info("No item produced commits. Nothing to merge.");
   else await merge(current, done);
-  return items;
+  return { items, next };
 };
 
 // Cycles until the plan is empty or the cap is reached; one after another, each plans on the last one's merge.
+// The first plans in a fresh session, each later one continues the last plan's when the provider can.
 // Resolves to every item planned along the way.
 export const cycles = (run: Run, openPrsText: string): Promise<readonly Item[]> => {
-  const from = async (number: number): Promise<readonly Item[]> => {
-    const items = await cycle(run, number, openPrsText);
+  const from = async (number: number, session: PlanSession): Promise<readonly Item[]> => {
+    const { items, next } = await cycle(run, number, openPrsText, session);
     if (items.length === 0) return [];
     if (number === MAX_CYCLES) {
       log.info(`Cycle cap (${MAX_CYCLES}) reached.`);
       return items;
     }
-    return [...items, ...(await from(number + 1))];
+    return [...items, ...(await from(number + 1, next))];
   };
-  return from(1);
+  return from(1, freshPlan(run));
 };
 
 // One review per touched repo over its whole branch, then the PRs. `kept` are open PRs of repos the run left as they were.
