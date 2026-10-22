@@ -1,4 +1,5 @@
 // Pure assembly of what the run adds to every PR body: the Closes lines and the run's PR list.
+import { z } from "zod";
 
 export type Pr = {
   readonly repo: string;
@@ -17,6 +18,14 @@ const END = "<!-- /sandcastle-run -->";
 
 // Issues live in the home repo, so every line names it.
 export const closesLines = (homeSlug: string, ids: readonly number[]): string => ids.map((id) => `Closes ${homeSlug}#${id}`).join("\n");
+
+// Only the home repo's PR closes the root, so a multi-repo run keeps it open until the home PR merges; with no home PR, every PR does.
+export const closesRoot = (repo: string, homeRepo: string, prRepos: readonly string[]): boolean => repo === homeRepo || !prRepos.includes(homeRepo);
+
+const blockedBySchema = z.object({ blockedBy: z.object({ nodes: z.array(z.object({ number: z.number() })) }) });
+
+// Blocker numbers from `gh issue view --json blockedBy`.
+export const blockersFromJson = (json: string): readonly number[] => blockedBySchema.parse(JSON.parse(json)).blockedBy.nodes.map((blocker) => blocker.number);
 
 // `acme/app#12` for a PR URL, the URL itself for anything else.
 export const prRef = (url: string): string => {

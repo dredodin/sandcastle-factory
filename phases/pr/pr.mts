@@ -10,20 +10,20 @@ import { logFileName, verifyCommand } from "../../shared/names.mjs";
 import { inParallel } from "../../shared/parallel.mjs";
 import { mergedIssues } from "../../shared/repo.mjs";
 import { promptPath } from "../../shared/paths.mjs";
-import { closesLines, reposWithoutPr, runBlock, withRunBlock, type BlockedBy, type Pr } from "../../shared/pr-body.mjs";
+import { blockersFromJson, closesLines, closesRoot, reposWithoutPr, runBlock, withRunBlock, type BlockedBy, type Pr } from "../../shared/pr-body.mjs";
 import { DISCLAIMER, IDLE_TIMEOUT_SECONDS, logging, type Run } from "../../shared/run.mjs";
 import { sh } from "../../shared/shell.mjs";
 import { repoNamed, type Repo } from "../../shared/workspace.mjs";
 
 const pullRequestSchema = z.object({ url: z.url() });
-const blockedBySchema = z.object({ blockedBy: z.array(z.object({ number: z.number() })) });
 const bodySchema = z.object({ body: z.string() });
 
-// Sub-issues whose merge commit the repo's branch carries; the root is closed by every PR anyway.
+// Sub-issues whose merge commit the repo's branch carries; the root is closed apart, see `closesRoot`.
 const subIssuesOn = (run: Run, repo: Repo): readonly number[] => mergedIssues(repo, run.branch).filter((id) => id !== run.root);
 
 // First pass for one repo: the PR agent pushes the branch and opens the PR, or rewrites the open one.
-const prOfRepo = async (run: Run, repo: Repo): Promise<Pr> => {
+// `prRepos`: every repo of the run with a PR.
+const prOfRepo = async (run: Run, repo: Repo, prRepos: readonly string[]): Promise<Pr> => {
   const { home } = run.workspace;
   const issues = subIssuesOn(run, repo);
   const integration = await run.integrations.get(repo);
@@ -40,7 +40,7 @@ const prOfRepo = async (run: Run, repo: Repo): Promise<Pr> => {
       REPO_SLUG: repo.slug,
       DEFAULT_BRANCH: repo.defaultBranch,
       BASE_BRANCH: repo.base,
-      CLOSES: closesLines(home.slug, [...issues, run.root]),
+      CLOSES: closesLines(home.slug, closesRoot(repo.name, home.name, prRepos) ? [...issues, run.root] : issues),
       DISCLAIMER,
     },
     maxIterations: 1,
@@ -57,8 +57,7 @@ const blockedByOf = (home: Repo, issues: readonly number[]): BlockedBy =>
   Object.fromEntries(
     issues.map((issue) => {
       try {
-        const parsed = blockedBySchema.parse(JSON.parse(sh(home.path, "gh", "issue", "view", `${issue}`, "--repo", home.slug, "--json", "blockedBy")));
-        return [issue, parsed.blockedBy.map((blocker) => blocker.number)];
+        return [issue, blockersFromJson(sh(home.path, "gh", "issue", "view", `${issue}`, "--repo", home.slug, "--json", "blockedBy"))];
       } catch {
         log.warn(`Could not read the blockers of #${issue}; merge order ignores them.`);
         return [issue, []];
@@ -70,7 +69,8 @@ const blockedByOf = (home: Repo, issues: readonly number[]): BlockedBy =>
 // `kept` are open PRs of repos this run did not change: they only get the new body. Returns one line per PR.
 export const pr = async (run: Run, touched: readonly Repo[], kept: readonly OpenTake[], planned: readonly Item[]): Promise<string> => {
   const { home } = run.workspace;
-  const created = await inParallel(touched, (repo) => repo.name, (repo) => prOfRepo(run, repo));
+  const prRepos = [...touched.map((repo) => repo.name), ...kept.map((take) => take.repo)];
+  const created = await inParallel(touched, (repo) => repo.name, (repo) => prOfRepo(run, repo, prRepos));
   const unchanged = kept
     .filter((take) => !touched.some((repo) => repo.name === take.repo))
     .map((take): Pr => ({
