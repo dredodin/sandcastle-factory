@@ -1,4 +1,7 @@
+import { appendFileSync } from "node:fs";
+import type { AgentProvider } from "@ai-hero/sandcastle";
 import type { Agents } from "./agents.mjs";
+import type { Phase } from "./env.mjs";
 import type { Item } from "./item.mjs";
 import type { Integrations, SandboxContext } from "./sandbox.mjs";
 import type { Repo, Workspace } from "./workspace.mjs";
@@ -25,9 +28,18 @@ export const DISCLAIMER = "> *Sandcastle agent reply — not a request.*";
 // What the planner decides for one cycle: the repos whose default branch must be merged first, and the items to work.
 export type Plan = { readonly defaults: readonly Repo[]; readonly items: readonly Item[] };
 
-// Where an agent run writes its log: one file per agent run, inside the run's own log folder.
-export const logging = (run: Pick<Run, "logDir">, name: string): { readonly type: "file"; readonly path: string } =>
-  ({ type: "file", path: `${run.logDir}/${name}.log` }) as const;
+// A phase's agent and where it logs: one file per agent run, inside the run's own log folder,
+// starting with the provider, model and effort the phase runs with.
+export const phaseAgent = (
+  run: Pick<Run, "agents" | "context" | "logDir">,
+  phase: Phase,
+  name: string,
+): { readonly agent: AgentProvider; readonly logging: { readonly type: "file"; readonly path: string } } => {
+  const path = `${run.logDir}/${name}.log`;
+  const { provider, model, effort } = run.context.env.phases[phase];
+  appendFileSync(path, `${phase}: ${provider} ${model}, effort ${effort}\n`);
+  return { agent: run.agents[phase], logging: { type: "file", path } };
+};
 
 // Seconds an agent may stay silent before its run fails; a repo's checks (verify, mutation runs) can outlast sandcastle's 600.
 export const IDLE_TIMEOUT_SECONDS = 3600;

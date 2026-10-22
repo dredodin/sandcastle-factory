@@ -1,5 +1,5 @@
 # Base image of a sandbox: git, gh, jq, Claude Code, Copilot CLI, and an `agent` user aligned with the host.
-# Built as sandcastle-factory:base (README); a repo's own Containerfile (home repo: .sandcastle/repos/<repo>/Containerfile) starts FROM it and adds what its verify.sh needs.
+# Built as sandcastle-factory:base by the setup wizard; a repo's own Containerfile (home repo: .sandcastle/repos/<repo>/Containerfile) starts FROM it and adds what its verify.sh needs.
 FROM node:22-bookworm
 
 RUN apt-get update && apt-get install -y \

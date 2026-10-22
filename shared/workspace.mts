@@ -24,6 +24,7 @@ export type Workspace = {
 export type Layout = {
   readonly root: string;
   readonly homeName: string;
+  readonly homeSlug: string;
   // Repo names GLOSSARY-MAP links to; may include the home repo's own name.
   readonly mapped: readonly string[];
 };
@@ -34,7 +35,7 @@ const originSlug = (path: string): Slug => slugFromRemote(sh(path, "git", "remot
 export const readLayout = (cwd: string): Layout => {
   const root = sh(cwd, "git", "rev-parse", "--show-toplevel");
   const home = originSlug(root);
-  return { root, homeName: home.name, mapped: repoNamesFromMap(readFileSync(`${root}/GLOSSARY-MAP.md`, "utf8")) };
+  return { root, homeName: home.name, homeSlug: `${home.owner}/${home.name}`, mapped: repoNamesFromMap(readFileSync(`${root}/GLOSSARY-MAP.md`, "utf8")) };
 };
 
 // Repos other than the home repo, which need a local path in `.env`.

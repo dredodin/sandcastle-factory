@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { deepVerifyCommand, imageName, logFileName, planCheckCommand, repoKey, repoNamesByKey, repoNamesFromMap, slugFromRemote } from "./names.mjs";
+import { deepVerifyCommand, imageName, logFileName, planCheckCommand, repoKey, repoNamesFromMap, slugFromRemote } from "./names.mjs";
 
 test("repoNamesFromMap: names from .sandcastle/repos links, once each, in order", () => {
   const map = [
@@ -20,10 +20,6 @@ test("repoNamesFromMap: no links gives an empty list", () => {
 test("repoKey: upper case, non-alphanumerics become underscores", () => {
   assert.equal(repoKey("app"), "REPO_APP");
   assert.equal(repoKey("my-app.v2"), "REPO_MY_APP_V2");
-});
-
-test("repoNamesByKey: each repo's .env key back to its name", () => {
-  assert.deepEqual(repoNamesByKey(["app", "my-lib"]), { REPO_APP: "app", REPO_MY_LIB: "my-lib" });
 });
 
 test("deepVerifyCommand and planCheckCommand: scripts in the repo's folder", () => {

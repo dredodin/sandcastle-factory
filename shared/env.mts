@@ -1,15 +1,21 @@
 // `.sandcastle/.env` in the home repo: the one per-machine file. Checked by a schema the factory owns.
 
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { parseEnv as parseDotenv } from "node:util";
 import { z } from "zod";
 import { repoKey } from "./names.mjs";
 
 export const PHASES = ["PLAN", "IMPLEMENT", "REVIEW", "MERGE", "PR"] as const;
 export type Phase = (typeof PHASES)[number];
-const PROVIDERS = ["claudeCode", "copilot"] as const;
-const SANDBOXES = ["docker", "podman", "none"] as const;
-export type PhaseSetting = { readonly provider: (typeof PROVIDERS)[number]; readonly model: string; readonly effort: string };
+export const PROVIDERS = ["claudeCode", "copilot"] as const;
+export type Provider = (typeof PROVIDERS)[number];
+// Every effort a provider accepts, lowest first.
+export const EFFORTS = {
+  claudeCode: ["low", "medium", "high", "xhigh", "max"],
+  copilot: ["low", "medium", "high"],
+} as const satisfies Readonly<Record<Provider, readonly string[]>>;
+export const SANDBOXES = ["podman", "docker", "none"] as const;
+export type PhaseSetting = { readonly provider: Provider; readonly model: string; readonly effort: string };
 export type Values = Readonly<Record<string, string>>;
 
 export type Env = {
@@ -29,9 +35,9 @@ const phaseKeys = (phase: Phase): readonly string[] => [`${phase}_PROVIDER`, `${
 
 const has = (values: Values, key: string): boolean => (values[key] ?? "") !== "";
 
-// Every key the machine needs, in the order `setup` asks for them, given the values so far.
+// Every key the machine needs, given the values so far.
 // Provider-dependent keys appear once the providers are known.
-export const requiredKeys = (values: Values, repoNames: readonly string[]): readonly string[] => {
+const requiredKeys = (values: Values, repoNames: readonly string[]): readonly string[] => {
   const providers = PHASES.map((phase) => values[`${phase}_PROVIDER`]);
   const claudeAuth = CLAUDE_AUTH.find((key) => has(values, key)) ?? CLAUDE_AUTH[0];
   return [
@@ -47,25 +53,7 @@ export const requiredKeys = (values: Values, repoNames: readonly string[]): read
 export const missingKeys = (values: Values, repoNames: readonly string[]): readonly string[] =>
   requiredKeys(values, repoNames).filter((key) => !has(values, key));
 
-// Quotes Node's env parser reads literally; double quotes would expand `\n` and cannot escape a `"`.
-const LITERAL_QUOTES = ["'", "`"] as const;
-
-const quoted = (key: string, value: string): string => {
-  if (!/[\s#"'`\\]/.test(value)) return value;
-  const quote = LITERAL_QUOTES.find((candidate) => !value.includes(candidate));
-  if (quote === undefined || value.includes("\n")) throw new Error(`${key}: a value with both ' and \` or a line break cannot be written.`);
-  return `${quote}${value}${quote}`;
-};
-
-// Replaces every `KEY=` line (the parser reads the last), or appends one; every other line stays as it is.
-export const upsertEnvLine = (text: string, key: string, value: string): string => {
-  const line = `${key}=${quoted(key, value)}`;
-  const lines = text.split("\n");
-  if (lines.some((existing) => existing.startsWith(`${key}=`))) return lines.map((existing) => (existing.startsWith(`${key}=`) ? line : existing)).join("\n");
-  return `${text}${text === "" || text.endsWith("\n") ? "" : "\n"}${line}\n`;
-};
-
-const envPath = (root: string): string => `${root}/.sandcastle/.env`;
+export const envPath = (root: string): string => `${root}/.sandcastle/.env`;
 
 // The non-blank values of `.env`; nothing comes from the shell environment.
 export const readValues = (root: string): Values => {
@@ -73,10 +61,19 @@ export const readValues = (root: string): Values => {
   return Object.fromEntries(Object.entries(file).filter((entry): entry is [string, string] => (entry[1] ?? "") !== ""));
 };
 
-export const writeValue = (root: string, key: string, value: string): void => {
-  const path = envPath(root);
-  writeFileSync(path, upsertEnvLine(existsSync(path) ? readFileSync(path, "utf8") : "", key, value));
-};
+// Keys the factory reads: the only ones a shell variable may set.
+const knownKeys = (repoNames: readonly string[]): readonly string[] => ["GH_TOKEN", "SANDBOX", ...PHASES.flatMap(phaseKeys), ...CLAUDE_AUTH, COPILOT_TOKEN, ...repoNames.map(repoKey)];
+
+// `.env` values with the shell's non-empty values of known keys over them: a shell variable overrides `.env` for one run.
+export const withShellOverrides = (file: Values, shell: Readonly<Record<string, string | undefined>>, repoNames: readonly string[]): Values => ({
+  ...file,
+  ...Object.fromEntries(
+    knownKeys(repoNames).flatMap((key) => {
+      const value = shell[key] ?? "";
+      return value === "" ? [] : [[key, value]];
+    }),
+  ),
+});
 
 const nonEmpty = z.string().min(1);
 

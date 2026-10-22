@@ -8,7 +8,7 @@ import { planCheckCommand } from "../../shared/names.mjs";
 import { promptPath } from "../../shared/paths.mjs";
 import { fillPrompt } from "../../shared/prompt.mjs";
 import { branchExists, isMerged, itemBranch, mergedIssues } from "../../shared/repo.mjs";
-import { DISCLAIMER, IDLE_TIMEOUT_SECONDS, logging, type Cycle, type Plan, type Run } from "../../shared/run.mjs";
+import { DISCLAIMER, IDLE_TIMEOUT_SECONDS, phaseAgent, type Cycle, type Plan, type Run } from "../../shared/run.mjs";
 import { reposText, stateText } from "../../shared/text.mjs";
 import { repoNamed } from "../../shared/workspace.mjs";
 
@@ -56,7 +56,7 @@ export const plan = async (cycle: Cycle, openPrsText: string, session: PlanSessi
     completionSignal: "</plan>",
     name: "plan",
     idleTimeoutSeconds: IDLE_TIMEOUT_SECONDS,
-    logging: logging(cycle, `${cycle.number}-plan`),
+    logging: phaseAgent(cycle, "PLAN", `${cycle.number}-plan`).logging,
   }));
 
   const planSchema = z.object({

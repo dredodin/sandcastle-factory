@@ -1,13 +1,8 @@
 import { claudeCode, copilot, type AgentProvider } from "@ai-hero/sandcastle";
-import { PHASES, type Env, type Phase, type PhaseSetting } from "./env.mjs";
+import { EFFORTS, PHASES, type Env, type Phase, type PhaseSetting } from "./env.mjs";
 
 export type Agents = Readonly<Record<Phase, AgentProvider>>;
 export type PhaseSettings = PhaseSetting & { readonly phase: Phase };
-
-const EFFORTS = {
-  claudeCode: ["low", "medium", "high", "xhigh", "max"],
-  copilot: ["low", "medium", "high"],
-} as const;
 
 const effortOf = <E extends string,>({ phase, provider, effort }: PhaseSettings, levels: readonly E[]): E => {
   const level = levels.find((known) => known === effort);

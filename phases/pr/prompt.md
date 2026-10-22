@@ -19,7 +19,7 @@ AFK rules of this run: commit subjects start with `SANDCASTLE:`, the body has `I
 
 {{CLOSES}}
 
-3. Existing PR: `gh pr list --repo {{REPO_SLUG}} --head {{INTEGRATION_BRANCH}} --state open --json url`. One found: reuse it, rewriting its body: `gh pr edit <url> --body-file /tmp/pr-body.md`. None: `gh pr create --repo {{REPO_SLUG}} --base {{DEFAULT_BRANCH}} --head {{INTEGRATION_BRANCH}} --title "<title above>" --body-file /tmp/pr-body.md`. Never `--draft`. A later step adds the run's PR list and merge order to the body: leave a block between `<!-- sandcastle-run -->` and `<!-- /sandcastle-run -->` as it is.
+3. Existing PR: `gh pr list --repo {{REPO_SLUG}} --head {{INTEGRATION_BRANCH}} --state open --json url`. One found: reuse it, rewriting its body: `gh pr edit <url> --body-file /tmp/pr-body.md`. None: `gh pr create --repo {{REPO_SLUG}} --base {{DEFAULT_BRANCH}} --head {{INTEGRATION_BRANCH}} --title "<title above>" --body-file /tmp/pr-body.md`. Never `--draft`. A later step adds the models and the run's PR list to the body: leave a block between `<!-- sandcastle-run -->` and `<!-- /sandcastle-run -->` as it is.
 
 4. Comments, only after step 3. Each `Comment: <url>` line in the commits above names a PR comment the branch fixed. For each one with no own reply yet naming the commit that carries its `Comment:` line (a reply naming an older commit does not count: the comment was re-opened):
    - Reply under it, naming the commit that carries the `Comment:` line (short SHA). The reply starts with the line `{{DISCLAIMER}}`.

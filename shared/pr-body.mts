@@ -1,5 +1,6 @@
-// Pure assembly of what the run adds to every PR body: the Closes lines and the run's PR list.
+// Pure assembly of what the run adds to every PR body: the Closes lines, the models and the run's PR list.
 import { z } from "zod";
+import { PHASES, type Phase, type PhaseSetting } from "./env.mjs";
 
 export type Pr = {
   readonly repo: string;
@@ -58,24 +59,29 @@ export const reposWithoutPr = (planned: readonly { readonly repo: string; readon
 
 const issueList = (issues: readonly number[]): string => issues.map((id) => `#${id}`).join(", ");
 
-// The block every PR of the run ends with; empty when the run has one PR and nothing left out.
-export const runBlock = (homeSlug: string, root: number, prs: readonly Pr[], noPr: readonly NoPr[], blockedBy: BlockedBy): string => {
-  if (prs.length <= 1 && noPr.length === 0) return "";
-  const lines = [
-    START,
-    "## Run",
-    "",
-    `One change over several repos, root ${homeSlug}#${root}. Merge in this order:`,
-    "",
-    ...mergeOrder(prs, blockedBy).map((pr, index) => `${index + 1}. ${prRef(pr.url)} (${pr.repo})`),
-    ...noPr.map((entry) => `\nNo PR in \`${entry.repo}\`: no commits.${entry.open.length > 0 ? ` Still open: ${issueList(entry.open)}.` : ""}`),
-    END,
-  ];
-  return lines.join("\n");
+// One line naming the model each phase ran with.
+export const modelsLine = (phases: Readonly<Record<Phase, PhaseSetting>>): string =>
+  `Models: ${PHASES.map((phase) => `${phase} \`${phases[phase].model}\` (${phases[phase].provider}, ${phases[phase].effort})`).join(", ")}.`;
+
+// The block every PR of the run ends with: the models line, then the run's PR list when it has several PRs or a repo left out.
+export const runBlock = (models: string, homeSlug: string, root: number, prs: readonly Pr[], noPr: readonly NoPr[], blockedBy: BlockedBy): string => {
+  const run =
+    prs.length <= 1 && noPr.length === 0
+      ? []
+      : [
+          "",
+          "## Run",
+          "",
+          `One change over several repos, root ${homeSlug}#${root}. Merge in this order:`,
+          "",
+          ...mergeOrder(prs, blockedBy).map((pr, index) => `${index + 1}. ${prRef(pr.url)} (${pr.repo})`),
+          ...noPr.map((entry) => `\nNo PR in \`${entry.repo}\`: no commits.${entry.open.length > 0 ? ` Still open: ${issueList(entry.open)}.` : ""}`),
+        ];
+  return [START, models, ...run, END].join("\n");
 };
 
 // The body with the run block replaced, or appended on a first pass.
 export const withRunBlock = (body: string, block: string): string => {
   const stripped = body.replace(new RegExp(`\\n*${START}[\\s\\S]*?${END}\\n*`), "\n").trimEnd();
-  return block === "" ? stripped : `${stripped}\n\n${block}\n`;
+  return `${stripped}\n\n${block}\n`;
 };
