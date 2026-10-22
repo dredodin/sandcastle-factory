@@ -15,7 +15,8 @@
     "shared/merge-record.mts",
     "shared/names.mts",
     "shared/parallel.mts",
-    "shared/pr-body.mts"
+    "shared/pr-body.mts",
+    "shared/prompt.mts"
   ],
   "mutator": { "excludedMutations": ["Regex"] },
   "tsconfigFile": "no-tsconfig.json",

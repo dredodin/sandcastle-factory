@@ -1,6 +1,8 @@
 # Task
 
-Plan the next cycle of a run on root issue #{{ROOT}} in `{{HOME_SLUG}}`. Issues live in this one repo; the work may touch several repos. Integration branch: `{{INTEGRATION_BRANCH}}`, the same name in every repo (the current branch is its copy in `{{HOME_NAME}}`).
+Plan the next step of root issue #{{ROOT}} in `{{HOME_SLUG}}`. Issues live in this one repo; the work may touch several repos. Integration branch: `{{INTEGRATION_BRANCH}}`, the same name in every repo (the current branch is its copy in `{{HOME_NAME}}`).
+
+Read what you don't already know. Re-check what may have changed since you last looked: the state below, issues and their blockers, PR comments, the plan check. Plan from what holds now, never from an earlier plan of yours.
 
 Read, never write, except replies as Rule 8 says. Never edit files, commit, label or close an issue. Nobody is there to answer: never ask a question, decide and go on.
 
