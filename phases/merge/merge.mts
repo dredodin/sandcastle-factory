@@ -24,7 +24,9 @@ const scriptMerge = async (integration: Sandbox, merges: readonly Merge[], verif
     appendFileSync(logPath, `$ ${command}\n${stdout}${stderr}\nexit ${exitCode}\n\n`);
     return exitCode === 0;
   };
-  const head = (await integration.exec("git rev-parse HEAD")).stdout.trim();
+  const recorded = await integration.exec("git rev-parse HEAD");
+  if (recorded.exitCode !== 0) throw new Error(`Merge script could not read HEAD of ${integration.branch}: ${recorded.stderr.trim()}`);
+  const head = recorded.stdout.trim();
   const attempt = async (): Promise<string | null> => {
     for (const merge of merges) {
       if (!(await step(merge.command))) return `conflict on ${merge.branch}`;
@@ -43,9 +45,9 @@ const runMerge = async (cycle: Cycle, repo: Repo, name: string, merges: readonly
   const integration = await cycle.integrations.get(repo);
   const logName = logFileName(`${cycle.number}-${name}`, repo.name, cycle.workspace.home.name);
   const reason = await timed(`${name} in ${repo.name}, cycle ${cycle.number}`, async () => {
-    const reason = await scriptMerge(integration, merges, verifyCommand(repo.name), logging(cycle, `${logName}-script`).path);
-    if (reason === null) return null;
-    log.info(`Merge into ${repo.name} handed to the agent: ${reason}.`);
+    const handover = await scriptMerge(integration, merges, verifyCommand(repo.name), logging(cycle, `${logName}-script`).path);
+    if (handover === null) return null;
+    log.info(`Merge into ${repo.name} handed to the agent: ${handover}.`);
     await integration.run({
       agent: cycle.agents.MERGE,
       promptFile: promptPath("merge"),
@@ -58,7 +60,7 @@ const runMerge = async (cycle: Cycle, repo: Repo, name: string, merges: readonly
       idleTimeoutSeconds: IDLE_TIMEOUT_SECONDS,
       logging: logging(cycle, logName),
     });
-    return reason;
+    return handover;
   });
   const branches = merges.map((merge) => merge.branch);
   const unmerged = branches.filter((branch) => !isMerged(repo, branch, integration.branch));
@@ -68,14 +70,11 @@ const runMerge = async (cycle: Cycle, repo: Repo, name: string, merges: readonly
 
 // Repos merge concurrently; items of one repo in their given order.
 export const merge = async (cycle: Cycle, items: readonly Item[]): Promise<void> => {
-  const repos = cycle.workspace.repos.filter((repo) => items.some((item) => item.repo === repo.name));
-  await inParallel(repos, (repo) => repo.name, (repo) =>
-    runMerge(
-      cycle,
-      repo,
-      "merge",
-      items.filter((item) => item.repo === repo.name).map((item) => mergeOf(item.branch, messagesFor(item), `${itemSlug(item)}: ${item.title}`)),
-    ),
+  const own = cycle.workspace.repos
+    .map((repo) => ({ repo, items: items.filter((item) => item.repo === repo.name) }))
+    .filter((group) => group.items.length > 0);
+  await inParallel(own, (group) => group.repo.name, (group) =>
+    runMerge(cycle, group.repo, "merge", group.items.map((item) => mergeOf(item.branch, messagesFor(item), `${itemSlug(item)}: ${item.title}`))),
   );
 };
 

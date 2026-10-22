@@ -37,23 +37,15 @@ export const plan = async (cycle: Cycle, openPrsText: string, session: string | 
 
   const agent = cycle.agents.PLAN;
   const resumed = session !== null && resumable(agent) ? session : null;
+  // Both prompts get these; the full one adds what a resumed session already knows.
+  const common = { ROOT: cycle.root, HOME_NAME: home.name, STATE: state, PLAN_CHECK: planCheckCommand(home.name) };
   const prompt: Pick<SandboxRunOptions, "promptFile" | "promptArgs" | "resumeSession"> =
     resumed === null
       ? {
           promptFile: promptPath("plan"),
-          promptArgs: {
-            ROOT: cycle.root,
-            INTEGRATION_BRANCH: branch,
-            DISCLAIMER,
-            HOME_SLUG: home.slug,
-            HOME_NAME: home.name,
-            REPOS: reposText(home.name, repos),
-            STATE: state,
-            OPEN_PRS: openPrsText,
-            PLAN_CHECK: planCheckCommand(home.name),
-          },
+          promptArgs: { ...common, INTEGRATION_BRANCH: branch, DISCLAIMER, HOME_SLUG: home.slug, REPOS: reposText(home.name, repos), OPEN_PRS: openPrsText },
         }
-      : { promptFile: planResumePath(), resumeSession: resumed, promptArgs: { ROOT: cycle.root, HOME_NAME: home.name, STATE: state, PLAN_CHECK: planCheckCommand(home.name) } };
+      : { promptFile: planResumePath(), resumeSession: resumed, promptArgs: common };
   if (resumed !== null) log.info(`  plan resumes session ${resumed}`);
 
   const result = await timed(`plan, cycle ${cycle.number}`, () => integration.run({
