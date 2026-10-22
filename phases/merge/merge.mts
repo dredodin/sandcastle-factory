@@ -1,50 +1,85 @@
+import { appendFileSync } from "node:fs";
+import type { Sandbox } from "@ai-hero/sandcastle";
 import { itemSlug, type Item } from "../../shared/item.mjs";
 import { log } from "../../shared/logger.mjs";
-import { messagesFor } from "../../shared/merge-record.mjs";
+import { mergeCommand, messagesFor } from "../../shared/merge-record.mjs";
 import { logFileName, verifyCommand } from "../../shared/names.mjs";
+import { inParallel } from "../../shared/parallel.mjs";
 import { promptPath } from "../../shared/paths.mjs";
 import { isMerged } from "../../shared/repo.mjs";
 import { IDLE_TIMEOUT_SECONDS, logging, type Cycle } from "../../shared/run.mjs";
 import type { Repo } from "../../shared/workspace.mjs";
 
 // One branch to merge: the exact merge command, and what the branch brings.
-type Merge = { readonly branch: string; readonly messages: readonly string[]; readonly brings: string };
+type Merge = { readonly command: string; readonly branch: string; readonly brings: string };
 
+const mergeOf = (branch: string, messages: readonly string[], brings: string): Merge => ({ command: mergeCommand(branch, messages), branch, brings });
+
+// Runs each merge command, then verify, in the integration sandbox; output goes to `logPath`.
+// Resolves to why the agent must take over, or null when all merged and verify is green.
+// On failure the branch is back at the HEAD it started from: no merge stays without a green verify.
+const scriptMerge = async (integration: Sandbox, merges: readonly Merge[], verify: string, logPath: string): Promise<string | null> => {
+  const step = async (command: string): Promise<boolean> => {
+    const { exitCode, stdout, stderr } = await integration.exec(command);
+    appendFileSync(logPath, `$ ${command}\n${stdout}${stderr}\nexit ${exitCode}\n\n`);
+    return exitCode === 0;
+  };
+  const head = (await integration.exec("git rev-parse HEAD")).stdout.trim();
+  const attempt = async (): Promise<string | null> => {
+    for (const merge of merges) {
+      if (!(await step(merge.command))) return `conflict on ${merge.branch}`;
+    }
+    return (await step(verify)) ? null : "verify red";
+  };
+  const reason = await attempt();
+  if (reason === null) return null;
+  await step("git rev-parse -q --verify MERGE_HEAD >/dev/null && git merge --abort || true");
+  if (!(await step(`git reset --hard ${head}`))) throw new Error(`Merge script could not reset ${integration.branch} to ${head}.`);
+  return reason;
+};
+
+// Script first; the merge agent only on a conflict or a red verify. Throws if a branch is left out.
 const runMerge = async (cycle: Cycle, repo: Repo, name: string, merges: readonly Merge[]): Promise<void> => {
   const integration = await cycle.integrations.get(repo);
-  await integration.run({
-    agent: cycle.agents.MERGE,
-    promptFile: promptPath("merge"),
-    promptArgs: {
-      MERGES: merges
-        .map(({ branch, messages, brings }) => `- \`git merge --no-ff ${branch} ${messages.map((m) => `-m "${m}"`).join(" ")}\` — ${brings}`)
-        .join("\n"),
-      VERIFY: verifyCommand(repo.name),
-    },
-    maxIterations: 1,
-    name: "merge",
-    idleTimeoutSeconds: IDLE_TIMEOUT_SECONDS,
-    logging: logging(cycle, logFileName(`${cycle.number}-${name}`, repo.name, cycle.workspace.home.name)),
-  });
+  const logName = logFileName(`${cycle.number}-${name}`, repo.name, cycle.workspace.home.name);
+  const reason = await scriptMerge(integration, merges, verifyCommand(repo.name), logging(cycle, `${logName}-script`).path);
+  if (reason !== null) {
+    log.info(`Merge into ${repo.name} handed to the agent: ${reason}.`);
+    await integration.run({
+      agent: cycle.agents.MERGE,
+      promptFile: promptPath("merge"),
+      promptArgs: {
+        MERGES: merges.map(({ command, brings }) => `- \`${command}\` — ${brings}`).join("\n"),
+        VERIFY: verifyCommand(repo.name),
+      },
+      maxIterations: 1,
+      name: "merge",
+      idleTimeoutSeconds: IDLE_TIMEOUT_SECONDS,
+      logging: logging(cycle, logName),
+    });
+  }
   const branches = merges.map((merge) => merge.branch);
   const unmerged = branches.filter((branch) => !isMerged(repo, branch, integration.branch));
   if (unmerged.length > 0) throw new Error(`Merge in ${repo.name} left out ${unmerged.join(", ")}.`);
-  log.info(`Merged into ${repo.name} ${integration.branch}: ${branches.join(", ")}`);
+  log.info(`Merged into ${repo.name} ${integration.branch} by ${reason === null ? "script" : "agent"}: ${branches.join(", ")}`);
 };
 
+// Repos merge concurrently; items of one repo in their given order.
 export const merge = async (cycle: Cycle, items: readonly Item[]): Promise<void> => {
-  for (const repo of cycle.workspace.repos) {
-    const own = items.filter((item) => item.repo === repo.name);
-    if (own.length === 0) continue;
-    await runMerge(
+  const repos = cycle.workspace.repos.filter((repo) => items.some((item) => item.repo === repo.name));
+  await inParallel(repos, (repo) => repo.name, (repo) =>
+    runMerge(
       cycle,
       repo,
       "merge",
-      own.map((item) => ({ branch: item.branch, messages: messagesFor(item), brings: `${itemSlug(item)}: ${item.title}` })),
-    );
-  }
+      items.filter((item) => item.repo === repo.name).map((item) => mergeOf(item.branch, messagesFor(item), `${itemSlug(item)}: ${item.title}`)),
+    ),
+  );
 };
 
-// Brings the repo's default branch into its integration branch; throws if it is left out.
-export const mergeDefault = (cycle: Cycle, repo: Repo): Promise<void> =>
-  runMerge(cycle, repo, "merge-default", [{ branch: repo.base, messages: [`SANDCASTLE: merge ${repo.base}`], brings: "brings the branch up to date" }]);
+// Brings each repo's default branch into its integration branch, repos concurrently; throws if one is left out.
+export const mergeDefaults = async (cycle: Cycle, repos: readonly Repo[]): Promise<void> => {
+  await inParallel(repos, (repo) => repo.name, (repo) =>
+    runMerge(cycle, repo, "merge-default", [mergeOf(repo.base, [`SANDCASTLE: merge ${repo.base}`], "brings the branch up to date")]),
+  );
+};

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { Item } from "./item.mjs";
-import { issuesIn, messagesFor } from "./merge-record.mjs";
+import { issuesIn, mergeCommand, messagesFor } from "./merge-record.mjs";
 
 const item = (issue: string, comments: string[]): Item => ({ issue, repo: "app", title: "t", comments, brief: "", branch: "b" });
 const commit = (i: Item): string => messagesFor(i).join("\n\n");
@@ -47,4 +47,8 @@ test("issuesIn: a subject line alone, or a trailer alone, names the issue, where
   assert.deepEqual(issuesIn(["body\nSANDCASTLE: merge #8"]), [8]);
   assert.deepEqual(issuesIn(["SANDCASTLE: merge c5\n\nIssue: #3"]), [3]);
   assert.deepEqual(issuesIn(["Issue: #4"]), [4]);
+});
+
+test("mergeCommand: one -m per message, in order", () => {
+  assert.equal(mergeCommand("b", ["SANDCASTLE: merge #7", "Issue: #7"]), 'git merge --no-ff b -m "SANDCASTLE: merge #7" -m "Issue: #7"');
 });
