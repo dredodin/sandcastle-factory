@@ -44,6 +44,7 @@ const prOfRepo = async (run: Run, repo: Repo): Promise<Pr> => {
       DISCLAIMER,
     },
     maxIterations: 1,
+    completionSignal: "</pull-request>",
     name: "pr",
     idleTimeoutSeconds: IDLE_TIMEOUT_SECONDS,
     logging: logging(run, logFileName("pr", repo.name, home.name)),
