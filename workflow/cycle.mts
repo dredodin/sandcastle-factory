@@ -4,7 +4,7 @@ import { configBlock } from "../shared/config-block.mjs";
 import type { Env } from "../shared/env.mjs";
 import { review } from "../phases/review/review.mjs";
 import { implement } from "../phases/implement/implement.mjs";
-import { merge, mergeDefault } from "../phases/merge/merge.mjs";
+import { merge, mergeDefaults } from "../phases/merge/merge.mjs";
 import { plan } from "../phases/plan/plan.mjs";
 import { pr } from "../phases/pr/pr.mjs";
 import { itemSlug, type Item } from "../shared/item.mjs";
@@ -41,7 +41,7 @@ const cycle = async (run: Run, number: number, openPrsText: string): Promise<rea
     log.info("Nothing to do: plan is empty.");
     return [];
   }
-  for (const repo of defaults) await mergeDefault(current, repo);
+  await mergeDefaults(current, defaults);
   await Promise.all([...new Set(items.map((item) => item.repo))].map((name) => current.integrations.get(repoNamed(run.workspace, name))));
 
   // Each item in its own worktree of its repo, done by its one agent.
