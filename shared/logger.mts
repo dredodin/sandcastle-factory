@@ -2,6 +2,7 @@ import { mkdirSync, openSync, readdirSync, writeSync } from "node:fs";
 import { Writable } from "node:stream";
 import { pino } from "pino";
 import pretty from "pino-pretty";
+import prettyMs from "pretty-ms";
 import { runFolderName, type Mode, type RunKey } from "./branches.mjs";
 
 // Every harness message goes to the terminal and, once a run folder is open, to its `console.log`: same text.
@@ -27,4 +28,14 @@ export const openRunLog = (homePath: string, mode: Mode, key: RunKey, branch: st
   const fd = openSync(`${logDir}/console.log`, "a");
   files.push({ write: (text) => writeSync(fd, text) });
   return logDir;
+};
+
+// Runs `work` and logs how long it took as `<label>: <duration>`, also when it fails.
+export const timed = async <T,>(label: string, work: () => Promise<T>): Promise<T> => {
+  const started = performance.now();
+  try {
+    return await work();
+  } finally {
+    log.info(`${label}: ${prettyMs(performance.now() - started)}`);
+  }
 };

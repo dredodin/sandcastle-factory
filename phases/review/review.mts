@@ -1,3 +1,4 @@
+import { timed } from "../../shared/logger.mjs";
 import { deepVerifyCommand, logFileName, verifyCommand } from "../../shared/names.mjs";
 import { promptPath } from "../../shared/paths.mjs";
 import { IDLE_TIMEOUT_SECONDS, phaseAgent, type Run } from "../../shared/run.mjs";
@@ -8,7 +9,7 @@ import type { Repo } from "../../shared/workspace.mjs";
 export const review = async (run: Run, repo: Repo): Promise<void> => {
   const { home } = run.workspace;
   const integration = await run.integrations.get(repo);
-  await integration.run({
+  await timed(`review ${repo.name}`, () => integration.run({
     promptFile: promptPath("review"),
     promptArgs: {
       ROOT: run.root,
@@ -24,5 +25,5 @@ export const review = async (run: Run, repo: Repo): Promise<void> => {
     name: "review",
     idleTimeoutSeconds: IDLE_TIMEOUT_SECONDS,
     ...phaseAgent(run, "REVIEW", logFileName("review", repo.name, home.name)),
-  });
+  }));
 };
