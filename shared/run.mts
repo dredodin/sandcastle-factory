@@ -23,7 +23,8 @@ export type Cycle = Run & { readonly number: number };
 export const DISCLAIMER = "> *Sandcastle agent reply — not a request.*";
 
 // What the planner decides for one cycle: the repos whose default branch must be merged first, and the items to work.
-export type Plan = { readonly defaults: readonly Repo[]; readonly items: readonly Item[] };
+// `session`: the plan agent's session id, for the next cycle to resume; null when the provider captured none.
+export type Plan = { readonly defaults: readonly Repo[]; readonly items: readonly Item[]; readonly session: string | null };
 
 // Where an agent run writes its log: one file per agent run, inside the run's own log folder.
 export const logging = (run: Pick<Run, "logDir">, name: string): { readonly type: "file"; readonly path: string } =>

@@ -30,16 +30,18 @@ export const startRun = (
   return logDir;
 };
 
+type Planned = { readonly items: readonly Item[]; readonly session: string | null };
+
 // One cycle: plan, merge default branches if asked, implement each item in parallel in its repo, merge.
-// Resolves to the planned items, none when the plan is empty.
-const cycle = async (run: Run, number: number, openPrsText: string): Promise<readonly Item[]> => {
+// Resolves to the planned items, none when the plan is empty, and the plan session for the next cycle.
+const cycle = async (run: Run, number: number, openPrsText: string, session: string | null): Promise<Planned> => {
   log.info(`\n=== Cycle ${number}/${MAX_CYCLES} ===`);
   const current = { ...run, number };
 
-  const { defaults, items } = await plan(current, openPrsText);
+  const { defaults, items, session: next } = await plan(current, openPrsText, session);
   if (defaults.length === 0 && items.length === 0) {
     log.info("Nothing to do: plan is empty.");
-    return [];
+    return { items: [], session: next };
   }
   await mergeDefaults(current, defaults);
   await Promise.all([...new Set(items.map((item) => item.repo))].map((name) => current.integrations.get(repoNamed(run.workspace, name))));
@@ -54,22 +56,23 @@ const cycle = async (run: Run, number: number, openPrsText: string): Promise<rea
   const done = items.filter((_, index) => committed[index]);
   if (done.length === 0) log.info("No item produced commits. Nothing to merge.");
   else await merge(current, done);
-  return items;
+  return { items, session: next };
 };
 
 // Cycles until the plan is empty or the cap is reached; one after another, each plans on the last one's merge.
+// The first cycle plans from scratch; each later one resumes the last plan session.
 // Resolves to every item planned along the way.
 export const cycles = (run: Run, openPrsText: string): Promise<readonly Item[]> => {
-  const from = async (number: number): Promise<readonly Item[]> => {
-    const items = await cycle(run, number, openPrsText);
+  const from = async (number: number, session: string | null): Promise<readonly Item[]> => {
+    const { items, session: next } = await cycle(run, number, openPrsText, session);
     if (items.length === 0) return [];
     if (number === MAX_CYCLES) {
       log.info(`Cycle cap (${MAX_CYCLES}) reached.`);
       return items;
     }
-    return [...items, ...(await from(number + 1))];
+    return [...items, ...(await from(number + 1, next))];
   };
-  return from(1);
+  return from(1, null);
 };
 
 // One review per touched repo over its whole branch, then the PRs. `kept` are open PRs of repos the run left as they were.
