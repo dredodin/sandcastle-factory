@@ -1,0 +1,78 @@
+# Releases from package.json's version, which every PR raises; CI never commits.
+# PR push: verify, then prerelease v<version>-pr.<PR>.<n>. PR closed: its prereleases go.
+# Push to main: verify, then Release v<version>; fails when that tag exists.
+name: release
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: release-${{ github.event.pull_request.number || github.ref }}
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  GH_REPO: ${{ github.repository }}
+
+jobs:
+  preview:
+    if: github.event_name == 'pull_request' && github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    env:
+      PR: ${{ github.event.pull_request.number }}
+      SHA: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run verify
+      - name: Publish preview
+        run: |
+          version=$(node -p 'require("./package.json").version')
+          n=$(gh release list --limit 1000 --json tagName --jq "[.[] | select(.tagName | startswith(\"v$version-pr.$PR.\"))] | length")
+          tag="v$version-pr.$PR.$((n + 1))"
+          gh release create "$tag" --target "$SHA" --prerelease --title "$tag" --notes "Preview of #$PR at $SHA."
+          gh pr comment "$PR" --body "Preview \`$tag\`: \`npm install -D \"git+https://github.com/$GH_REPO.git#$tag\"\`"
+
+  cleanup:
+    if: github.event_name == 'pull_request' && github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    env:
+      PR: ${{ github.event.pull_request.number }}
+    steps:
+      - name: Delete previews
+        run: |
+          gh release list --limit 1000 --json tagName --jq '.[].tagName' | grep -- "-pr\.$PR\." | while read -r tag; do
+            gh release delete "$tag" --cleanup-tag --yes
+          done
+
+  stable:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run verify
+      - name: Publish release
+        run: |
+          tag="v$(node -p 'require("./package.json").version')"
+          if git ls-remote --exit-code --tags origin "refs/tags/$tag" > /dev/null; then
+            echo "$tag exists: raise the version in package.json." >&2
+            exit 1
+          fi
+          gh release create "$tag" --target "$GITHUB_SHA" --title "$tag" --generate-notes

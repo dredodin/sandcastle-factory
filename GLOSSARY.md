@@ -82,3 +82,7 @@ _Avoid_: CI, pre-commit hook
 **Deep verify script**:
 The repo's own slow check, optional, run once over a whole branch at review. What it reports is fixed like any review finding.
 _Avoid_: slow verify, nightly check
+
+**Plan check script**:
+The home repo's own check of what work is due, optional, run by the plan agent every cycle. Passing means no work; what a failing one prints is planned like PR comments.
+_Avoid_: pre-plan hook

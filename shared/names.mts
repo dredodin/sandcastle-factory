@@ -35,5 +35,8 @@ export const verifyCommand = (repo: string): string => `bash ${repoDir(repo)}/ve
 // The command the review agent runs once over a branch, when the repo has a deep verify script.
 export const deepVerifyCommand = (repo: string, base: string): string => `bash ${repoDir(repo)}/deep-verify.sh ${base}`;
 
+// The command the plan agent runs each cycle, when the home repo has a plan check script.
+export const planCheckCommand = (repo: string): string => `bash ${repoDir(repo)}/plan-check.sh`;
+
 // A log file name; app repos get their name as a suffix, the home repo keeps the plain name.
 export const logFileName = (base: string, repo: string, home: string): string => (repo === home ? base : `${base}-${repo}`);

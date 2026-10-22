@@ -9,7 +9,7 @@ Either one issue URL, or one or more PR comment URLs. Read it whole. Issues live
 - Issue: `gh issue view {{ISSUE}} --repo {{HOME_SLUG}} --json number,title,body,labels,comments`.
 - PR comments, by URL fragment (`<slug>` is the owner/name in the URL): `#discussion_r<id>` → `gh api repos/<slug>/pulls/comments/<id>`; `#issuecomment-<id>` → `gh api repos/<slug>/issues/comments/<id>`; `#pullrequestreview-<id>` → `gh api repos/<slug>/pulls/<pr>/reviews/<id>`. For a review thread also read the comments under it, and the diff hunk it sits on. Replies starting `{{DISCLAIMER}}` are the agent's own: the planner's brief is one, and it says how the comment was understood.
 
-The planner's brief for PR comments (empty for an issue):
+The planner's brief for PR comments, or for the plan check script's output (empty for an issue). Beside an issue URL, a brief is the plan check's: the brief is the whole task, the issue only its context:
 
 {{BRIEF}}
 

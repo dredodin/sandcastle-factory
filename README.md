@@ -32,6 +32,7 @@ GLOSSARY-MAP.md                      # links .sandcastle/repos/<name>/… name t
     ├── setup.sh                     # runs in the sandbox once the worktree is ready
     ├── verify.sh                    # agents run it before every commit
     ├── deep-verify.sh               # optional; the review agent runs it once per branch, base branch as $1
+    ├── plan-check.sh                # optional, home repo only; the plan agent runs it each cycle, non-zero = its output is work
     └── source                       # link to an app repo's clone; setup makes it
 ```
 
@@ -62,6 +63,8 @@ npx sandcastle podman build-image --containerfile .sandcastle/repos/<name>/Conta
 
 ## Release
 
-1. Merge to main, `npm run verify` green.
-2. `npm version X.Y.Z && git push --follow-tags`; notes in the GitHub Release.
-3. `0.x`: a breaking change bumps the minor.
+Every PR raises `version` in `package.json`; `0.x`: a breaking change bumps the minor. CI (`.github/workflows/release.yml`) does the rest:
+
+- PR push: verify, then prerelease `v<version>-pr.<PR>.<n>`, install command commented on the PR.
+- PR closed: its prereleases and their tags deleted.
+- Push to main: verify, then Release `v<version>`; fails when that tag exists.
