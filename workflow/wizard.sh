@@ -429,7 +429,10 @@ models_stage() {
           fi
         else
           for (( i = n - 1; i >= 0; i-- )); do
-            if [[ -z "${PROV[i]}" || -z "${MODEL[i]}" || -z "${EFF[i]}" ]]; then problem="${PHASES[i]} has no model yet: Enter on it."; cur=$i; fi
+            read -r -a list <<< "$(efforts_of "${PROV[i]}")"
+            if [[ -z "${MODEL[i]}" ]] || (( $(index_of "${EFF[i]}" "${list[@]+"${list[@]}"}") < 0 )); then
+              problem="${PHASES[i]} needs a model (Enter) and an effort its provider accepts (←→)."; cur=$i
+            fi
           done
           if [[ -z "$problem" ]]; then
             if (( cur == n + 2 )); then DONE=1; fi
@@ -603,15 +606,17 @@ images_stage() {
     warn "missing: ${missing_files[*]}: add each, FROM $WIZARD_BASE_IMAGE, then run setup again."
     exit 1
   fi
+  # build_command IMAGE [FILE] sets CMD to the command building IMAGE: the base image without FILE.
+  build_command() {
+    if [[ -z "${2:-}" ]]; then CMD=("$sandbox" build -t "$1" --build-arg "AGENT_UID=$(id -u)" --build-arg "AGENT_GID=$(id -g)" "$WIZARD_FACTORY_DIR")
+    else CMD=(npx sandcastle "$sandbox" build-image --containerfile "$2" --image-name "$1"); fi
+  }
   say "Missing images. These commands build them, minutes each:"
   printf '\n'
   for i in "${builds[@]}"; do
     read -r image file <<< "$i"
-    if [[ -z "$file" ]]; then
-      say "$sandbox build -t $image --build-arg AGENT_UID=$(id -u) --build-arg AGENT_GID=$(id -g) $WIZARD_FACTORY_DIR"
-    else
-      say "npx sandcastle $sandbox build-image --containerfile $file --image-name $image"
-    fi
+    build_command "$image" "$file"
+    say "${CMD[*]}"
   done
   printf '\n'
   if ! confirm "Build them now?"; then
@@ -620,11 +625,8 @@ images_stage() {
   fi
   for i in "${builds[@]}"; do
     read -r image file <<< "$i"
-    if [[ -z "$file" ]]; then
-      "$sandbox" build -t "$image" --build-arg "AGENT_UID=$(id -u)" --build-arg "AGENT_GID=$(id -g)" "$WIZARD_FACTORY_DIR"
-    else
-      npx sandcastle "$sandbox" build-image --containerfile "$file" --image-name "$image"
-    fi
+    build_command "$image" "$file"
+    "${CMD[@]}"
   done
 }
 

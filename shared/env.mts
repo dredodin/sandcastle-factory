@@ -37,7 +37,7 @@ const has = (values: Values, key: string): boolean => (values[key] ?? "") !== ""
 
 // Every key the machine needs, given the values so far.
 // Provider-dependent keys appear once the providers are known.
-export const requiredKeys = (values: Values, repoNames: readonly string[]): readonly string[] => {
+const requiredKeys = (values: Values, repoNames: readonly string[]): readonly string[] => {
   const providers = PHASES.map((phase) => values[`${phase}_PROVIDER`]);
   const claudeAuth = CLAUDE_AUTH.find((key) => has(values, key)) ?? CLAUDE_AUTH[0];
   return [

@@ -25,7 +25,7 @@ npm install --save-dev "git+https://github.com/<owner>/sandcastle-factory.git#v0
 ```text
 GLOSSARY-MAP.md                      # links .sandcastle/repos/<name>/… name the repos
 .sandcastle/
-├── .env                             # per machine, written by the setup wizard only; keys: shared/env.mts
+├── .env                             # per machine; keys: shared/env.mts
 ├── logs/                            # one folder per run
 └── repos/<name>/
     ├── Containerfile                # FROM sandcastle-factory:base + what verify.sh needs

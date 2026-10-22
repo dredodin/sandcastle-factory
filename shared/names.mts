@@ -8,9 +8,6 @@ export const repoNamesFromMap = (map: string): readonly string[] => [...new Set(
 // The `.env` key holding a repo's local path.
 export const repoKey = (name: string): string => `REPO_${name.toUpperCase().replace(/[^A-Z0-9]/g, "_")}`;
 
-// Each repo's `.env` key, mapped back to the repo name.
-export const repoNamesByKey = (names: readonly string[]): Readonly<Record<string, string>> => Object.fromEntries(names.map((name) => [repoKey(name), name]));
-
 export type Slug = { readonly owner: string; readonly name: string };
 
 // A repo's GitHub URL from its `owner/name`.
