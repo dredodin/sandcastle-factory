@@ -7,7 +7,7 @@ import { noSandbox } from "@ai-hero/sandcastle/sandboxes/no-sandbox";
 import { podman } from "@ai-hero/sandcastle/sandboxes/podman";
 import { message } from "./cli.mjs";
 import type { Env } from "./env.mjs";
-import { log } from "./logger.mjs";
+import { log, timed } from "./logger.mjs";
 import { imageName, repoDir } from "./names.mjs";
 import { sh } from "./shell.mjs";
 import type { Repo, Workspace } from "./workspace.mjs";
@@ -23,8 +23,8 @@ const teardownRetry = retry(handleAll, { maxAttempts: TEARDOWN_ATTEMPTS - 1, bac
 // Where the sandboxes of a run get their rights: the Workspace, and the machine's `.env`.
 export type SandboxContext = { readonly workspace: Workspace; readonly env: Env };
 
-// One sandbox: a worktree of one repo on one branch, cut from `baseBranch`.
-export type SandboxSpec = { readonly repo: Repo; readonly branch: string; readonly baseBranch: string };
+// One sandbox: a worktree of one repo on one branch, cut from `baseBranch`. `name`: the item's slug, or `integration`.
+export type SandboxSpec = { readonly repo: Repo; readonly name: string; readonly branch: string; readonly baseBranch: string };
 
 const providerFor = ({ workspace, env }: SandboxContext, repo: Repo): SandboxProvider => {
   const options = { imageName: imageName(workspace.home.name, repo.name), env: env.secrets };
@@ -74,9 +74,10 @@ type Opened = {
   readonly finish: () => Promise<void>;
 };
 
-const open = async (context: SandboxContext, { repo, branch, baseBranch }: SandboxSpec): Promise<Opened> => {
+const open = async (context: SandboxContext, { repo, name, branch, baseBranch }: SandboxSpec): Promise<Opened> => {
+  const step = `open ${repo.name} ${name}:`;
   if (!repo.isHome) excludeFactoryFiles(repo);
-  const worktree = await createWorktree({ cwd: repo.path, branchStrategy: { type: "branch", branch, baseBranch } });
+  const worktree = await timed(`${step} worktree`, () => createWorktree({ cwd: repo.path, branchStrategy: { type: "branch", branch, baseBranch } }));
   const kept = (reason: string): Error => new Error(`${reason} (worktree kept: ${worktree.worktreePath})`);
   try {
     copyScripts(context.workspace, repo, worktree.worktreePath);
@@ -84,10 +85,10 @@ const open = async (context: SandboxContext, { repo, branch, baseBranch }: Sandb
     throw kept(message(error));
   }
 
-  const sandbox = await worktree.createSandbox({ sandbox: providerFor(context, repo) }).catch((error: unknown) => {
+  const sandbox = await timed(`${step} sandbox`, () => worktree.createSandbox({ sandbox: providerFor(context, repo) })).catch((error: unknown) => {
     throw kept(message(error));
   });
-  const setup = await sandbox.exec(`bash ${repoDir(repo.name)}/setup.sh`).catch(async (error: unknown) => {
+  const setup = await timed(`${step} setup.sh`, () => sandbox.exec(`bash ${repoDir(repo.name)}/setup.sh`)).catch(async (error: unknown) => {
     await closeSandbox(sandbox, branch);
     throw kept(message(error));
   });
@@ -132,13 +133,13 @@ export type Integrations = {
 // Runs `use` with lazily opened integration worktrees; same closing rules as `withSandbox`, for all of them.
 export const withIntegrations = async <T,>(
   context: SandboxContext,
-  specFor: (repo: Repo) => SandboxSpec,
+  specFor: (repo: Repo) => Omit<SandboxSpec, "name">,
   use: (integrations: Integrations) => Promise<T>,
 ): Promise<T> => {
   const all = new Map<string, { readonly repo: Repo; readonly opening: Promise<Opened> }>();
   const integrations: Integrations = {
     get: async (repo) => {
-      const existing = all.get(repo.name) ?? { repo, opening: open(context, specFor(repo)) };
+      const existing = all.get(repo.name) ?? { repo, opening: open(context, { ...specFor(repo), name: "integration" }) };
       all.set(repo.name, existing);
       return (await existing.opening).sandbox;
     },

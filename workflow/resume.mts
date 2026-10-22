@@ -19,7 +19,7 @@ export const resume = async (workspace: Workspace, env: Env, root: number): Prom
   const before = new Map(takes.map((take) => [take.repo, headOf(repoNamed(workspace, take.repo), `origin/${branch}`)]));
 
   const context = { workspace, env };
-  const specFor = (repo: Repo): SandboxSpec => ({ repo, branch, baseBranch: before.has(repo.name) ? `origin/${branch}` : repo.base });
+  const specFor = (repo: Repo): Omit<SandboxSpec, "name"> => ({ repo, branch, baseBranch: before.has(repo.name) ? `origin/${branch}` : repo.base });
   return withIntegrations(context, specFor, async (integrations) => {
     const run: Run = { agents, context, workspace, root, title, branch, integrations, logDir };
     const planned = await cycles(run, takes.map((take) => `- \`${take.repo}\`: ${take.url}`).join("\n"));
