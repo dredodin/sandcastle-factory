@@ -45,6 +45,7 @@ export const plan = async (cycle: Cycle, openPrsText: string): Promise<Plan> => 
       PLAN_CHECK: planCheckCommand(home.name),
     },
     maxIterations: 1,
+    completionSignal: "</plan>",
     name: "plan",
     idleTimeoutSeconds: IDLE_TIMEOUT_SECONDS,
     logging: logging(cycle, `${cycle.number}-plan`),
