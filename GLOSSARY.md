@@ -86,3 +86,12 @@ _Avoid_: slow verify, nightly check
 **Plan check script**:
 The home repo's own check of what work is due, optional, run by the plan agent every cycle. Passing means no work; what a failing one prints is planned like PR comments.
 _Avoid_: pre-plan hook
+
+## Setup
+
+**Setup wizard**:
+The terminal walk-through `setup` opens: the only writer of `.sandcastle/.env`.
+
+**Wizard stage**:
+One step of the setup wizard.
+_Avoid_: phase

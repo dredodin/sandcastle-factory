@@ -1,44 +1,51 @@
+import { spawnSync } from "node:child_process";
 import { existsSync, lstatSync, mkdirSync, rmSync, symlinkSync } from "node:fs";
-import { createInterface } from "node:readline/promises";
-import { checkEnv, missingKeys, readValues, requiredKeys, writeValue, type Env, type Values } from "../shared/env.mjs";
+import { fileURLToPath } from "node:url";
+import type { Command } from "../shared/cli.mjs";
+import { EFFORTS, PHASES, PROVIDERS, SANDBOXES, checkEnv, envPath, missingKeys, readValues, withShellOverrides, type Env, type Values } from "../shared/env.mjs";
 import { log } from "../shared/logger.mjs";
-import { repoDir, repoNamesByKey } from "../shared/names.mjs";
+import { imageName, repoDir, repoKey } from "../shared/names.mjs";
 import { succeeds, sh } from "../shared/shell.mjs";
 import { appRepoNames, readLayout, resolveWorkspace, type Layout, type Workspace } from "../shared/workspace.mjs";
 
+const forwardSlashes = (path: string): string => path.replace(/\\/g, "/");
+const WIZARD = forwardSlashes(fileURLToPath(new URL("./wizard.sh", import.meta.url)));
+const FACTORY_DIR = forwardSlashes(fileURLToPath(new URL("..", import.meta.url)));
+// The image every repo image starts FROM, built from FACTORY_DIR.
+const BASE_IMAGE = "sandcastle-factory:base";
+
 const isGitRepo = (path: string): boolean => existsSync(path) && succeeds(path, "git", "rev-parse", "--git-dir");
 
-const forwardSlashes = (path: string): string => path.trim().replace(/\\/g, "/");
+// `.env` with the shell's overrides; nothing else is read.
+const settingsOf = (layout: Layout): Values => withShellOverrides(readValues(layout.root), process.env, appRepoNames(layout));
 
-const ask = async (question: string): Promise<string> => {
-  if (!process.stdin.isTTY) throw new Error(`${question.trim()} Not set, and no terminal to ask on. Run \`setup\` in a terminal.`);
-  const lines = createInterface({ input: process.stdin, output: process.stdout });
-  try {
-    return (await lines.question(question)).trim();
-  } finally {
-    lines.close();
-  }
+// Keys a run cannot start with: missing ones, and repo paths that are no git clone. Names only, never values.
+const unready = (values: Values, names: readonly string[]): readonly string[] => [
+  ...missingKeys(values, names),
+  ...names.map(repoKey).filter((key) => values[key] !== undefined && !isGitRepo(values[key])),
+];
+
+// What the wizard is handed, so bash holds no copy of the factory's lists.
+const wizardEnv = (layout: Layout): Values => {
+  const names = appRepoNames(layout);
+  return {
+    ENV_FILE: envPath(layout.root),
+    WIZARD_PHASES: PHASES.join(" "),
+    WIZARD_EFFORTS: PROVIDERS.map((provider) => [provider, ...EFFORTS[provider]].join(" ")).join("\n"),
+    WIZARD_SANDBOXES: SANDBOXES.join(" "),
+    WIZARD_HOME_SLUG: layout.homeSlug,
+    WIZARD_REPOS: names.map((name) => `${repoKey(name)} ${name}`).join("\n"),
+    WIZARD_BASE_IMAGE: BASE_IMAGE,
+    WIZARD_IMAGES: [layout.homeName, ...names].map((name) => `${imageName(layout.homeName, name)} ${repoDir(name)}/Containerfile`).join("\n"),
+    WIZARD_FACTORY_DIR: FACTORY_DIR,
+  };
 };
 
-// Asks for every missing value and appends it to `.env`; a repo path that is missing or no git repo is asked again, never cloned.
-const fillEnv = async (layout: Layout): Promise<Values> => {
-  const names = appRepoNames(layout);
-  const repoOfKey = repoNamesByKey(names);
-  const invalidPath = (values: Values, key: string): boolean => repoOfKey[key] !== undefined && values[key] !== undefined && !isGitRepo(values[key]);
-  for (;;) {
-    const values = readValues(layout.root);
-    const key = requiredKeys(values, names).find((required) => (values[required] ?? "") === "" || invalidPath(values, required));
-    if (key === undefined) return values;
-    const repoName = repoOfKey[key];
-    const answer = await ask(repoName === undefined ? `${key}: ` : `${key} (local path of ${repoName}, a git clone): `);
-    if (answer === "") continue;
-    if (repoName !== undefined && !isGitRepo(forwardSlashes(answer))) {
-      log.warn(`${answer} is not a git repository.`);
-      continue;
-    }
-    mkdirSync(`${layout.root}/.sandcastle`, { recursive: true });
-    writeValue(layout.root, key, repoName === undefined ? answer : forwardSlashes(answer));
-  }
+// The wizard is the only writer of `.env`.
+const runWizard = (layout: Layout): void => {
+  mkdirSync(`${layout.root}/.sandcastle`, { recursive: true });
+  const result = spawnSync("bash", [WIZARD], { cwd: layout.root, stdio: "inherit", env: { ...process.env, ...wizardEnv(layout) } });
+  if (result.status !== 0) throw new Error("The setup wizard stopped before the end.");
 };
 
 // `.sandcastle/repos/<name>/source` points at the repo's folder; a junction on Windows, which needs no rights, a symlink elsewhere.
@@ -72,11 +79,14 @@ const createLabels = (workspace: Workspace): void => {
 };
 
 // Makes the machine ready for the Workspace of the current directory's repo; returns what a run needs.
-export const setup = async (): Promise<{ readonly workspace: Workspace; readonly env: Env }> => {
+// In a terminal, the wizard opens: always for `setup`, only when something is missing for a run.
+export const setup = async (mode: Command["mode"]): Promise<{ readonly workspace: Workspace; readonly env: Env }> => {
   const layout = readLayout(process.cwd());
-  const values = await fillEnv(layout);
   const names = appRepoNames(layout);
-  if (missingKeys(values, names).length > 0) throw new Error("Setup left values missing.");
+  if (process.stdin.isTTY && (mode === "setup" || unready(settingsOf(layout), names).length > 0)) runWizard(layout);
+  const values = settingsOf(layout);
+  const left = unready(values, names);
+  if (left.length > 0) throw new Error(`Missing or wrong in .sandcastle/.env: ${left.join(", ")}. A human runs \`npm run sandcastle -- setup\` in their terminal.`);
   const env = checkEnv(values, names);
   const workspace = resolveWorkspace(layout, env.repoPaths);
   linkSources(workspace);

@@ -7,7 +7,7 @@ import { setup } from "./workflow/setup.mjs";
 import { take } from "./workflow/take.mjs";
 
 const command = parseArgs(process.argv.slice(2));
-const ready = await setup().catch((error: unknown) => fail(`Setup failed: ${message(error)}`));
+const ready = await setup(command.mode).catch((error: unknown) => fail(`Setup failed: ${message(error)}`));
 switch (command.mode) {
   case "take":
     log.info(await take(ready.workspace, ready.env, command.root).catch((error: unknown) => fail(`Take failed: ${message(error)}`)));

@@ -4,7 +4,7 @@ import { messagesFor } from "../../shared/merge-record.mjs";
 import { logFileName, verifyCommand } from "../../shared/names.mjs";
 import { promptPath } from "../../shared/paths.mjs";
 import { isMerged } from "../../shared/repo.mjs";
-import { IDLE_TIMEOUT_SECONDS, logging, type Cycle } from "../../shared/run.mjs";
+import { IDLE_TIMEOUT_SECONDS, phaseAgent, type Cycle } from "../../shared/run.mjs";
 import type { Repo } from "../../shared/workspace.mjs";
 
 // One branch to merge: the exact merge command, and what the branch brings.
@@ -13,7 +13,6 @@ type Merge = { readonly branch: string; readonly messages: readonly string[]; re
 const runMerge = async (cycle: Cycle, repo: Repo, name: string, merges: readonly Merge[]): Promise<void> => {
   const integration = await cycle.integrations.get(repo);
   await integration.run({
-    agent: cycle.agents.MERGE,
     promptFile: promptPath("merge"),
     promptArgs: {
       MERGES: merges
@@ -24,7 +23,7 @@ const runMerge = async (cycle: Cycle, repo: Repo, name: string, merges: readonly
     maxIterations: 1,
     name: "merge",
     idleTimeoutSeconds: IDLE_TIMEOUT_SECONDS,
-    logging: logging(cycle, logFileName(`${cycle.number}-${name}`, repo.name, cycle.workspace.home.name)),
+    ...phaseAgent(cycle, "MERGE", logFileName(`${cycle.number}-${name}`, repo.name, cycle.workspace.home.name)),
   });
   const branches = merges.map((merge) => merge.branch);
   const unmerged = branches.filter((branch) => !isMerged(repo, branch, integration.branch));
