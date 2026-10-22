@@ -23,7 +23,8 @@ export const inParallel = async <T, R>(
   };
   const done = (await Promise.all(Array.from({ length: Math.min(MAX_PARALLEL, items.length) }, worker))).flat().sort((a, b) => a.index - b.index);
 
+  const values = done.flatMap(({ outcome }) => (outcome.status === "fulfilled" ? [outcome.value] : []));
+  if (values.length === items.length) return values;
   const failures = done.flatMap(({ index, outcome }) => (outcome.status === "rejected" ? [`  ${name(items[index]!)}: ${message(outcome.reason)}`] : []));
-  if (failures.length > 0) throw new Error(`Failed items:\n${failures.join("\n")}`);
-  return done.flatMap(({ outcome }) => (outcome.status === "fulfilled" ? [outcome.value] : []));
+  throw new Error(`Failed items:\n${failures.join("\n")}`);
 };

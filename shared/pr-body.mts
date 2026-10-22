@@ -37,7 +37,7 @@ export const prRef = (url: string): string => {
 // Ties and cycles keep the given order.
 export const mergeOrder = (prs: readonly Pr[], blockedBy: BlockedBy): readonly Pr[] => {
   const dependsOn = (pr: Pr, other: Pr): boolean =>
-    pr !== other && pr.issues.some((issue) => (blockedBy[issue] ?? []).some((blocker) => other.issues.includes(blocker)));
+    pr !== other && pr.issues.some((issue) => blockedBy[issue]?.some((blocker) => other.issues.includes(blocker)) ?? false);
   const place = (placed: readonly Pr[], left: readonly Pr[]): readonly Pr[] => {
     const [first] = left;
     if (first === undefined) return placed;

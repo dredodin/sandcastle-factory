@@ -19,7 +19,7 @@ const pad = (cells: readonly string[], widths: readonly number[]): string =>
 // The first thing a run logs: what it is, where it writes, what runs each phase. Never a token or key.
 export const configBlock = (config: ConfigBlock): string => {
   const rows = [["phase", "provider", "model", "effort"], ...config.settings.map((s) => [s.phase, s.provider, s.model, s.effort])];
-  const widths = [0, 1, 2, 3].map((column) => Math.max(...rows.map((row) => row[column]?.length ?? 0)));
+  const widths = [0, 1, 2, 3].map((column) => Math.max(...rows.map((row) => row[column]!.length)));
   return [
     `${config.mode} #${config.root} — ${config.title}`,
     `branch: ${config.branch}`,

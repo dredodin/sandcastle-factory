@@ -22,9 +22,10 @@ const isIssue = (item: Kinded): boolean => item.comments.length === 0;
 
 // Names the item in branches, logs and console: `42` for an issue, `c<id>` after its first comment for comments.
 export const itemSlug = (item: Kinded): string => {
-  if (isIssue(item)) return item.issue;
-  const id = /[0-9]+$/.exec(item.comments[0] ?? "")?.[0];
-  if (id === undefined) throw new Error(`No comment id in ${item.comments[0] ?? ""}.`);
+  const [first] = item.comments;
+  if (first === undefined) return item.issue;
+  const id = /[0-9]+$/.exec(first)?.[0];
+  if (id === undefined) throw new Error(`No comment id in ${first}.`);
   return `c${id}`;
 };
 

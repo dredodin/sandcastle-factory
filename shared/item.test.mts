@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { implementRunOf, itemFits, itemSlug, mergeSubject, type Item } from "./item.mjs";
+import { implementRunOf, itemFits, itemSchema, itemSlug, mergeSubject, type Item } from "./item.mjs";
 
 const home = { name: "hub", slug: "acme/hub" };
 const context = { home, otherBranches: "- app: sandcastle/hub/issue-7-take-1" };
@@ -11,6 +11,10 @@ const comments = {
 };
 
 const full = (i: { issue: string; comments: string[] }, repo = "hub"): Item => ({ ...i, repo, title: "t", brief: "", branch: "b" });
+
+test("itemSchema: keeps every field of an item", () => {
+  assert.deepEqual(itemSchema.parse(full(comments, "app")), full(comments, "app"));
+});
 
 test("itemSlug: issue number, or c<id> of the first comment", () => {
   assert.equal(itemSlug(issue), "42");
