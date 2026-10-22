@@ -1,5 +1,5 @@
 import { itemSlug, type Item } from "../../shared/item.mjs";
-import { log } from "../../shared/logger.mjs";
+import { log, timed } from "../../shared/logger.mjs";
 import { messagesFor } from "../../shared/merge-record.mjs";
 import { logFileName, verifyCommand } from "../../shared/names.mjs";
 import { promptPath } from "../../shared/paths.mjs";
@@ -12,7 +12,7 @@ type Merge = { readonly branch: string; readonly messages: readonly string[]; re
 
 const runMerge = async (cycle: Cycle, repo: Repo, name: string, merges: readonly Merge[]): Promise<void> => {
   const integration = await cycle.integrations.get(repo);
-  await integration.run({
+  await timed(`${name} ${repo.name}`, () => integration.run({
     agent: cycle.agents.MERGE,
     promptFile: promptPath("merge"),
     promptArgs: {
@@ -25,7 +25,7 @@ const runMerge = async (cycle: Cycle, repo: Repo, name: string, merges: readonly
     name: "merge",
     idleTimeoutSeconds: IDLE_TIMEOUT_SECONDS,
     logging: logging(cycle, logFileName(`${cycle.number}-${name}`, repo.name, cycle.workspace.home.name)),
-  });
+  }));
   const branches = merges.map((merge) => merge.branch);
   const unmerged = branches.filter((branch) => !isMerged(repo, branch, integration.branch));
   if (unmerged.length > 0) throw new Error(`Merge in ${repo.name} left out ${unmerged.join(", ")}.`);

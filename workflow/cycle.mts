@@ -47,7 +47,7 @@ const cycle = async (run: Run, number: number, openPrsText: string): Promise<rea
   // Each item in its own worktree of its repo, done by its one agent.
   // Resolves to whether the item's branch carries commits to merge.
   const committed = await inParallel(items, itemSlug, (item) =>
-    withSandbox(run.context, { repo: repoNamed(run.workspace, item.repo), branch: item.branch, baseBranch: run.branch }, (sandbox) =>
+    withSandbox(run.context, { repo: repoNamed(run.workspace, item.repo), name: itemSlug(item), branch: item.branch, baseBranch: run.branch }, (sandbox) =>
       implement(current, sandbox, item),
     ),
   );
