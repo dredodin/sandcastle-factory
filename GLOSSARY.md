@@ -45,7 +45,7 @@ One plan → implement → merge pass inside a run. A run repeats cycles until t
 _Avoid_: round, iteration
 
 **Phase**:
-One step in a run: plan, implement, merge, review or PR. Each is an agent's, except a clean merge, done by a script.
+One step in a run: plan, implement, merge, review or PR. Each is an agent's, except a merge without conflicts and with a green verify script: a script does it.
 _Avoid_: stage, step
 
 **Item**:

@@ -13,10 +13,10 @@ import type { Repo } from "../../shared/workspace.mjs";
 type Merge = { readonly branch: string; readonly command: string; readonly brings: string };
 
 // Script first: one chain merges every branch in order, then verifies; on any failure it puts HEAD back and exits non-zero,
-// and the merge agent takes over with today's prompt. Throws if a branch is left out either way.
+// and the merge agent takes over with the merge prompt. Throws if a branch is left out either way.
 const runMerge = async (cycle: Cycle, repo: Repo, name: string, merges: readonly Merge[]): Promise<void> => {
   const integration = await cycle.integrations.get(repo);
-  const script = await timed(`${name} ${repo.name}`, async () => {
+  const byScript = await timed(`${name} ${repo.name}`, async () => {
     const logName = logFileName(`${cycle.number}-${name}`, repo.name, cycle.workspace.home.name);
     const steps = [...merges.map((merge) => merge.command), verifyCommand(repo.name)].join(" && ");
     const chain = await integration.exec(
@@ -37,12 +37,12 @@ const runMerge = async (cycle: Cycle, repo: Repo, name: string, merges: readonly
         logging: logging(cycle, logName),
       });
     }
-    return chain;
+    return chain.exitCode === 0;
   });
   const branches = merges.map((merge) => merge.branch);
   const unmerged = branches.filter((branch) => !isMerged(repo, branch, integration.branch));
   if (unmerged.length > 0) throw new Error(`Merge in ${repo.name} left out ${unmerged.join(", ")}.`);
-  log.info(`Merged into ${repo.name} ${integration.branch} by ${script.exitCode === 0 ? "script" : "agent"}: ${branches.join(", ")}`);
+  log.info(`Merged into ${repo.name} ${integration.branch} by ${byScript ? "script" : "agent"}: ${branches.join(", ")}`);
 };
 
 // Repos merge concurrently; items of one repo in their given order.
