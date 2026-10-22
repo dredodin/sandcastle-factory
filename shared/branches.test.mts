@@ -28,6 +28,10 @@ test("isTakeBranch: own takes only", () => {
   assert.equal(isTakeBranch({ home: "hub", root: 42 }, "sandcastle/issue-42-take-2"), false);
 });
 
+test("isTakeBranch: a home name with regex characters matches itself", () => {
+  assert.equal(isTakeBranch({ home: "my.hub", root: 42 }, "sandcastle/my.hub/issue-42-take-1"), true);
+});
+
 test("freeItemBranch: base name when free, then -2, then -3", () => {
   const take = "sandcastle/hub/issue-42-take-1";
   assert.equal(freeItemBranch(take, "7", new Set()), "sandcastle/hub/issue-42-take-1-7");
@@ -65,13 +69,16 @@ test("pickOpenTakes: several in one repo throws naming the URLs", () => {
     { url: "https://x/pull/10", headRefName: "sandcastle/hub/issue-42-take-1" },
     { url: "https://x/pull/11", headRefName: "sandcastle/hub/issue-42-take-2" },
   ];
-  assert.throws(() => pickOpenTakes({ home: "hub", root: 42 }, [{ repo: "hub", prs }]), (e: Error) => e.message.includes("pull/10") && e.message.includes("pull/11"));
+  assert.throws(
+    () => pickOpenTakes({ home: "hub", root: 42 }, [{ repo: "hub", prs }]),
+    (e: Error) => e.message.includes("several open take PRs in hub") && e.message.includes("  https://x/pull/10\n  https://x/pull/11"),
+  );
 });
 
 test("pickOpenTakes: different takes in different repos throws", () => {
   assert.throws(
-    () => pickOpenTakes({ home: "hub", root: 42 }, [{ repo: "hub", prs: [pr(42, 1)] }, { repo: "app", prs: [pr(42, 2)] }]),
-    /different branches/,
+    () => pickOpenTakes({ home: "hub", root: 42 }, [{ repo: "hub", prs: [pr(42, 1)] }, { repo: "app", prs: [{ ...pr(42, 2), url: "https://x/pull/5" }] }]),
+    (e: Error) => e.message.includes("different branches") && e.message.includes("  https://x/pull/42\n  https://x/pull/5"),
   );
 });
 
@@ -87,6 +94,10 @@ test("assertNoOpenTake: no take PRs passes", () => {
 
 test("assertNoOpenTake: an open take PR in any repo throws naming its URL", () => {
   assert.throws(() => assertNoOpenTake({ home: "hub", root: 42 }, [{ repo: "hub", prs: [] }, { repo: "app", prs: [pr(42, 1)] }]), /https:\/\/x\/pull\/42/);
+  assert.throws(
+    () => assertNoOpenTake({ home: "hub", root: 42 }, [{ repo: "hub", prs: [pr(42, 1)] }, { repo: "app", prs: [{ ...pr(42, 1), url: "https://x/pull/5" }] }]),
+    (e: Error) => e.message.includes("  https://x/pull/42\n  https://x/pull/5"),
+  );
 });
 
 test("assertNoOpenTake: other roots' take PRs and non-take branches are ignored", () => {

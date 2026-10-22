@@ -3,7 +3,7 @@
 const MAP_LINK = /\]\(\s*<?(?:\.\/)?\.sandcastle\/repos\/([^/)>\s]+)\//g;
 
 // Repo names the home repo's GLOSSARY-MAP links to as `.sandcastle/repos/<name>/…`, each once, in order.
-export const repoNamesFromMap = (map: string): readonly string[] => [...new Set([...map.matchAll(MAP_LINK)].map((match) => match[1] ?? ""))];
+export const repoNamesFromMap = (map: string): readonly string[] => [...new Set([...map.matchAll(MAP_LINK)].map((match) => match[1]!))];
 
 // The `.env` key holding a repo's local path.
 export const repoKey = (name: string): string => `REPO_${name.toUpperCase().replace(/[^A-Z0-9]/g, "_")}`;
@@ -18,9 +18,10 @@ export const githubUrl = (slug: string): string => `https://github.com/${slug}`;
 
 // `owner/name` of a GitHub remote URL (https or ssh, with or without `.git`); throws for any other host.
 export const slugFromRemote = (url: string): Slug => {
-  const [, owner, name] = /github\.com[:/]([^/\s]+)\/([^/\s]+?)(?:\.git)?\/?$/.exec(url.trim()) ?? [];
-  if (owner === undefined || name === undefined) throw new Error(`${url.trim()} is not a GitHub remote.`);
-  return { owner, name };
+  const remote = url.trim();
+  const match = /github\.com[:/]([^/\s]+)\/([^/\s]+?)(?:\.git)?\/?$/.exec(remote);
+  if (match === null) throw new Error(`${remote} is not a GitHub remote.`);
+  return { owner: match[1]!, name: match[2]! };
 };
 
 // Image names are lowercase; two Workspaces never share one because the home repo is part of it.

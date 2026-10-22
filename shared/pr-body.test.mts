@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { closesLines, mergeOrder, prRef, reposWithoutPr, runBlock, withRunBlock, type Pr } from "./pr-body.mjs";
+import { blockersFromJson, closesLines, closesRoot, mergeOrder, prRef, reposWithoutPr, runBlock, withRunBlock, type Pr } from "./pr-body.mjs";
 
 const hub: Pr = { repo: "hub", url: "https://github.com/acme/hub/pull/9", issues: [3] };
 const app: Pr = { repo: "app", url: "https://github.com/acme/app/pull/12", issues: [4, 5] };
@@ -8,6 +8,18 @@ const lib: Pr = { repo: "lib", url: "https://github.com/acme/lib/pull/2", issues
 
 test("closesLines: one line per issue, naming the home repo", () => {
   assert.equal(closesLines("acme/hub", [7, 3]), "Closes acme/hub#7\nCloses acme/hub#3");
+});
+
+test("closesRoot: only the home repo's PR, unless the run has no home PR", () => {
+  assert.equal(closesRoot("hub", "hub", ["hub", "app"]), true);
+  assert.equal(closesRoot("app", "hub", ["hub", "app"]), false);
+  assert.equal(closesRoot("app", "hub", ["app", "lib"]), true);
+});
+
+test("blockersFromJson: numbers of gh's blockedBy nodes", () => {
+  assert.deepEqual(blockersFromJson('{"blockedBy":{"nodes":[{"number":4},{"number":9}],"totalCount":2}}'), [4, 9]);
+  assert.deepEqual(blockersFromJson('{"blockedBy":{"nodes":[],"totalCount":0}}'), []);
+  assert.throws(() => blockersFromJson('{"blockedBy":[{"number":4}]}'));
 });
 
 test("prRef: owner/repo#n from a PR URL", () => {
@@ -21,6 +33,7 @@ test("mergeOrder: no blocking keeps the order", () => {
 
 test("mergeOrder: a blocked issue's PR comes after its blocker's PR", () => {
   assert.deepEqual(mergeOrder([hub, app], { 3: [5] }), [app, hub]);
+  assert.deepEqual(mergeOrder([hub, app], { 3: [99, 5] }), [app, hub]);
 });
 
 test("mergeOrder: chains resolve, blockers outside the run and inside one PR are ignored", () => {
@@ -54,6 +67,14 @@ test("runBlock: PR list in merge order, and the repo without a PR with its open 
   );
 });
 
+test("runBlock: several PRs with nothing left out still list the merge order", () => {
+  assert.match(runBlock("acme/hub", 7, [hub, app], [], {}), /1\. acme\/hub#9 \(hub\)\n2\. acme\/app#12 \(app\)/);
+});
+
+test("runBlock: one PR and a repo without a PR, whose planned work was all comments", () => {
+  assert.match(runBlock("acme/hub", 7, [hub], [{ repo: "lib", open: [] }], {}), /\nNo PR in `lib`: no commits\.\n<!-- \/sandcastle-run -->$/);
+});
+
 test("reposWithoutPr: repos with planned work and no PR, with their issue items once each", () => {
   const planned = [
     { repo: "hub", issue: "3", comments: [] },
@@ -78,4 +99,5 @@ test("withRunBlock: appends once, then replaces its own earlier block", () => {
 
 test("withRunBlock: an empty block removes the old one", () => {
   assert.equal(withRunBlock("Body\n\n<!-- sandcastle-run -->\nA\n<!-- /sandcastle-run -->\n", ""), "Body");
+  assert.equal(withRunBlock("Body\n\n<!-- sandcastle-run -->\nA\n<!-- /sandcastle-run -->\n\nTail", ""), "Body\nTail");
 });
