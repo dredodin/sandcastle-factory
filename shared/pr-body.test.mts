@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { blockersFromJson, closesLines, closesRoot, mergeOrder, prRef, reposWithoutPr, runBlock, withRunBlock, type Pr } from "./pr-body.mjs";
+import { blockersFromJson, closesLines, closesRoot, mergeOrder, modelsLine, prRef, reposWithoutPr, runBlock, withRunBlock, type Pr } from "./pr-body.mjs";
 
 const hub: Pr = { repo: "hub", url: "https://github.com/acme/hub/pull/9", issues: [3] };
 const app: Pr = { repo: "app", url: "https://github.com/acme/app/pull/12", issues: [4, 5] };
@@ -44,16 +44,26 @@ test("mergeOrder: a cycle keeps the given order", () => {
   assert.deepEqual(mergeOrder([hub, app], { 3: [4], 4: [3] }), [hub, app]);
 });
 
-test("runBlock: empty for a single PR with nothing left out", () => {
-  assert.equal(runBlock("acme/hub", 7, [hub], [], {}), "");
+test("modelsLine: every phase's model, provider and effort, in phase order", () => {
+  const claude = { provider: "claudeCode", model: "opus", effort: "high" } as const;
+  assert.equal(
+    modelsLine({ PR: claude, PLAN: claude, MERGE: claude, REVIEW: claude, IMPLEMENT: { provider: "copilot", model: "gpt-5.5", effort: "low" } }),
+    "Models: PLAN `opus` (claudeCode, high), IMPLEMENT `gpt-5.5` (copilot, low), REVIEW `opus` (claudeCode, high), MERGE `opus` (claudeCode, high), PR `opus` (claudeCode, high).",
+  );
+});
+
+test("runBlock: only the models line for a single PR with nothing left out", () => {
+  assert.equal(runBlock("Models: m.", "acme/hub", 7, [hub], [], {}), "<!-- sandcastle-run -->\nModels: m.\n<!-- /sandcastle-run -->");
 });
 
 test("runBlock: PR list in merge order, and the repo without a PR with its open issues", () => {
-  const block = runBlock("acme/hub", 7, [hub, app], [{ repo: "lib", open: [6, 8] }], { 3: [5] });
+  const block = runBlock("Models: m.", "acme/hub", 7, [hub, app], [{ repo: "lib", open: [6, 8] }], { 3: [5] });
   assert.equal(
     block,
     [
       "<!-- sandcastle-run -->",
+      "Models: m.",
+      "",
       "## Run",
       "",
       "One change over several repos, root acme/hub#7. Merge in this order:",
@@ -68,11 +78,11 @@ test("runBlock: PR list in merge order, and the repo without a PR with its open 
 });
 
 test("runBlock: several PRs with nothing left out still list the merge order", () => {
-  assert.match(runBlock("acme/hub", 7, [hub, app], [], {}), /1\. acme\/hub#9 \(hub\)\n2\. acme\/app#12 \(app\)/);
+  assert.match(runBlock("Models: m.", "acme/hub", 7, [hub, app], [], {}), /1\. acme\/hub#9 \(hub\)\n2\. acme\/app#12 \(app\)/);
 });
 
 test("runBlock: one PR and a repo without a PR, whose planned work was all comments", () => {
-  assert.match(runBlock("acme/hub", 7, [hub], [{ repo: "lib", open: [] }], {}), /\nNo PR in `lib`: no commits\.\n<!-- \/sandcastle-run -->$/);
+  assert.match(runBlock("Models: m.", "acme/hub", 7, [hub], [{ repo: "lib", open: [] }], {}), /\nNo PR in `lib`: no commits\.\n<!-- \/sandcastle-run -->$/);
 });
 
 test("reposWithoutPr: repos with planned work and no PR, with their issue items once each", () => {
@@ -97,7 +107,6 @@ test("withRunBlock: appends once, then replaces its own earlier block", () => {
   assert.equal(second, "Body\n\nCloses acme/hub#7\n\n<!-- sandcastle-run -->\nB\n<!-- /sandcastle-run -->\n");
 });
 
-test("withRunBlock: an empty block removes the old one", () => {
-  assert.equal(withRunBlock("Body\n\n<!-- sandcastle-run -->\nA\n<!-- /sandcastle-run -->\n", ""), "Body");
-  assert.equal(withRunBlock("Body\n\n<!-- sandcastle-run -->\nA\n<!-- /sandcastle-run -->\n\nTail", ""), "Body\nTail");
+test("withRunBlock: an old block amid the body is cut out, the new one goes last", () => {
+  assert.equal(withRunBlock("Body\n\n<!-- sandcastle-run -->\nA\n<!-- /sandcastle-run -->\n\nTail", "B"), "Body\nTail\n\nB\n");
 });

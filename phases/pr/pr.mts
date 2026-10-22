@@ -10,8 +10,8 @@ import { logFileName, verifyCommand } from "../../shared/names.mjs";
 import { inParallel } from "../../shared/parallel.mjs";
 import { mergedIssues } from "../../shared/repo.mjs";
 import { promptPath } from "../../shared/paths.mjs";
-import { blockersFromJson, closesLines, closesRoot, reposWithoutPr, runBlock, withRunBlock, type BlockedBy, type Pr } from "../../shared/pr-body.mjs";
-import { DISCLAIMER, IDLE_TIMEOUT_SECONDS, logging, type Run } from "../../shared/run.mjs";
+import { blockersFromJson, closesLines, closesRoot, modelsLine, reposWithoutPr, runBlock, withRunBlock, type BlockedBy, type Pr } from "../../shared/pr-body.mjs";
+import { DISCLAIMER, IDLE_TIMEOUT_SECONDS, phaseAgent, type Run } from "../../shared/run.mjs";
 import { sh } from "../../shared/shell.mjs";
 import { repoNamed, type Repo } from "../../shared/workspace.mjs";
 
@@ -28,7 +28,6 @@ const prOfRepo = async (run: Run, repo: Repo, prRepos: readonly string[]): Promi
   const issues = subIssuesOn(run, repo);
   const integration = await run.integrations.get(repo);
   const result = await integration.run({
-    agent: run.agents.PR,
     promptFile: promptPath("pr"),
     promptArgs: {
       INTEGRATION_BRANCH: run.branch,
@@ -47,7 +46,7 @@ const prOfRepo = async (run: Run, repo: Repo, prRepos: readonly string[]): Promi
     completionSignal: "</pull-request>",
     name: "pr",
     idleTimeoutSeconds: IDLE_TIMEOUT_SECONDS,
-    logging: logging(run, logFileName("pr", repo.name, home.name)),
+    ...phaseAgent(run, "PR", logFileName("pr", repo.name, home.name)),
   });
   return { repo: repo.name, url: extract(result.stdout, "pull-request", pullRequestSchema).url, issues };
 };
@@ -65,7 +64,7 @@ const blockedByOf = (home: Repo, issues: readonly number[]): BlockedBy =>
     }),
   );
 
-// Opens or updates the PR of each touched repo in two passes: every PR first, then every body gets the run's PR list and merge order.
+// Opens or updates the PR of each touched repo in two passes: every PR first, then every body gets the models and the run's PR list and merge order.
 // `kept` are open PRs of repos this run did not change: they only get the new body. Returns one line per PR.
 export const pr = async (run: Run, touched: readonly Repo[], kept: readonly OpenTake[], planned: readonly Item[]): Promise<string> => {
   const { home } = run.workspace;
@@ -81,7 +80,7 @@ export const pr = async (run: Run, touched: readonly Repo[], kept: readonly Open
   const prs = [...created, ...unchanged];
 
   const blockedBy = blockedByOf(home, [...new Set(prs.flatMap((pr) => pr.issues))]);
-  const block = runBlock(home.slug, run.root, prs, reposWithoutPr(planned, prs.map((pr) => pr.repo)), blockedBy);
+  const block = runBlock(modelsLine(run.context.env.phases), home.slug, run.root, prs, reposWithoutPr(planned, prs.map((pr) => pr.repo)), blockedBy);
   const dir = mkdtempSync(join(tmpdir(), "sandcastle-pr-"));
   for (const pr of prs) {
     const repo = repoNamed(run.workspace, pr.repo);

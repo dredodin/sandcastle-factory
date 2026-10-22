@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { missingKeys, upsertEnvLine } from "./env.mjs";
+import { missingKeys, withShellOverrides } from "./env.mjs";
 
 const phases = (provider: string): Record<string, string> =>
   Object.fromEntries(["PLAN", "IMPLEMENT", "REVIEW", "MERGE", "PR"].flatMap((p) => [[`${p}_PROVIDER`, provider], [`${p}_MODEL`, "m"], [`${p}_EFFORT`, "high"]]));
@@ -27,27 +27,19 @@ test("missingKeys: a repo path per non-home repo, blank counts as missing", () =
   assert.deepEqual(missingKeys(base, ["web", "my-api"]), ["REPO_WEB", "REPO_MY_API"]);
 });
 
-test("upsertEnvLine: appends a new key after a final newline", () => {
-  assert.equal(upsertEnvLine("A=1\n", "B", "2"), "A=1\nB=2\n");
-  assert.equal(upsertEnvLine("A=1", "B", "2"), "A=1\nB=2\n");
-  assert.equal(upsertEnvLine("", "B", "2"), "B=2\n");
+test("withShellOverrides: a non-empty shell value of a known key wins over .env", () => {
+  assert.deepEqual(withShellOverrides({ PLAN_MODEL: "opus", GH_TOKEN: "t" }, { PLAN_MODEL: "sonnet" }, []), { PLAN_MODEL: "sonnet", GH_TOKEN: "t" });
+  assert.deepEqual(withShellOverrides({}, { ANTHROPIC_API_KEY: "k", COPILOT_GITHUB_TOKEN: "c" }, []), { ANTHROPIC_API_KEY: "k", COPILOT_GITHUB_TOKEN: "c" });
 });
 
-test("upsertEnvLine: replaces the key's line in place, touching nothing else", () => {
-  assert.equal(upsertEnvLine("# note\nB=\nC=3\n", "B", "2"), "# note\nB=2\nC=3\n");
-  assert.equal(upsertEnvLine("A=1\nAB=5\n", "A", "9"), "A=9\nAB=5\n");
+test("withShellOverrides: unknown shell variables are ignored", () => {
+  assert.deepEqual(withShellOverrides({ SANDBOX: "none" }, { PATH: "/bin", HOME: "/h", REPO_OTHER: "/x" }, ["web"]), { SANDBOX: "none" });
 });
 
-test("upsertEnvLine: every line of a repeated key is replaced", () => {
-  assert.equal(upsertEnvLine("A=1\nB=2\nA=3\n", "A", "9"), "A=9\nB=2\nA=9\n");
+test("withShellOverrides: an empty or unset shell value keeps the .env value", () => {
+  assert.deepEqual(withShellOverrides({ PLAN_MODEL: "opus", SANDBOX: "podman" }, { PLAN_MODEL: "", SANDBOX: undefined }, []), { PLAN_MODEL: "opus", SANDBOX: "podman" });
 });
 
-test("upsertEnvLine: a value with spaces, a hash or a backslash is single-quoted, one with a single quote back-quoted", () => {
-  assert.equal(upsertEnvLine("", "REPO_X", "C:/my repos/x"), "REPO_X='C:/my repos/x'\n");
-  assert.equal(upsertEnvLine("", "K", "a\\nb#c"), "K='a\\nb#c'\n");
-  assert.equal(upsertEnvLine("", "K", "it's"), "K=`it's`\n");
-});
-
-test("upsertEnvLine: a value no quote can hold throws", () => {
-  assert.throws(() => upsertEnvLine("", "K", "'`"), /K/);
+test("withShellOverrides: the REPO_ key of a listed repo is honoured", () => {
+  assert.deepEqual(withShellOverrides({ REPO_MY_API: "/a" }, { REPO_MY_API: "/b" }, ["my-api"]), { REPO_MY_API: "/b" });
 });

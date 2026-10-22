@@ -5,7 +5,7 @@ import { log } from "../../shared/logger.mjs";
 import { planCheckCommand } from "../../shared/names.mjs";
 import { promptPath } from "../../shared/paths.mjs";
 import { branchExists, isMerged, itemBranch, mergedIssues } from "../../shared/repo.mjs";
-import { DISCLAIMER, IDLE_TIMEOUT_SECONDS, logging, type Cycle, type Plan } from "../../shared/run.mjs";
+import { DISCLAIMER, IDLE_TIMEOUT_SECONDS, phaseAgent, type Cycle, type Plan } from "../../shared/run.mjs";
 import { reposText, stateText } from "../../shared/text.mjs";
 import { repoNamed } from "../../shared/workspace.mjs";
 
@@ -31,7 +31,6 @@ export const plan = async (cycle: Cycle, openPrsText: string): Promise<Plan> => 
   );
 
   const result = await integration.run({
-    agent: cycle.agents.PLAN,
     promptFile: promptPath("plan"),
     promptArgs: {
       ROOT: cycle.root,
@@ -48,7 +47,7 @@ export const plan = async (cycle: Cycle, openPrsText: string): Promise<Plan> => 
     completionSignal: "</plan>",
     name: "plan",
     idleTimeoutSeconds: IDLE_TIMEOUT_SECONDS,
-    logging: logging(cycle, `${cycle.number}-plan`),
+    ...phaseAgent(cycle, "PLAN", `${cycle.number}-plan`),
   });
 
   const planSchema = z.object({

@@ -25,7 +25,7 @@ npm install --save-dev "git+https://github.com/<owner>/sandcastle-factory.git#v0
 ```text
 GLOSSARY-MAP.md                      # links .sandcastle/repos/<name>/… name the repos
 .sandcastle/
-├── .env                             # per machine; keys: shared/env.mts
+├── .env                             # per machine, written by the setup wizard only; keys: shared/env.mts
 ├── logs/                            # one folder per run
 └── repos/<name>/
     ├── Containerfile                # FROM sandcastle-factory:base + what verify.sh needs
@@ -39,23 +39,21 @@ GLOSSARY-MAP.md                      # links .sandcastle/repos/<name>/… name t
 - `.gitignore`: `.sandcastle/.env`, `.sandcastle/repos/*/source`, `.sandcastle/logs/`.
 - Tracker rule: whoever slices an issue sets its repo label.
 - `GH_TOKEN`: one fine-grained token for every repo: Issues, Contents, Pull requests read/write; Metadata read.
+- Agents never read `.sandcastle/.env`: deny them Read/Edit/Write on it (Claude Code: `permissions.deny` in `.claude/settings.json`).
 
 ## Commands
 
 ```text
-npm run sandcastle -- setup            # asks for missing .env values, links app repos, creates repo labels
-npm run sandcastle -- take <issue>     # setup, then a new take
-npm run sandcastle -- resume <issue>   # setup, then finishes the open take in every repo
+npm run sandcastle -- setup            # setup wizard, then links app repos, creates repo labels
+npm run sandcastle -- take <issue>     # setup (wizard only if a value is missing), then a new take
+npm run sandcastle -- resume <issue>   # same setup, then finishes the open take in every repo
 ```
+
+The setup wizard (`workflow/wizard.sh`, from the vendored `wizard` skill) needs a terminal; without one, setup names the missing keys and stops. A shell variable overrides its `.env` key for one run: `PLAN_MODEL=sonnet npm run sandcastle -- take 42`.
 
 ## Repo image
 
-```sh
-podman build -t sandcastle-factory:base --build-arg AGENT_UID=$(id -u) --build-arg AGENT_GID=$(id -g) node_modules/sandcastle-factory
-npx sandcastle podman build-image --containerfile .sandcastle/repos/<name>/Containerfile --image-name sandcastle:<home>-<name>
-```
-
-`docker` for `SANDBOX=docker`. Rebuild after every Containerfile edit.
+The setup wizard shows the build commands of missing images and runs them on your yes. After a Containerfile edit, remove the image (`podman rmi sandcastle:<home>-<name>`) and run `setup`.
 
 ## Develop
 
