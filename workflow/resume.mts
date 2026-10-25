@@ -3,7 +3,7 @@
 
 import { loadAgents } from "../shared/agents.mjs";
 import type { Env } from "../shared/env.mjs";
-import { branchExists, checkRoot, isMerged, latestTake, openPrsText, syncWithOrigin } from "../shared/repo.mjs";
+import { branchExists, checkNotCheckedOut, checkRoot, isMerged, latestTake, openPrsText, syncWithOrigin } from "../shared/repo.mjs";
 import type { Run } from "../shared/run.mjs";
 import { withIntegrations, type SandboxSpec } from "../shared/sandbox.mjs";
 import { repoNamed, type Repo, type Workspace } from "../shared/workspace.mjs";
@@ -13,6 +13,7 @@ export const resume = async (workspace: Workspace, env: Env, root: number): Prom
   const { agents, settings } = loadAgents(env);
   const title = checkRoot(workspace, root);
   const { branch, repos } = latestTake(workspace, root);
+  repos.forEach((name) => checkNotCheckedOut(repoNamed(workspace, name), branch));
   repos.forEach((name) => syncWithOrigin(repoNamed(workspace, name), branch));
   const logDir = startRun("resume", { workspace, env, settings }, root, title, branch);
 
