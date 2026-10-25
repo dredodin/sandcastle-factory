@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, lstatSync, mkdirSync, rmSync, symlinkSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import type { Command } from "../shared/cli.mjs";
+import { message, type Command } from "../shared/cli.mjs";
 import { EFFORTS, PHASES, PROVIDERS, SANDBOXES, checkEnv, envPath, missingKeys, readValues, withShellOverrides, type Env, type Values } from "../shared/env.mjs";
 import { log } from "../shared/logger.mjs";
 import { imageName, repoDir, repoKey } from "../shared/names.mjs";
@@ -78,6 +78,24 @@ const createLabels = (workspace: Workspace): void => {
   }
 };
 
+// A stopped Podman machine is started; no machine at all (Linux, native Podman) is left alone.
+const startPodmanMachine = (cwd: string): void => {
+  let state: string;
+  try {
+    state = sh(cwd, "podman", "machine", "inspect", "--format", "{{.State}}");
+  } catch {
+    return;
+  }
+  if (state === "running") return;
+  log.info(`Podman machine is ${state}: starting it.`);
+  try {
+    sh(cwd, "podman", "machine", "start");
+  } catch (error) {
+    const { stdout, stderr } = error as { stdout?: string; stderr?: string };
+    throw new Error(`podman machine start failed: ${`${stdout ?? ""}\n${stderr ?? ""}`.trim() || message(error)}`);
+  }
+};
+
 // Makes the machine ready for the Workspace of the current directory's repo; returns what a run needs.
 // In a terminal, the wizard opens: always for `setup`, only when something is missing for a run.
 export const setup = async (mode: Command["mode"]): Promise<{ readonly workspace: Workspace; readonly env: Env }> => {
@@ -88,6 +106,7 @@ export const setup = async (mode: Command["mode"]): Promise<{ readonly workspace
   const left = unready(values, names);
   if (left.length > 0) throw new Error(`Missing or wrong in .sandcastle/.env: ${left.join(", ")}. A human runs \`npm run sandcastle -- setup\` in their terminal.`);
   const env = checkEnv(values, names);
+  if (env.sandbox === "podman") startPodmanMachine(layout.root);
   const workspace = resolveWorkspace(layout, env.repoPaths);
   linkSources(workspace);
   createLabels(workspace);
