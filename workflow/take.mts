@@ -21,6 +21,6 @@ export const take = async (workspace: Workspace, env: Env, root: number): Promis
     const planned = await cycles(run, "(none: this is a first take)");
     const touched = integrations.opened().filter((repo) => !isMerged(repo, branch, repo.base));
     if (touched.length === 0) return "Nothing completed: no PR.";
-    return finish(run, touched, [], planned);
+    return finish(run, touched, planned);
   });
 };

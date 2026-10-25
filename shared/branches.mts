@@ -16,28 +16,19 @@ export type OpenPr = { readonly url: string; readonly headRefName: string };
 
 export type RepoPrs = { readonly repo: string; readonly prs: readonly OpenPr[] };
 
-export type OpenTake = { readonly repo: string; readonly url: string };
+export type RepoRefs = { readonly repo: string; readonly refs: ReadonlySet<string> };
 
-export type OpenTakes = { readonly branch: string; readonly takes: readonly OpenTake[] };
+export type LatestTake = { readonly branch: string; readonly repos: readonly string[] };
 
-// The open take PR of this root in every repo that has one: at least one, at most one per repo, all on the same branch.
-export const pickOpenTakes = (key: RunKey, repoPrs: readonly RepoPrs[]): OpenTakes => {
-  const takes = repoPrs.flatMap(({ repo, prs }) => {
-    const own = prs.filter((pr) => isTakeBranch(key, pr.headRefName));
-    if (own.length > 1) {
-      throw new Error(`#${key.root} has several open take PRs in ${repo}, close the extra ones:\n${own.map((p) => `  ${p.url}`).join("\n")}`);
-    }
-    return own.map((pr) => ({ repo, url: pr.url, branch: pr.headRefName }));
-  });
-  const [first] = takes;
-  if (first === undefined) throw new Error(`Nothing to resume for #${key.root}: no open take PR. Run \`take\`.`);
-  if (takes.some((take) => take.branch !== first.branch)) {
-    throw new Error(`#${key.root} has open take PRs on different branches, close the extra ones:\n${takes.map((p) => `  ${p.url}`).join("\n")}`);
-  }
-  return { branch: first.branch, takes: takes.map(({ repo, url }) => ({ repo, url })) };
+// The highest-numbered take branch of this root among all repos' refs, and the repos that have it. Open PRs play no part.
+export const pickLatestTake = (key: RunKey, repoRefs: readonly RepoRefs[]): LatestTake => {
+  const highest = Math.max(0, ...repoRefs.flatMap(({ refs }) => [...refs].map((ref) => takeNumber(key, ref))));
+  if (highest === 0) throw new Error(`Nothing to resume for #${key.root}: no take branch. Run \`take\`.`);
+  const branch = `${takePrefix(key)}${highest}`;
+  return { branch, repos: repoRefs.filter(({ refs }) => refs.has(branch)).map(({ repo }) => repo) };
 };
 
-// Throws, naming every open take PR of this root in any repo: `resume` must never see two.
+// Throws, naming every open take PR of this root in any repo: `take` must not start beside an open one.
 export const assertNoOpenTake = (key: RunKey, repoPrs: readonly RepoPrs[]): void => {
   const takes = repoPrs.flatMap(({ prs }) => prs.filter((pr) => isTakeBranch(key, pr.headRefName)));
   if (takes.length === 0) return;
