@@ -34,7 +34,7 @@ A run that starts fresh integration branches for a root issue. Takes of one root
 _Avoid_: attempt, try
 
 **Resume**:
-A run that continues the open take of a root issue: answers its PR comments and finishes its branches.
+A run that continues the open take of a root issue: turns its PR comments into issues and finishes its branches.
 _Avoid_: retry, rerun
 
 **Open take**:
@@ -49,7 +49,7 @@ One step in a run: plan, implement, merge, review or PR. Each is an agent's, exc
 _Avoid_: stage, step
 
 **Item**:
-One unit of work a plan hands to one implement agent: an unblocked sub-issue, or a group of PR comments about one thing. Always in exactly one repo.
+One unit of work a plan hands to one implement agent: an unblocked sub-issue, or the root when it has none. Always in exactly one repo.
 _Avoid_: task, job, work unit
 
 ## Branches and delivery
@@ -84,7 +84,7 @@ The repo's own slow check, optional, run once over a whole branch at review. Wha
 _Avoid_: slow verify, nightly check
 
 **Plan check script**:
-The home repo's own check of what work is due, optional, run by the plan agent every cycle. Passing means no work; what a failing one prints is planned like PR comments.
+The home repo's own check of what work is due, optional, run by the plan agent every cycle. Passing means no work; what a failing one prints becomes a sub-issue of the root.
 _Avoid_: pre-plan hook
 
 ## Setup

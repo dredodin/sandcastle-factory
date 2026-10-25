@@ -85,19 +85,19 @@ test("runBlock: one PR and a repo without a PR, whose planned work was all comme
   assert.match(runBlock("Models: m.", "acme/hub", 7, [hub], [{ repo: "lib", open: [] }], {}), /\nNo PR in `lib`: no commits\.\n<!-- \/sandcastle-run -->$/);
 });
 
-test("reposWithoutPr: repos with planned work and no PR, with their issue items once each", () => {
+test("reposWithoutPr: repos with planned work and no PR, with their issues once each", () => {
   const planned = [
-    { repo: "hub", issue: "3", comments: [] },
-    { repo: "lib", issue: "6", comments: [] },
-    { repo: "lib", issue: "7", comments: ["https://github.com/acme/lib/pull/2#issuecomment-1"] },
-    { repo: "lib", issue: "6", comments: [] },
-    { repo: "web", issue: "8", comments: [] },
+    { repo: "hub", issue: "3" },
+    { repo: "lib", issue: "6" },
+    { repo: "lib", issue: "7" },
+    { repo: "lib", issue: "6" },
+    { repo: "web", issue: "8" },
   ];
-  assert.deepEqual(reposWithoutPr(planned, ["hub", "web"]), [{ repo: "lib", open: [6] }]);
+  assert.deepEqual(reposWithoutPr(planned, ["hub", "web"]), [{ repo: "lib", open: [6, 7] }]);
 });
 
 test("reposWithoutPr: a repo without planned work is never listed", () => {
-  assert.deepEqual(reposWithoutPr([{ repo: "app", issue: "4", comments: [] }], ["app"]), []);
+  assert.deepEqual(reposWithoutPr([{ repo: "app", issue: "4" }], ["app"]), []);
 });
 
 test("withRunBlock: appends once, then replaces its own earlier block", () => {

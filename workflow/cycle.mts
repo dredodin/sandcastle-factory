@@ -7,7 +7,7 @@ import { implement } from "../phases/implement/implement.mjs";
 import { merge, mergeDefaults } from "../phases/merge/merge.mjs";
 import { freshPlan, plan, type PlanSession } from "../phases/plan/plan.mjs";
 import { pr } from "../phases/pr/pr.mjs";
-import { itemSlug, type Item } from "../shared/item.mjs";
+import type { Item } from "../shared/item.mjs";
 import { log, openRunLog } from "../shared/logger.mjs";
 import { inParallel } from "../shared/parallel.mjs";
 import type { Run } from "../shared/run.mjs";
@@ -51,8 +51,8 @@ const cycle = async (
 
   // Each item in its own worktree of its repo, done by its one agent.
   // Resolves to whether the item's branch carries commits to merge.
-  const committed = await inParallel(items, itemSlug, (item) =>
-    withSandbox(run.context, { repo: repoNamed(run.workspace, item.repo), name: itemSlug(item), branch: item.branch, baseBranch: run.branch }, (sandbox) =>
+  const committed = await inParallel(items, (item) => item.issue, (item) =>
+    withSandbox(run.context, { repo: repoNamed(run.workspace, item.repo), name: item.issue, branch: item.branch, baseBranch: run.branch }, (sandbox) =>
       implement(current, sandbox, item),
     ),
   );
