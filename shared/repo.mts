@@ -1,5 +1,8 @@
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { z } from "zod";
-import { assertNoOpenTake, freeItemBranch, nextTakeBranch, pickOpenTakes, type OpenTakes, type RepoPrs, type RunKey } from "./branches.mjs";
+import { assertNoOpenTake, freeItemBranch, nextTakeBranch, pickLatestTake, type LatestTake, type RepoPrs, type RunKey } from "./branches.mjs";
 import { issuesIn } from "./merge-record.mjs";
 import { githubUrl } from "./names.mjs";
 import { sh, succeeds } from "./shell.mjs";
@@ -62,26 +65,62 @@ export const mergeMessages = (repo: Repo, branch: string): readonly string[] =>
 export const branchExists = (repo: Repo, branch: string): boolean =>
   succeeds(repo.path, "git", "rev-parse", "--verify", "--quiet", `refs/heads/${branch}`);
 
-export const headOf = (repo: Repo, ref: string): string => sh(repo.path, "git", "rev-parse", ref);
+// The latest take of the root by its branch, among local and origin refs of every repo. Every repo is fetched first.
+export const latestTake = (workspace: Workspace, root: number): LatestTake => {
+  workspace.repos.forEach(fetchOrigin);
+  return pickLatestTake(runKey(workspace, root), workspace.repos.map((repo) => ({ repo: repo.name, refs: refNames(repo) })));
+};
 
-export const openTakes = (workspace: Workspace, root: number): OpenTakes => pickOpenTakes(runKey(workspace, root), workspace.repos.map(listOpenPrs));
+// Lines for the plan prompt: the open PRs of the branch, in the repos that have one.
+export const openPrsText = (workspace: Workspace, branch: string): string => {
+  const lines = workspace.repos.flatMap((repo) =>
+    listOpenPrs(repo).prs.filter((pr) => pr.headRefName === branch).map((pr) => `- \`${repo.name}\`: ${pr.url}`),
+  );
+  return lines.length > 0 ? lines.join("\n") : "(none: the take has no open PR yet)";
+};
 
-const checkedOut = (repo: Repo, branch: string): boolean =>
-  sh(repo.path, "git", "worktree", "list", "--porcelain").split("\n").includes(`branch refs/heads/${branch}`);
+// Path of the worktree that has the branch checked out, if any.
+const worktreeOf = (repo: Repo, branch: string): string | undefined =>
+  sh(repo.path, "git", "worktree", "list", "--porcelain")
+    .split("\n\n")
+    .map((block) => block.split("\n"))
+    .find((lines) => lines.includes(`branch refs/heads/${branch}`))?.[0]
+    ?.replace(/^worktree /, "");
 
-// Makes the local branch equal to origin's, so a worktree on it starts from the PR as it stands.
-// A worktree already on the branch is left to sandcastle: it fast-forwards its own, refuses any other.
+// Merges `origin/<branch>` into the local branch in a worktree on it; a conflict is aborted and thrown.
+const mergeOrigin = (cwd: string, repo: Repo, branch: string): void => {
+  try {
+    sh(cwd, "git", "merge", "--no-edit", `origin/${branch}`);
+  } catch {
+    sh(cwd, "git", "merge", "--abort");
+    throw new Error(`Merge conflict syncing ${branch} with origin/${branch} in ${repo.name}: resolve it by hand.`);
+  }
+};
+
+// Syncs the local branch with origin's before a resume: missing local created, behind brought up, diverged merged.
+// A missing origin branch is left to the PR phase's push. A kept worktree on the branch with uncommitted changes stops the run.
 export const syncWithOrigin = (repo: Repo, branch: string): void => {
-  fetchOrigin(repo);
   const remote = `origin/${branch}`;
-  if (checkedOut(repo, branch)) return;
+  const kept = worktreeOf(repo, branch);
+  if (kept !== undefined && sh(kept, "git", "status", "--porcelain") !== "") throw new Error(`Uncommitted changes on ${branch} in ${repo.name}: ${kept}`);
+  const hasRemote = succeeds(repo.path, "git", "rev-parse", "--verify", "--quiet", `refs/remotes/${remote}`);
+  if (!hasRemote) return;
   if (!branchExists(repo, branch)) {
     sh(repo.path, "git", "branch", branch, remote);
     return;
   }
   if (isMerged(repo, remote, branch)) return;
-  if (!isMerged(repo, branch, remote)) throw new Error(`Local ${branch} has diverged from ${remote}.`);
-  sh(repo.path, "git", "branch", "-f", branch, remote);
+  if (kept !== undefined) {
+    mergeOrigin(kept, repo, branch);
+    return;
+  }
+  const temp = join(mkdtempSync(join(tmpdir(), "sandcastle-sync-")), "worktree");
+  sh(repo.path, "git", "worktree", "add", temp, branch);
+  try {
+    mergeOrigin(temp, repo, branch);
+  } finally {
+    sh(repo.path, "git", "worktree", "remove", "--force", temp);
+  }
 };
 
 export const itemBranch = (repo: Repo, integration: string, slug: string): string => freeItemBranch(integration, slug, refNames(repo));

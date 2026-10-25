@@ -3,7 +3,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
 import { extract } from "../../shared/extract.mjs";
-import type { OpenTake } from "../../shared/branches.mjs";
 import type { Item } from "../../shared/item.mjs";
 import { log, timed } from "../../shared/logger.mjs";
 import { logFileName, verifyCommand } from "../../shared/names.mjs";
@@ -64,19 +63,11 @@ const blockedByOf = (home: Repo, issues: readonly number[]): BlockedBy =>
   );
 
 // Opens or updates the PR of each touched repo in two passes: every PR first, then every body gets the models and the run's PR list and merge order.
-// `kept` are open PRs of repos this run did not change: they only get the new body. Returns one line per PR.
-export const pr = async (run: Run, touched: readonly Repo[], kept: readonly OpenTake[], planned: readonly Item[]): Promise<string> => {
+// Returns one line per PR.
+export const pr = async (run: Run, touched: readonly Repo[], planned: readonly Item[]): Promise<string> => {
   const { home } = run.workspace;
-  const prRepos = [...touched.map((repo) => repo.name), ...kept.map((take) => take.repo)];
-  const created = await inParallel(touched, (repo) => repo.name, (repo) => prOfRepo(run, repo, prRepos));
-  const unchanged = kept
-    .filter((take) => !touched.some((repo) => repo.name === take.repo))
-    .map((take): Pr => ({
-      repo: take.repo,
-      url: take.url,
-      issues: subIssuesOn(run, repoNamed(run.workspace, take.repo)),
-    }));
-  const prs = [...created, ...unchanged];
+  const prRepos = touched.map((repo) => repo.name);
+  const prs = await inParallel(touched, (repo) => repo.name, (repo) => prOfRepo(run, repo, prRepos));
 
   const blockedBy = blockedByOf(home, [...new Set(prs.flatMap((pr) => pr.issues))]);
   const block = runBlock(modelsLine(run.context.env.phases), home.slug, run.root, prs, reposWithoutPr(planned, prs.map((pr) => pr.repo)), blockedBy);

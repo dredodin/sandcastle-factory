@@ -26,7 +26,7 @@ export const plan = async (cycle: Cycle, openPrsText: string, session: PlanSessi
   const { home, repos } = workspace;
   // Opened before STATE is read: a take's first cycle creates the home branch here.
   await cycle.integrations.get(home);
-  // A repo's branch, not its worktree: a resume's first cycle has the branches of the open take, none opened yet.
+  // A repo's branch, not its worktree: a resume's first cycle has the branches of the take, none opened yet.
   const state = stateText(
     branch,
     repos.map((repo) => {

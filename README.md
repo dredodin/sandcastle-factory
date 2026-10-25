@@ -46,7 +46,7 @@ GLOSSARY-MAP.md                      # links .sandcastle/repos/<name>/… name t
 ```text
 npm run sandcastle -- setup            # setup wizard, then links app repos, creates repo labels
 npm run sandcastle -- take <issue>     # setup (wizard only if a value is missing), then a new take
-npm run sandcastle -- resume <issue>   # same setup, then finishes the open take in every repo
+npm run sandcastle -- resume <issue>   # same setup, then continues the latest take in every repo
 ```
 
 The setup wizard (`workflow/wizard.sh`, from the vendored `wizard` skill) needs a terminal; without one, setup names the missing keys and stops. A shell variable overrides its `.env` key for one run: `PLAN_MODEL=sonnet npm run sandcastle -- take 42`.

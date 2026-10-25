@@ -34,7 +34,7 @@ A run that starts fresh integration branches for a root issue. Takes of one root
 _Avoid_: attempt, try
 
 **Resume**:
-A run that continues the open take of a root issue: turns its PR comments into issues and finishes its branches.
+A run that continues the latest take of a root issue, found by its branch, from whatever state it stopped in: syncs its branches with GitHub, turns PR comments into issues, then reviews and opens or updates the PR of every repo ahead of its default branch.
 _Avoid_: retry, rerun
 
 **Open take**:
