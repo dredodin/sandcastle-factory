@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { assertNoOpenTake, freeItemBranch, isTakeBranch, nextTakeBranch, pickOpenTakes, runFolderName } from "./branches.mjs";
+import { assertNoOpenTake, freeItemBranch, isTakeBranch, nextTakeBranch, pickLatestTake, runFolderName } from "./branches.mjs";
 
 test("nextTakeBranch: no takes gives take 1", () => {
   assert.equal(nextTakeBranch({ home: "hub", root: 42 }, new Set(["main"])), "sandcastle/hub/issue-42-take-1");
@@ -45,47 +45,31 @@ test("freeItemBranch: base name when free, then -2, then -3", () => {
 const pr = (n: number, take: number) => ({ url: `https://x/pull/${n}`, headRefName: `sandcastle/hub/issue-${n}-take-${take}` });
 const other = { url: "https://x/pull/9", headRefName: "feature/x" };
 
-test("pickOpenTakes: one take PR per repo, non-take branches ignored", () => {
-  const takes = pickOpenTakes({ home: "hub", root: 42 }, [
-    { repo: "hub", prs: [pr(42, 2), other] },
-    { repo: "app", prs: [{ url: "https://x/pull/5", headRefName: "sandcastle/hub/issue-42-take-2" }] },
-    { repo: "lib", prs: [other] },
+const refs = (...names: string[]) => new Set(names);
+
+test("pickLatestTake: highest take number wins, repos are those with that branch", () => {
+  const picked = pickLatestTake({ home: "hub", root: 42 }, [
+    { repo: "hub", refs: refs("main", "sandcastle/hub/issue-42-take-1", "sandcastle/hub/issue-42-take-2") },
+    { repo: "app", refs: refs("sandcastle/hub/issue-42-take-2") },
+    { repo: "lib", refs: refs("sandcastle/hub/issue-42-take-1") },
   ]);
-  assert.deepEqual(takes, {
-    branch: "sandcastle/hub/issue-42-take-2",
-    takes: [
-      { repo: "hub", url: "https://x/pull/42" },
-      { repo: "app", url: "https://x/pull/5" },
-    ],
-  });
+  assert.deepEqual(picked, { branch: "sandcastle/hub/issue-42-take-2", repos: ["hub", "app"] });
 });
 
-test("pickOpenTakes: none throws and says to run take", () => {
-  assert.throws(() => pickOpenTakes({ home: "hub", root: 42 }, [{ repo: "hub", prs: [other] }]), /Run `take`/);
+test("pickLatestTake: a take found in one repo only is enough", () => {
+  const picked = pickLatestTake({ home: "hub", root: 42 }, [{ repo: "hub", refs: refs("main") }, { repo: "app", refs: refs("sandcastle/hub/issue-42-take-3") }]);
+  assert.deepEqual(picked, { branch: "sandcastle/hub/issue-42-take-3", repos: ["app"] });
 });
 
-test("pickOpenTakes: several in one repo throws naming the URLs", () => {
-  const prs = [
-    { url: "https://x/pull/10", headRefName: "sandcastle/hub/issue-42-take-1" },
-    { url: "https://x/pull/11", headRefName: "sandcastle/hub/issue-42-take-2" },
-  ];
-  assert.throws(
-    () => pickOpenTakes({ home: "hub", root: 42 }, [{ repo: "hub", prs }]),
-    (e: Error) => e.message.includes("several open take PRs in hub") && e.message.includes("  https://x/pull/10\n  https://x/pull/11"),
-  );
+test("pickLatestTake: no take branch throws and says to run take", () => {
+  assert.throws(() => pickLatestTake({ home: "hub", root: 42 }, [{ repo: "hub", refs: refs("main", "feature/x") }]), /Run `take`/);
 });
 
-test("pickOpenTakes: different takes in different repos throws", () => {
-  assert.throws(
-    () => pickOpenTakes({ home: "hub", root: 42 }, [{ repo: "hub", prs: [pr(42, 1)] }, { repo: "app", prs: [{ ...pr(42, 2), url: "https://x/pull/5" }] }]),
-    (e: Error) => e.message.includes("different branches") && e.message.includes("  https://x/pull/42\n  https://x/pull/5"),
-  );
-});
-
-test("pickOpenTakes: PRs of root 4 are ignored for 42, and the reverse", () => {
-  const repoPrs = [{ repo: "hub", prs: [pr(4, 1), pr(42, 1)] }];
-  assert.deepEqual(pickOpenTakes({ home: "hub", root: 42 }, repoPrs), { branch: "sandcastle/hub/issue-42-take-1", takes: [{ repo: "hub", url: "https://x/pull/42" }] });
-  assert.deepEqual(pickOpenTakes({ home: "hub", root: 4 }, repoPrs), { branch: "sandcastle/hub/issue-4-take-1", takes: [{ repo: "hub", url: "https://x/pull/4" }] });
+test("pickLatestTake: other roots' branches and item branches of a take do not count", () => {
+  const key = { home: "hub", root: 42 };
+  const all = [{ repo: "hub", refs: refs("sandcastle/hub/issue-4-take-9", "sandcastle/hub/issue-420-take-9", "sandcastle/hub/issue-42-take-1-7", "sandcastle/hub/issue-42-take-1") }];
+  assert.deepEqual(pickLatestTake(key, all), { branch: "sandcastle/hub/issue-42-take-1", repos: ["hub"] });
+  assert.deepEqual(pickLatestTake({ home: "hub", root: 4 }, all), { branch: "sandcastle/hub/issue-4-take-9", repos: ["hub"] });
 });
 
 test("assertNoOpenTake: no take PRs passes", () => {

@@ -1,5 +1,5 @@
 import type { PhaseSettings } from "../shared/agents.mjs";
-import type { Mode, OpenTake } from "../shared/branches.mjs";
+import type { Mode } from "../shared/branches.mjs";
 import { configBlock } from "../shared/config-block.mjs";
 import type { Env } from "../shared/env.mjs";
 import { review } from "../phases/review/review.mjs";
@@ -78,8 +78,8 @@ export const cycles = (run: Run, openPrsText: string): Promise<readonly Item[]> 
   return from(1, freshPlan(run));
 };
 
-// One review per touched repo over its whole branch, then the PRs. `kept` are open PRs of repos the run left as they were.
-export const finish = async (run: Run, touched: readonly Repo[], kept: readonly OpenTake[], planned: readonly Item[]): Promise<string> => {
+// One review per touched repo over its whole branch, then the PRs.
+export const finish = async (run: Run, touched: readonly Repo[], planned: readonly Item[]): Promise<string> => {
   await inParallel(touched, (repo) => repo.name, (repo) => review(run, repo));
-  return `PR:\n${await pr(run, touched, kept, planned)}`;
+  return `PR:\n${await pr(run, touched, planned)}`;
 };
