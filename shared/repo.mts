@@ -73,8 +73,7 @@ export const latestTake = (workspace: Workspace, root: number): LatestTake => {
 
 // Fails when the branch is checked out in the repo's main working tree: a worktree of it could not be made.
 export const checkNotCheckedOut = (repo: Repo, branch: string): void => {
-  const current = succeeds(repo.path, "git", "symbolic-ref", "--quiet", "HEAD") ? sh(repo.path, "git", "symbolic-ref", "--short", "HEAD") : undefined;
-  if (current === branch) throw new Error(`\`${branch}\` is checked out in \`${repo.path}\`: run \`git switch ${repo.defaultBranch}\` there.`);
+  if (sh(repo.path, "git", "branch", "--show-current") === branch) throw new Error(`\`${branch}\` is checked out in \`${repo.path}\`: run \`git switch ${repo.defaultBranch}\` there.`);
 };
 
 // Lines for the plan prompt: the open PRs of the branch, in the repos that have one.

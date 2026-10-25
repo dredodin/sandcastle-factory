@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, lstatSync, mkdirSync, rmSync, symlinkSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { message, type Command } from "../shared/cli.mjs";
+import type { Command } from "../shared/cli.mjs";
 import { EFFORTS, PHASES, PROVIDERS, SANDBOXES, checkEnv, envPath, missingKeys, readValues, withShellOverrides, type Env, type Values } from "../shared/env.mjs";
 import { log } from "../shared/logger.mjs";
 import { imageName, repoDir, repoKey } from "../shared/names.mjs";
@@ -80,20 +80,11 @@ const createLabels = (workspace: Workspace): void => {
 
 // A stopped Podman machine is started; no machine at all (Linux, native Podman) is left alone.
 const startPodmanMachine = (cwd: string): void => {
-  let state: string;
-  try {
-    state = sh(cwd, "podman", "machine", "inspect", "--format", "{{.State}}");
-  } catch {
-    return;
-  }
+  if (!succeeds(cwd, "podman", "machine", "inspect")) return;
+  const state = sh(cwd, "podman", "machine", "inspect", "--format", "{{.State}}");
   if (state === "running") return;
   log.info(`Podman machine is ${state}: starting it.`);
-  try {
-    sh(cwd, "podman", "machine", "start");
-  } catch (error) {
-    const { stdout, stderr } = error as { stdout?: string; stderr?: string };
-    throw new Error(`podman machine start failed: ${`${stdout ?? ""}\n${stderr ?? ""}`.trim() || message(error)}`);
-  }
+  sh(cwd, "podman", "machine", "start");
 };
 
 // Makes the machine ready for the Workspace of the current directory's repo; returns what a run needs.
