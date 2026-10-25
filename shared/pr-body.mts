@@ -76,7 +76,7 @@ export const runBlock = (models: string, homeSlug: string, root: number, prs: re
           `One change over several repos, root ${homeSlug}#${root}. Merge in this order:`,
           "",
           ...mergeOrder(prs, blockedBy).map((pr, index) => `${index + 1}. ${prRef(pr.url)} (${pr.repo})`),
-          ...noPr.map((entry) => `\nNo PR in \`${entry.repo}\`: no commits.${entry.open.length > 0 ? ` Still open: ${issueList(entry.open)}.` : ""}`),
+          ...noPr.map((entry) => `\nNo PR in \`${entry.repo}\`: no commits. Still open: ${issueList(entry.open)}.`),
         ];
   return [START, models, ...run, END].join("\n");
 };

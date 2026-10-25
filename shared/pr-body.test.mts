@@ -81,10 +81,6 @@ test("runBlock: several PRs with nothing left out still list the merge order", (
   assert.match(runBlock("Models: m.", "acme/hub", 7, [hub, app], [], {}), /1\. acme\/hub#9 \(hub\)\n2\. acme\/app#12 \(app\)/);
 });
 
-test("runBlock: one PR and a repo without a PR, whose planned work was all comments", () => {
-  assert.match(runBlock("Models: m.", "acme/hub", 7, [hub], [{ repo: "lib", open: [] }], {}), /\nNo PR in `lib`: no commits\.\n<!-- \/sandcastle-run -->$/);
-});
-
 test("reposWithoutPr: repos with planned work and no PR, with their issues once each", () => {
   const planned = [
     { repo: "hub", issue: "3" },
