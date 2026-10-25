@@ -12,7 +12,7 @@ The spec is the root issue, its sub-issues, and the open PR's comments of this b
 # Rules for this run
 
 - Nobody is there to answer: never ask a question, decide and go on.
-- Commit subjects start with `SANDCASTLE:`; the body has an `Issue: #{{ROOT}}` line, and a `Comment: <url>` line per PR comment the commit fixes.
+- Commit subjects start with `SANDCASTLE:`; the body has an `Issue: #{{ROOT}}` line.
 - `{{VERIFY}}` before every commit. Red: fix, never commit. Never `--no-verify`. Never weaken, skip or delete a check to make it pass.
 - Only the PR agent pushes: never push, never force-push. Never close or comment on an issue, never merge a PR. Leave nothing uncommitted.
 

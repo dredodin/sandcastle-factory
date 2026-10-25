@@ -1,10 +1,10 @@
-import { mergeSubject, type Item } from "./item.mjs";
+import type { Item } from "./item.mjs";
 
 const SUBJECT = "SANDCASTLE: merge ";
 const TRAILER = "Issue: #";
 
 // The `-m` messages of an item's merge commit.
-export const messagesFor = (item: Item): readonly string[] => [`${SUBJECT}${mergeSubject(item)}`, `${TRAILER}${item.issue}`];
+export const messagesFor = (item: Item): readonly string[] => [`${SUBJECT}#${item.issue}`, `${TRAILER}${item.issue}`];
 
 // The merge command the merge script runs and the merge prompt lists, verbatim.
 export const mergeCommand = (branch: string, messages: readonly string[]): string =>

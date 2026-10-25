@@ -3,23 +3,17 @@ import { test } from "node:test";
 import type { Item } from "./item.mjs";
 import { issuesIn, mergeCommand, messagesFor } from "./merge-record.mjs";
 
-const item = (issue: string, comments: string[]): Item => ({ issue, repo: "app", title: "t", comments, brief: "", branch: "b" });
+const item = (issue: string): Item => ({ issue, repo: "app", title: "t", branch: "b" });
 const commit = (i: Item): string => messagesFor(i).join("\n\n");
 
 test("issuesIn: reads back what messagesFor writes, deduplicated, first-merged order", () => {
   const messages = [
-    commit(item("7", [])),
-    commit(item("3", [])),
-    commit(item("3", ["https://github.com/acme/app/pull/50#discussion_r123"])),
-    commit(item("7", [])),
+    commit(item("7")),
+    commit(item("3")),
+    commit(item("7")),
     "SANDCASTLE: merge origin/main",
   ];
   assert.deepEqual(issuesIn(messages), [7, 3]);
-});
-
-test("issuesIn: comment item records its root issue", () => {
-  const comment = item("42", ["https://github.com/acme/app/pull/50#issuecomment-456"]);
-  assert.deepEqual(issuesIn([commit(comment)]), [42]);
 });
 
 test("issuesIn: messages with neither line are ignored", () => {
@@ -31,11 +25,7 @@ test("issuesIn: reads a message as already stored in git", () => {
 });
 
 test("messagesFor: subject then Issue trailer", () => {
-  assert.deepEqual(messagesFor(item("7", [])), ["SANDCASTLE: merge #7", "Issue: #7"]);
-  assert.deepEqual(messagesFor(item("42", ["https://github.com/acme/app/pull/50#issuecomment-456"])), [
-    "SANDCASTLE: merge c456",
-    "Issue: #42",
-  ]);
+  assert.deepEqual(messagesFor(item("7")), ["SANDCASTLE: merge #7", "Issue: #7"]);
 });
 
 test("issuesIn: a subject line alone counts, and wins over a trailer after it", () => {

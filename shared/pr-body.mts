@@ -1,5 +1,6 @@
 // Pure assembly of what the run adds to every PR body: the Closes lines, the models and the run's PR list.
 import { z } from "zod";
+import type { Item } from "./item.mjs";
 import { PHASES, type Phase, type PhaseSetting } from "./env.mjs";
 
 export type Pr = {
@@ -48,13 +49,13 @@ export const mergeOrder = (prs: readonly Pr[], blockedBy: BlockedBy): readonly P
   return place([], prs);
 };
 
-// The repos the run planned issues or comments in that got no PR, each with its planned issues, which stay open.
-export const reposWithoutPr = (planned: readonly { readonly repo: string; readonly issue: string; readonly comments: readonly string[] }[], prRepos: readonly string[]): readonly NoPr[] =>
+// The repos the run planned issues in that got no PR, each with its planned issues, which stay open.
+export const reposWithoutPr = (planned: readonly Pick<Item, "repo" | "issue">[], prRepos: readonly string[]): readonly NoPr[] =>
   [...new Set(planned.map((item) => item.repo))]
     .filter((repo) => !prRepos.includes(repo))
     .map((repo) => ({
       repo,
-      open: [...new Set(planned.filter((item) => item.repo === repo && item.comments.length === 0).map((item) => Number(item.issue)))],
+      open: [...new Set(planned.filter((item) => item.repo === repo).map((item) => Number(item.issue)))],
     }));
 
 const issueList = (issues: readonly number[]): string => issues.map((id) => `#${id}`).join(", ");

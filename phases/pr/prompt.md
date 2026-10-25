@@ -21,14 +21,6 @@ AFK rules of this run: commit subjects start with `SANDCASTLE:`, the body has `I
 
 3. Existing PR: `gh pr list --repo {{REPO_SLUG}} --head {{INTEGRATION_BRANCH}} --state open --json url`. One found: reuse it, rewriting its body: `gh pr edit <url> --body-file /tmp/pr-body.md`. None: `gh pr create --repo {{REPO_SLUG}} --base {{DEFAULT_BRANCH}} --head {{INTEGRATION_BRANCH}} --title "<title above>" --body-file /tmp/pr-body.md`. Never `--draft`. A later step adds the models and the run's PR list to the body: leave a block between `<!-- sandcastle-run -->` and `<!-- /sandcastle-run -->` as it is.
 
-4. Comments, only after step 3. Each `Comment: <url>` line in the commits above names a PR comment the branch fixed. For each one with no own reply yet naming the commit that carries its `Comment:` line (a reply naming an older commit does not count: the comment was re-opened):
-   - Reply under it, naming the commit that carries the `Comment:` line (short SHA). The reply starts with the line `{{DISCLAIMER}}`.
-   - Reply body in `/tmp/reply.md` (outside the worktree). Then close it, by URL fragment:
-     - `#discussion_r<id>`: reply `gh api repos/{{REPO_SLUG}}/pulls/<pr>/comments/<id>/replies -F body=@/tmp/reply.md`; resolve its thread (node id from the PR's `reviewThreads` over GraphQL) with `resolveReviewThread`.
-     - `#issuecomment-<id>`: reply `gh pr comment <pr> --repo {{REPO_SLUG}} --body-file /tmp/reply.md`; hide with `minimizeComment`, classifier `RESOLVED`, node id from `gh api repos/{{REPO_SLUG}}/issues/comments/<id> --jq .node_id`.
-     - `#pullrequestreview-<id>`: cannot be hidden: reply as a top-level PR comment linking the review URL, nothing to close.
-   - One reply per fixed comment, even when one commit fixed several. Never reply or close under a comment the commits do not name.
-
 Never merge the PR, never close or comment on an issue, never commit.
 
 ## Body template
