@@ -71,6 +71,11 @@ export const latestTake = (workspace: Workspace, root: number): LatestTake => {
   return pickLatestTake(runKey(workspace, root), workspace.repos.map((repo) => ({ repo: repo.name, refs: refNames(repo) })));
 };
 
+// Fails when the branch is checked out in the repo's main working tree: a worktree of it could not be made.
+export const checkNotCheckedOut = (repo: Repo, branch: string): void => {
+  if (sh(repo.path, "git", "branch", "--show-current") === branch) throw new Error(`\`${branch}\` is checked out in \`${repo.path}\`: run \`git switch ${repo.defaultBranch}\` there.`);
+};
+
 // Lines for the plan prompt: the open PRs of the branch, in the repos that have one.
 export const openPrsText = (workspace: Workspace, branch: string): string => {
   const lines = workspace.repos.flatMap((repo) =>

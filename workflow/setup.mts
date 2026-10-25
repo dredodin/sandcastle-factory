@@ -78,6 +78,15 @@ const createLabels = (workspace: Workspace): void => {
   }
 };
 
+// A stopped Podman machine is started; no machine at all (Linux, native Podman) is left alone.
+const startPodmanMachine = (cwd: string): void => {
+  if (!succeeds(cwd, "podman", "machine", "inspect")) return;
+  const state = sh(cwd, "podman", "machine", "inspect", "--format", "{{.State}}");
+  if (state === "running") return;
+  log.info(`Podman machine is ${state}: starting it.`);
+  sh(cwd, "podman", "machine", "start");
+};
+
 // Makes the machine ready for the Workspace of the current directory's repo; returns what a run needs.
 // In a terminal, the wizard opens: always for `setup`, only when something is missing for a run.
 export const setup = async (mode: Command["mode"]): Promise<{ readonly workspace: Workspace; readonly env: Env }> => {
@@ -88,6 +97,7 @@ export const setup = async (mode: Command["mode"]): Promise<{ readonly workspace
   const left = unready(values, names);
   if (left.length > 0) throw new Error(`Missing or wrong in .sandcastle/.env: ${left.join(", ")}. A human runs \`npm run sandcastle -- setup\` in their terminal.`);
   const env = checkEnv(values, names);
+  if (env.sandbox === "podman") startPodmanMachine(layout.root);
   const workspace = resolveWorkspace(layout, env.repoPaths);
   linkSources(workspace);
   createLabels(workspace);
