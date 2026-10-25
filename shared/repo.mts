@@ -1,10 +1,10 @@
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { z } from "zod";
 import { assertNoOpenTake, freeItemBranch, nextTakeBranch, pickLatestTake, type LatestTake, type RepoPrs, type RunKey } from "./branches.mjs";
 import { issuesIn } from "./merge-record.mjs";
 import { githubUrl } from "./names.mjs";
-import { mkdtempSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { sh, succeeds } from "./shell.mjs";
 import type { Repo, Workspace } from "./workspace.mjs";
 
@@ -64,8 +64,6 @@ export const mergeMessages = (repo: Repo, branch: string): readonly string[] =>
 
 export const branchExists = (repo: Repo, branch: string): boolean =>
   succeeds(repo.path, "git", "rev-parse", "--verify", "--quiet", `refs/heads/${branch}`);
-
-export const headOf = (repo: Repo, ref: string): string => sh(repo.path, "git", "rev-parse", ref);
 
 // The latest take of the root by its branch, among local and origin refs of every repo. Every repo is fetched first.
 export const latestTake = (workspace: Workspace, root: number): LatestTake => {
