@@ -57,20 +57,23 @@ const excludeFactoryFiles = (repo: Repo): void => {
   if (!present.includes("/.sandcastle/")) appendFileSync(exclude, `${present.at(-1) === "" || present.length === 0 ? "" : "\n"}/.sandcastle/\n`);
 };
 
+// A file of the repo's sandbox folder in the home repo.
+const homeFile = (workspace: Workspace, repo: Repo, file: string): string => `${workspace.root}/${repoDir(repo.name)}/${file}`;
+
 // The repo's own scripts live in the home repo; the worktree gets those that exist, at the same path.
 const copyScripts = (workspace: Workspace, repo: Repo, worktreePath: string): void => {
   for (const script of SCRIPTS) {
-    const from = `${workspace.root}/${repoDir(repo.name)}/${script}`;
+    const from = homeFile(workspace, repo, script);
     const to = `${worktreePath}/${repoDir(repo.name)}/${script}`;
     if (existsSync(to) || !existsSync(from)) continue;
     cpSync(from, to, { recursive: true });
   }
 };
 
-// With the repo's sparse list and no worktree on the branch yet, makes the worktree with only the rest checked out;
+// With the repo's sparse list and no worktree on the branch yet, makes the worktree checked out per that list;
 // `createWorktree` then reuses it as is.
 const makeLightWorktree = (workspace: Workspace, { repo, branch, baseBranch }: SandboxSpec): void => {
-  const listPath = `${workspace.root}/${repoDir(repo.name)}/${SPARSE_LIST}`;
+  const listPath = homeFile(workspace, repo, SPARSE_LIST);
   if (!existsSync(listPath)) return;
   if (worktreeOf(repo, branch) !== undefined) return;
   const path = `${repo.path}/.sandcastle/worktrees/${branch.replaceAll("/", "-")}`;
