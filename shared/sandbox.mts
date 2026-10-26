@@ -16,7 +16,7 @@ import type { Repo, Workspace } from "./workspace.mjs";
 const TEARDOWN_ATTEMPTS = 3;
 const TEARDOWN_BACKOFF_MS = 500;
 const NO_SUCH_CONTAINER = /no such container/i;
-const SPARSE_LIST = "sparse-exclude";
+const SPARSE_LIST = "sparse-checkout";
 const SCRIPTS = ["setup.sh", "verify.sh", "deep-verify.sh", "plan-check.sh"] as const;
 const SETUP_OUTPUT_TAIL = 2000;
 
