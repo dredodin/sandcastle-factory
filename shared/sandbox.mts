@@ -9,12 +9,13 @@ import { message } from "./cli.mjs";
 import type { Env } from "./env.mjs";
 import { log, timed } from "./logger.mjs";
 import { imageName, repoDir } from "./names.mjs";
-import { sh } from "./shell.mjs";
+import { sh, shIn, succeeds } from "./shell.mjs";
 import type { Repo, Workspace } from "./workspace.mjs";
 
 const TEARDOWN_ATTEMPTS = 3;
 const TEARDOWN_BACKOFF_MS = 500;
 const NO_SUCH_CONTAINER = /no such container/i;
+const SPARSE_LIST = "sparse-exclude";
 const SCRIPTS = ["setup.sh", "verify.sh", "deep-verify.sh", "plan-check.sh"] as const;
 const SETUP_OUTPUT_TAIL = 2000;
 
@@ -65,6 +66,19 @@ const copyScripts = (workspace: Workspace, repo: Repo, worktreePath: string): vo
   }
 };
 
+// With the repo's sparse list and no worktree on the branch yet, makes the worktree with only the rest checked out;
+// `createWorktree` then reuses it as is.
+const makeLightWorktree = (workspace: Workspace, { repo, branch, baseBranch }: SandboxSpec): void => {
+  const listPath = `${workspace.root}/${repoDir(repo.name)}/${SPARSE_LIST}`;
+  if (!existsSync(listPath)) return;
+  if (sh(repo.path, "git", "worktree", "list", "--porcelain").split("\n").includes(`branch refs/heads/${branch}`)) return;
+  const path = `${repo.path}/.sandcastle/worktrees/${branch.replaceAll("/", "-")}`;
+  const target = succeeds(repo.path, "git", "rev-parse", "--verify", "--quiet", `refs/heads/${branch}`) ? [path, branch] : ["-b", branch, path, baseBranch];
+  sh(repo.path, "git", "worktree", "add", "--no-checkout", ...target);
+  shIn(path, readFileSync(listPath, "utf8"), "git", "sparse-checkout", "set", "--no-cone", "--stdin");
+  sh(path, "git", "reset", "--hard", "HEAD");
+};
+
 type Opened = {
   readonly sandbox: Sandbox;
   readonly worktreePath: string;
@@ -74,10 +88,14 @@ type Opened = {
   readonly finish: () => Promise<void>;
 };
 
-const open = async (context: SandboxContext, { repo, name, branch, baseBranch }: SandboxSpec): Promise<Opened> => {
+const open = async (context: SandboxContext, spec: SandboxSpec): Promise<Opened> => {
+  const { repo, name, branch, baseBranch } = spec;
   const step = `open ${repo.name} ${name}:`;
   if (!repo.isHome) excludeFactoryFiles(repo);
-  const worktree = await timed(`${step} worktree`, () => createWorktree({ cwd: repo.path, branchStrategy: { type: "branch", branch, baseBranch } }));
+  const worktree = await timed(`${step} worktree`, () => {
+    makeLightWorktree(context.workspace, spec);
+    return createWorktree({ cwd: repo.path, branchStrategy: { type: "branch", branch, baseBranch } });
+  });
   const kept = (reason: string): Error => new Error(`${reason} (worktree kept: ${worktree.worktreePath})`);
   try {
     copyScripts(context.workspace, repo, worktree.worktreePath);

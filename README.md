@@ -31,6 +31,7 @@ GLOSSARY-MAP.md                      # links .sandcastle/repos/<name>/… name t
     ├── Containerfile                # FROM sandcastle-factory:base + what verify.sh needs
     ├── setup.sh                     # runs in the sandbox once the worktree is ready
     ├── verify.sh                    # agents run it before every commit
+    ├── sparse-exclude               # optional; paths sandbox worktrees leave out, git non-cone sparse-checkout patterns
     ├── deep-verify.sh               # optional; the review agent runs it once per branch, base branch as $1
     ├── plan-check.sh                # optional, home repo only; the plan agent runs it each cycle, non-zero = its output is work
     └── source                       # link to an app repo's clone; setup makes it
