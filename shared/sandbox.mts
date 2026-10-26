@@ -9,7 +9,8 @@ import { message } from "./cli.mjs";
 import type { Env } from "./env.mjs";
 import { log, timed } from "./logger.mjs";
 import { imageName, repoDir } from "./names.mjs";
-import { sh, shIn, succeeds } from "./shell.mjs";
+import { branchExists, worktreeOf } from "./repo.mjs";
+import { sh, shIn } from "./shell.mjs";
 import type { Repo, Workspace } from "./workspace.mjs";
 
 const TEARDOWN_ATTEMPTS = 3;
@@ -71,9 +72,9 @@ const copyScripts = (workspace: Workspace, repo: Repo, worktreePath: string): vo
 const makeLightWorktree = (workspace: Workspace, { repo, branch, baseBranch }: SandboxSpec): void => {
   const listPath = `${workspace.root}/${repoDir(repo.name)}/${SPARSE_LIST}`;
   if (!existsSync(listPath)) return;
-  if (sh(repo.path, "git", "worktree", "list", "--porcelain").split("\n").includes(`branch refs/heads/${branch}`)) return;
+  if (worktreeOf(repo, branch) !== undefined) return;
   const path = `${repo.path}/.sandcastle/worktrees/${branch.replaceAll("/", "-")}`;
-  const target = succeeds(repo.path, "git", "rev-parse", "--verify", "--quiet", `refs/heads/${branch}`) ? [path, branch] : ["-b", branch, path, baseBranch];
+  const target = branchExists(repo, branch) ? [path, branch] : ["-b", branch, path, baseBranch];
   sh(repo.path, "git", "worktree", "add", "--no-checkout", ...target);
   shIn(path, readFileSync(listPath, "utf8"), "git", "sparse-checkout", "set", "--no-cone", "--stdin");
   sh(path, "git", "reset", "--hard", "HEAD");

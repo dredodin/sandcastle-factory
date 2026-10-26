@@ -85,7 +85,7 @@ export const openPrsText = (workspace: Workspace, branch: string): string => {
 };
 
 // Path of the worktree that has the branch checked out, if any.
-const worktreeOf = (repo: Repo, branch: string): string | undefined =>
+export const worktreeOf = (repo: Repo, branch: string): string | undefined =>
   sh(repo.path, "git", "worktree", "list", "--porcelain")
     .split("\n\n")
     .map((block) => block.split("\n"))
