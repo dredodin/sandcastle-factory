@@ -6,11 +6,13 @@ AFK orchestrator over [`@ai-hero/sandcastle`](https://github.com/ai-hero-dev/san
 
 - Node 22+, git, `gh` (logged in); Windows: git bash
 - docker or podman, unless `SANDBOX=none`; with `none`, each repo's toolchain on the host and agents run with all your rights
-- GitHub only. Home repo: issues enabled, `GLOSSARY-MAP.md`
+- GitHub only. Home repo: issues enabled
 
 ## Install
 
-In the home repo, by tag:
+Onboarding skill: in the home repo, `npx skills add <owner>/sandcastle-factory -s onboarding-factory --copy`, then run `/onboarding-factory`; it does the rest of this README. Rerun it to add app repos.
+
+By hand, in the home repo, by tag:
 
 ```sh
 npm install --save-dev "git+https://github.com/<owner>/sandcastle-factory.git#v0.1.0"
@@ -23,7 +25,7 @@ npm install --save-dev "git+https://github.com/<owner>/sandcastle-factory.git#v0
 ## Home repo layout
 
 ```text
-GLOSSARY-MAP.md                      # links .sandcastle/repos/<name>/… name the repos
+GLOSSARY-MAP.md                      # links .sandcastle/repos/<name>/… name the repos; none: the home repo alone
 .sandcastle/
 ├── .env                             # per machine; keys: shared/env.mts
 ├── logs/                            # one folder per run
@@ -54,7 +56,7 @@ The setup wizard (`workflow/wizard.sh`, from the vendored `wizard` skill) needs 
 
 ## Repo image
 
-The setup wizard shows the build commands of missing images and runs them on your yes. After a Containerfile edit, remove the image (`podman rmi sandcastle:<home>-<name>`) and run `setup`.
+The setup wizard shows the build commands of missing images and runs them on your yes; a repo without a Containerfile is named and left unbuilt, but a run needs every image. After a Containerfile edit, remove the image (`<podman|docker> rmi sandcastle:<home>-<name>`) and run `setup`.
 
 ## Develop
 
