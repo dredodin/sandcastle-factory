@@ -610,7 +610,7 @@ images_stage() {
   if (( ${#builds[@]} == 0 )); then pause; return 0; fi
   # build_command IMAGE [FILE] sets CMD to the command building IMAGE: the base image without FILE.
   build_command() {
-    if [[ -z "${2:-}" ]]; then CMD=("$sandbox" build -t "$1" --build-arg "AGENT_UID=$(id -u)" --build-arg "AGENT_GID=$(id -g)" "$WIZARD_FACTORY_DIR")
+    if [[ -z "${2:-}" ]]; then CMD=("$sandbox" build -t "$1" --build-arg "AGENT_UID=$(id -u)" --build-arg "AGENT_GID=$(id -g)" -f "$WIZARD_FACTORY_DIR/Containerfile" "$WIZARD_FACTORY_DIR")
     else CMD=(npx sandcastle "$sandbox" build-image --containerfile "$2" --image-name "$1"); fi
   }
   say "Missing images. These commands build them, minutes each:"
