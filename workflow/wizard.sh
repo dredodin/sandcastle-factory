@@ -602,10 +602,12 @@ images_stage() {
   done <<< "$WIZARD_IMAGES"
   if (( ${#builds[@]} + ${#missing_files[@]} == 0 )); then skip; return 0; fi
   stage "Repo images"
-  if (( ${#missing_files[@]} > 0 )); then
-    warn "missing: ${missing_files[*]}: add each, FROM $WIZARD_BASE_IMAGE, then run setup again."
-    exit 1
-  fi
+  # A missing Containerfile leaves its image unbuilt, not setup unfinished: the sources still get linked.
+  for file in "${missing_files[@]+"${missing_files[@]}"}"; do
+    warn "not built: no $file"
+    SKIPPED+=("image of $file: add it, FROM $WIZARD_BASE_IMAGE, then run setup again")
+  done
+  if (( ${#builds[@]} == 0 )); then pause; return 0; fi
   # build_command IMAGE [FILE] sets CMD to the command building IMAGE: the base image without FILE.
   build_command() {
     if [[ -z "${2:-}" ]]; then CMD=("$sandbox" build -t "$1" --build-arg "AGENT_UID=$(id -u)" --build-arg "AGENT_GID=$(id -g)" "$WIZARD_FACTORY_DIR")

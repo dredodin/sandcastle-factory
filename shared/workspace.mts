@@ -1,6 +1,6 @@
 // The Workspace: the home repo and the repos worked together with it. Read from the current directory's repo root only.
 
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { repoNamesFromMap, slugFromRemote, type Slug } from "./names.mjs";
 import { sh } from "./shell.mjs";
 
@@ -31,11 +31,12 @@ export type Layout = {
 
 const originSlug = (path: string): Slug => slugFromRemote(sh(path, "git", "remote", "get-url", "origin"));
 
-// Reads the home repo's identity and its repo list. No `.env`, no network.
+// Reads the home repo's identity and its repo list. No `.env`, no network. No GLOSSARY-MAP: the home repo alone.
 export const readLayout = (cwd: string): Layout => {
   const root = sh(cwd, "git", "rev-parse", "--show-toplevel");
   const home = originSlug(root);
-  return { root, homeName: home.name, homeSlug: `${home.owner}/${home.name}`, mapped: repoNamesFromMap(readFileSync(`${root}/GLOSSARY-MAP.md`, "utf8")) };
+  const map = `${root}/GLOSSARY-MAP.md`;
+  return { root, homeName: home.name, homeSlug: `${home.owner}/${home.name}`, mapped: existsSync(map) ? repoNamesFromMap(readFileSync(map, "utf8")) : [] };
 };
 
 // Repos other than the home repo, which need a local path in `.env`.
