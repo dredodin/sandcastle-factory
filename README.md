@@ -10,12 +10,12 @@ AFK orchestrator over [`@ai-hero/sandcastle`](https://github.com/ai-hero-dev/san
 
 ## Install
 
-Onboarding skill: in the home repo, `npx skills add <owner>/sandcastle-factory -s onboarding-factory --copy`, then run `/onboarding-factory`; it does the rest of this README. Rerun it to add app repos.
+Onboarding skill: in the home repo, `npx skills add dredodin/sandcastle-factory -s onboarding-factory --copy`, then run `/onboarding-factory`; it does the rest of this README. Rerun it to add app repos.
 
 By hand, in the home repo, by tag:
 
 ```sh
-npm install --save-dev "git+https://github.com/<owner>/sandcastle-factory.git#v0.1.0"
+npm install --save-dev "git+https://github.com/dredodin/sandcastle-factory.git#v0.1.0"
 ```
 
 ```json
