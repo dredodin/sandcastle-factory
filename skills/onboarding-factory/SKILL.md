@@ -100,7 +100,7 @@ The rest of the triage vocabulary is the home repo's own.
 
 Done-check: `.sandcastle/.env` exists (test its existence only) and every app repo of the Workspace has its `.sandcastle/repos/<name>/source` link.
 
-Stop. The human runs, in their own terminal:
+Stop. The human runs, in their own terminal (Windows: Git Bash, not PowerShell or cmd: setup runs its wizard with `bash`, which there may resolve to WSL):
 
 ```sh
 npm run sandcastle -- setup
