@@ -611,8 +611,11 @@ images_stage() {
   # build_command IMAGE [FILE] sets CMD to the command building IMAGE: the base image without FILE.
   build_command() {
     if [[ -z "${2:-}" ]]; then CMD=("$sandbox" build -t "$1" --build-arg "AGENT_UID=$(id -u)" --build-arg "AGENT_GID=$(id -g)" -f "$WIZARD_FACTORY_DIR/Containerfile" "$WIZARD_FACTORY_DIR")
-    else CMD=(npx sandcastle "$sandbox" build-image --containerfile "$2" --image-name "$1"); fi
+    else CMD=(npx sandcastle "$sandbox" build-image "$file_flag" "$2" --image-name "$1"); fi
   }
+  # sandcastle names the flag after the sandbox: docker --dockerfile, podman --containerfile.
+  local file_flag=--containerfile
+  if [[ "$sandbox" == docker ]]; then file_flag=--dockerfile; fi
   say "Missing images. These commands build them, minutes each:"
   printf '\n'
   for i in "${builds[@]}"; do

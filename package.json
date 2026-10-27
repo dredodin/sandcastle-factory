@@ -1,6 +1,6 @@
 {
   "name": "sandcastle-factory",
-  "version": "0.3.6",
+  "version": "0.3.7",
   "private": true,
   "scripts": {
     "verify": "tsc -p . && tsx --test \"**/*.test.mts\"",
