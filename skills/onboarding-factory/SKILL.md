@@ -126,10 +126,10 @@ Done-check: every repo of the Workspace, home included, has its image, or the en
 
 Engine: the first of `docker`, `podman` where `<engine> image inspect sandcastle-factory:base` succeeds; neither → none (`SANDBOX=none`), skip this step. A stopped Podman machine fails that inspect too: when `podman machine inspect --format '{{.State}}'` is not `running`, run `podman machine start` before checking.
 
-Image name: `sandcastle:<home>-<name>`, lowercase. Each missing one:
+Image name: `sandcastle:<home>-<name>`, lowercase. File flag: docker `--dockerfile`, podman `--containerfile`. Each missing one:
 
 ```sh
-npx sandcastle <engine> build-image --containerfile .sandcastle/repos/<name>/Containerfile --image-name sandcastle:<home>-<name>
+npx sandcastle <engine> build-image <file-flag> .sandcastle/repos/<name>/Containerfile --image-name sandcastle:<home>-<name>
 ```
 
 ## Done
