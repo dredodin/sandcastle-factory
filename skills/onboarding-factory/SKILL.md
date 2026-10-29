@@ -20,7 +20,7 @@ Each missing one, from `mattpocock/skills`:
 npx skills add mattpocock/skills -a claude-code -s <name> --copy -y
 ```
 
-code-review, codebase-design, diagnosing-bugs, domain-modeling, grill-with-docs, grilling, implement, improve-codebase-architecture, pr, research, retro, setup-matt-pocock-skills, tdd, to-spec, to-tickets, triage, wait-what, wayfinder, writing-for-agents.
+code-review, codebase-design, diagnosing-bugs, domain-modeling, grill-with-docs, grilling, handoff, implement, improve-codebase-architecture, pr, research, retro, setup-matt-pocock-skills, tdd, to-spec, to-tickets, triage, wait-what, wayfinder, writing-for-agents.
 
 `show-me`: `npx skills add humanlayer/skills -a claude-code -s show-me --copy -y`.
 
