@@ -50,7 +50,7 @@ Two axes, kept apart: a change can pass one and fail the other. Report each sepa
 
 Two axes, kept apart.
 
-**Convention**: does the Markdown agree with the rest of the repo? Also, when the diff has code: docs anywhere in the repo that describe the changed code (names, paths, commands, behaviour) and are now wrong. Per file: (a) a term used against the glossary (`GLOSSARY.md` and similar) or one it says to avoid; (b) a statement an ADR or format doc contradicts: quote both, say which looks wrong; (c) a fact also stated in another file (one fact, one home); (d) a path, link or command that no longer resolves: check each; (e) a break of the repo's writing style. Mark hard breaches apart from judgement calls.
+**Convention**: does the Markdown agree with the rest of the repo? Check its terms against the glossary, its claims against ADRs and format docs, that each fact lives in one file, that paths, links and commands resolve, and that it follows the repo's writing style. When the diff has code, also find the docs that describe the changed code and say what is now wrong. Mark hard breaches apart from judgement calls.
 
 **Spec**: (a) asked for, missing or partial; (b) in the diff, not asked for; (c) done, but wrong. Quote the spec line for each.
 

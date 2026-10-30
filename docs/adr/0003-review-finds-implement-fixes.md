@@ -17,7 +17,7 @@ ADR-0002's review agent fixed code itself, so its fixes went unreviewed and left
 - Implement: Standards subagent if the diff has code, Docs if code or Markdown, Spec always; then fixes.
 - Branch review runs per touched repo on its whole branch against the default branch, at most two passes per run: pass 1 strict, pass 2 critical only. It commits nothing.
 - Its findings, with the deep verify script's output, become one sub-issue of the root per repo, in the home repo, labelled `repo:<name>` unless home. Nothing found: no issue. The next cycles implement it like any item.
-- Run: cycles → review 1 → cycles → review 2 → cycles → PR. Cycles that plan nothing after a pass skip the next review. `resume` restarts at pass 1.
+- Run: cycles → review 1 → cycles → review 2 → cycles → PR. Cycles that plan nothing after a pass end the reviews: one PR phase follows. `resume` restarts at pass 1.
 
 ## Considered and rejected
 
