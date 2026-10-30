@@ -45,6 +45,10 @@ GLOSSARY-MAP.md                      # links .sandcastle/repos/<name>/… name t
 - `GH_TOKEN`: one fine-grained token for every repo: Issues, Contents, Pull requests read/write; Metadata read. Sandboxes run `gh auth setup-git` on open: `git` uses it too. `SANDBOX=none`: sets your host's global git credential helper.
 - Agents never read `.sandcastle/.env`: deny them Read/Edit/Write on it (Claude Code: `permissions.deny` in `.claude/settings.json`).
 
+## Agents
+
+Each phase runs on `claudeCode`, `copilot` or `codex` (`<PHASE>_PROVIDER`; `<PHASE>_EFFORT` per provider: `shared/env.mts`). Codex signs in with `CODEX_API_KEY` in `.env`, or with the host's `~/.codex/auth.json` (`codex login` once on the host), which podman and docker sandboxes mount read-write (`SANDBOX=none` reads it directly); the key wins when both exist. Claude hooks do not run under Codex.
+
 ## Commands
 
 ```text
