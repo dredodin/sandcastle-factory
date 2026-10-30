@@ -54,7 +54,7 @@ Then lay out the home repo ([layout](docs/home-repo-layout.md)) and run `npm run
 </details>
 
 > [!IMPORTANT]
-> **Secrets.** One fine-grained GitHub token covers every repo, and it lives in `.sandcastle/.env` next to the agent keys. Keep that file out of git and out of the agents' reach: [secrets](docs/secrets.md).
+> **Secrets.** Your GitHub token and agent keys live in `.sandcastle/.env`. Keep that file out of git, and forbid agents to read it (Claude Code: `permissions.deny` in `.claude/settings.json`). `/onboarding-factory` sets up both.
 
 > [!WARNING]
 > **`SANDBOX=none`** runs agents straight on your machine, with all your rights. Each repo's toolchain must be installed on the host.
@@ -108,13 +108,11 @@ npm run sandcastle -- resume <issue>   # continue its latest take in every repo,
 npm run sandcastle -- setup            # change settings, add repos
 ```
 
-Setup details and one-run overrides: [commands](docs/commands.md).
+A shell variable overrides its setting for one run: `PLAN_MODEL=sonnet npm run sandcastle -- take 42`.
 
 ## Docs
 
 - [Home repo layout](docs/home-repo-layout.md)
-- [Secrets](docs/secrets.md)
 - [Agents](docs/agents.md)
-- [Commands](docs/commands.md)
 - [Repo image](docs/repo-image.md)
 - [Contributing](CONTRIBUTING.md)

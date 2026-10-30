@@ -5,7 +5,7 @@ What the factory reads from the [home repo](../GLOSSARY.md). `/onboarding-factor
 ```text
 GLOSSARY-MAP.md            # lists the app repos; none: the home repo alone
 .sandcastle/
-├── .env                   # per machine; never commit: see secrets.md
+├── .env                   # per machine, holds the tokens; the setup wizard writes it
 ├── logs/                  # one folder per run
 ├── worktrees/             # sandbox worktrees; the factory makes them
 └── repos/<name>/          # one folder per repo of the Workspace, home repo included

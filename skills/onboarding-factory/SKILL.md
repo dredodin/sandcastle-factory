@@ -78,7 +78,7 @@ Done-check: every path below is in `.gitignore`, and the deny rules are in `.cla
 Read `node_modules/sandcastle-factory/docs/home-repo-layout.md`: the layout every later step follows, this installed version, not memory.
 
 - `.gitignore`: each path that doc lists, plus `node_modules/`.
-- `.claude/settings.json`, merged into what is there: the deny rules `node_modules/sandcastle-factory/docs/secrets.md` gives.
+- `.claude/settings.json`, merged into what is there: `permissions.deny` holds `Read(./.sandcastle/.env)`, `Edit(./.sandcastle/.env)`, `Write(./.sandcastle/.env)`.
 
 ## 6. Home repo scripts
 
