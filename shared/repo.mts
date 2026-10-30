@@ -57,7 +57,8 @@ export const integrationBranch = (workspace: Workspace, root: number): string =>
 
 const MERGE_TREE_CONFLICT = 1;
 
-// Fetches the repo, then whether its branch, if it exists, would conflict merging the default branch (`git merge-tree` exits 1; any other failure throws).
+// Fetches the repo, then whether its branch, if it exists, would conflict merging the default branch.
+// A conflict: `git merge-tree` exits 1 and prints the tree; a failure (bad ref, old git) prints nothing and throws.
 export const conflictsWithBase = (repo: Repo, branch: string): boolean => {
   fetchOrigin(repo);
   if (!branchExists(repo, branch)) return false;
@@ -65,7 +66,8 @@ export const conflictsWithBase = (repo: Repo, branch: string): boolean => {
     sh(repo.path, "git", "merge-tree", "--write-tree", branch, repo.base);
     return false;
   } catch (error) {
-    if ((error as { status?: number }).status === MERGE_TREE_CONFLICT) return true;
+    const { status, stdout } = error as { status?: number; stdout?: string };
+    if (status === MERGE_TREE_CONFLICT && stdout) return true;
     throw error;
   }
 };
