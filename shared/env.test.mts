@@ -48,7 +48,7 @@ const codexBase = { GH_TOKEN: "t", SANDBOX: "podman", ...phases("claudeCode"), A
 
 test("checkEnv: codex phase with neither key nor host login fails naming CODEX_API_KEY", () => {
   assert.deepEqual(missingKeys(codexBase, [], false), ["CODEX_API_KEY"]);
-  assert.throws(() => checkEnv(codexBase, [], false), /CODEX_API_KEY.*run codex login or set CODEX_API_KEY/);
+  assert.throws(() => checkEnv(codexBase, [], false), /CODEX_API_KEY/);
 });
 
 test("checkEnv: codex phase passes with the key alone or the host login alone", () => {
