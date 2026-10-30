@@ -17,7 +17,7 @@ const TEARDOWN_ATTEMPTS = 3;
 const TEARDOWN_BACKOFF_MS = 500;
 const NO_SUCH_CONTAINER = /no such container/i;
 const SPARSE_LIST = "sparse-checkout";
-const SCRIPTS = ["setup.sh", "verify.sh", "deep-verify.sh", "plan-check.sh"] as const;
+const COPIED_FILES = ["setup.sh", "verify.sh", "deep-verify.sh", "plan-check.sh", "CODING_STANDARDS.md"] as const;
 const SETUP_OUTPUT_TAIL = 2000;
 
 const teardownRetry = retry(handleAll, { maxAttempts: TEARDOWN_ATTEMPTS - 1, backoff: new ConstantBackoff(TEARDOWN_BACKOFF_MS) });
@@ -60,11 +60,11 @@ const excludeFactoryFiles = (repo: Repo): void => {
 // A file of the repo's sandbox folder in the home repo.
 const homeFile = (workspace: Workspace, repo: Repo, file: string): string => `${workspace.root}/${repoDir(repo.name)}/${file}`;
 
-// The repo's own scripts live in the home repo; the worktree gets those that exist, at the same path.
-const copyScripts = (workspace: Workspace, repo: Repo, worktreePath: string): void => {
-  for (const script of SCRIPTS) {
-    const from = homeFile(workspace, repo, script);
-    const to = `${worktreePath}/${repoDir(repo.name)}/${script}`;
+// The repo's own scripts and personal standards live in the home repo; the worktree gets those that exist, at the same path.
+const copyRepoFiles = (workspace: Workspace, repo: Repo, worktreePath: string): void => {
+  for (const file of COPIED_FILES) {
+    const from = homeFile(workspace, repo, file);
+    const to = `${worktreePath}/${repoDir(repo.name)}/${file}`;
     if (existsSync(to) || !existsSync(from)) continue;
     cpSync(from, to, { recursive: true });
   }
@@ -102,7 +102,7 @@ const open = async (context: SandboxContext, spec: SandboxSpec): Promise<Opened>
   });
   const kept = (reason: string): Error => new Error(`${reason} (worktree kept: ${worktree.worktreePath})`);
   try {
-    copyScripts(context.workspace, repo, worktree.worktreePath);
+    copyRepoFiles(context.workspace, repo, worktree.worktreePath);
   } catch (error) {
     throw kept(message(error));
   }
