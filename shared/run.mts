@@ -25,8 +25,8 @@ export type Cycle = Run & { readonly number: number };
 // First line of every comment an agent posts under the maintainer's account; comments starting with it are never requests.
 export const DISCLAIMER = "> *Sandcastle agent reply — not a request.*";
 
-// What the planner decides for one cycle: the repos whose default branch must be merged first, and the items to work.
-export type Plan = { readonly defaults: readonly Repo[]; readonly items: readonly Item[] };
+// What the planner decides for one cycle: the items to work.
+export type Plan = { readonly items: readonly Item[] };
 
 // A phase's agent and where it logs: one file per agent run, inside the run's own log folder,
 // starting with the provider, model and effort the phase runs with.
