@@ -21,8 +21,6 @@ export type RepoState = {
   // False until the repo's integration worktree was opened.
   readonly opened: boolean;
   readonly merged: readonly number[];
-  readonly baseMerged: boolean;
-  readonly base: string;
 };
 
 // What is on the run's branches so far, per repo.
@@ -31,6 +29,6 @@ export const stateText = (branch: string, states: readonly RepoState[]): string 
     .map((state) => {
       if (!state.opened) return `- \`${state.repo}\`: no branch yet`;
       const merged = state.merged.length === 0 ? "none" : state.merged.map((id) => `#${id}`).join(", ");
-      return `- \`${state.repo}\`: \`${branch}\` carries merged issues: ${merged}; \`${state.base}\` already in the branch: ${state.baseMerged ? "yes" : "no"}`;
+      return `- \`${state.repo}\`: \`${branch}\` carries merged issues: ${merged}`;
     })
     .join("\n");
