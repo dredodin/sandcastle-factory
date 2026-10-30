@@ -44,9 +44,8 @@ const cycle = async (
 
   const conflicting = run.workspace.repos.filter((repo) => conflictsWithBase(repo, run.branch));
   conflicting.forEach((repo) => log.info(`  ${run.branch} conflicts with ${repo.base} in ${repo.name}`));
-  const planned = await plan(current, openPrsText, session);
-  const { items, next } = planned;
-  const defaults = [...new Set([...conflicting, ...planned.defaults])];
+  const { defaults: asked, items, next } = await plan(current, openPrsText, session);
+  const defaults = [...new Set([...conflicting, ...asked])];
   if (defaults.length === 0 && items.length === 0) {
     log.info("Nothing to do: plan is empty.");
     return { items: [], next };

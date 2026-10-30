@@ -30,7 +30,7 @@ export const repoDir = (repo: string): string => `.sandcastle/repos/${repo}`;
 // The command agents run before every commit in a worktree of the repo.
 export const verifyCommand = (repo: string): string => `bash ${repoDir(repo)}/verify.sh`;
 
-// The command the review agent runs once over a branch, when the repo has a deep verify script.
+// The command the review agent runs once per review pass, when the repo has a deep verify script.
 export const deepVerifyCommand = (repo: string, base: string): string => `bash ${repoDir(repo)}/deep-verify.sh ${base}`;
 
 // The command the plan agent runs each cycle, when the home repo has a plan check script.
