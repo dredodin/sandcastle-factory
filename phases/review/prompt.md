@@ -1,6 +1,6 @@
 # Context
 
-Branch `{{INTEGRATION_BRANCH}}` (the current branch) carries the work of root issue #{{ROOT}} in the repo `{{REPO_NAME}}` ({{REPO_SLUG}}): every item merged in, none reviewed yet. Review the whole of it against `{{BASE_BRANCH}}`, the fixed point. The work may continue in other repos on the same branch name; their branches, for reference only (you may read them with `gh`, never change them, and comments go only on this repo's PR):
+Branch `{{INTEGRATION_BRANCH}}` (the current branch) carries the work of root issue #{{ROOT}} in the repo `{{REPO_NAME}}` ({{REPO_SLUG}}): every item merged in, each reviewed on its own. Review the whole of it against `{{BASE_BRANCH}}`, the fixed point. The work may continue in other repos on the same branch name; their branches, for reference only (you may read them with `gh`, never change them):
 
 {{OTHER_BRANCHES}}
 
@@ -12,27 +12,21 @@ The spec is the root issue, its sub-issues, and the open PR's comments of this b
 # Rules for this run
 
 - Nobody is there to answer: never ask a question, decide and go on.
-- Commit subjects start with `SANDCASTLE:`; the body has an `Issue: #{{ROOT}}` line.
-- `{{VERIFY}}` before every commit. Red: fix, never commit. Never `--no-verify`. Never weaken, skip or delete a check to make it pass.
-- Only the PR agent pushes: never push, never force-push. Never close or comment on an issue, never merge a PR. Leave nothing uncommitted.
+- Read the root's earlier review issues (sub-issues whose body says it comes from branch review); do not repeat what they fixed or what was rejected.
 
 # Task
 
-Review and fix the whole branch.
+Review the whole branch and file what you find.
 
 1. Read the diff: `git diff {{BASE_BRANCH}}...HEAD` and the commit list `git log {{BASE_BRANCH}}..HEAD --oneline`. Code in it (source, scripts, config, tests) → the **code review** below. Markdown in it → the **doc review** below. Both → code first.
-2. Deep verify script, when its file is in the worktree: `{{DEEP_VERIFY}}`, once, now. It is slow: leave the files it reads untouched while it runs. What it reports are findings too.
-3. Fix every finding the reviews and the script report, in this session. A finding that contradicts the issue or an ADR is not a fix: leave it, and say why in the commit body.
-4. `{{VERIFY}}` before committing. Red: fix, never commit.
-5. Commit. The body says what was fixed and which findings were left.
-
-Always commit, `--allow-empty` when nothing else changed: the summary must reach the PR.
+2. Deep verify script, when its file is in the worktree: `{{DEEP_VERIFY}}`, once, now. It is slow. What it reports are findings too.
+3. Findings → one issue: create it in `{{HOME_SLUG}}` (`gh issue create`, body file outside the worktree), add it as a sub-issue of root #{{ROOT}}, label it `repo:{{REPO_NAME}}` unless `{{REPO_NAME}}` is the home repo `{{HOME_NAME}}`. No other label. The body says it comes from branch review of repo `{{REPO_NAME}}`, then lists the findings, each with file, axis, what is wrong and how to fix it. A finding that contradicts the issue or an ADR is not listed. Nothing found: no issue.
 
 ## Code review
 
 Two axes, kept apart: a change can pass one and fail the other. Report each separately and do not rerank across them.
 
-**Standards**: does the code conform to the repo's documented standards (`CODING_STANDARDS.md`, `CONTRIBUTING.md`, ADRs, anything that says how code is written)? Report every breach, citing the standard (file and rule). Then the smell baseline, always a judgement call, and a documented repo standard overrides it. Skip what tooling enforces. Each smell is *what it is* → *how to fix*:
+**Standards**: does the code conform to the repo's documented standards (`CODING_STANDARDS.md`, `CONTRIBUTING.md`, ADRs, anything that says how code is written), plus `.sandcastle/repos/{{REPO_NAME}}/CODING_STANDARDS.md` when present (it wins on conflict)? Report every breach, citing the standard (file and rule). Then the smell baseline, always a judgement call, and a documented repo standard overrides it. Skip what tooling enforces. Each smell is *what it is* → *how to fix*:
 
 - **Mysterious Name**: a name that does not reveal what it does or holds. → rename; if no honest name comes, the design is murky.
 - **Duplicated Code**: the same logic shape in more than one place of the change. → extract it, call it from both.
@@ -53,7 +47,7 @@ Two axes, kept apart: a change can pass one and fail the other. Report each sepa
 
 Two axes, kept apart.
 
-**Convention**: does the Markdown agree with the rest of the repo? Per file: (a) a term used against the glossary (`GLOSSARY.md` and similar) or one it says to avoid; (b) a statement an ADR or format doc contradicts: quote both, say which looks wrong; (c) a fact also stated in another file (one fact, one home); (d) a path, link or command that no longer resolves: check each; (e) a break of the repo's writing style. Mark hard breaches apart from judgement calls.
+**Convention**: does the Markdown agree with the rest of the repo? Check its terms against the glossary, its claims against ADRs and format docs, that each fact lives in one file, that paths, links and commands resolve, and that it follows the repo's writing style. When the diff has code, also find the docs that describe the changed code and say what is now wrong. Mark hard breaches apart from judgement calls.
 
 **Spec**: (a) asked for, missing or partial; (b) in the diff, not asked for; (c) done, but wrong. Quote the spec line for each.
 

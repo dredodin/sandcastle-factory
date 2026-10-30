@@ -55,8 +55,29 @@ export const integrationBranch = (workspace: Workspace, root: number): string =>
   return nextTakeBranch(runKey(workspace, root), refNames(workspace.home));
 };
 
+const MERGE_TREE_CONFLICT = 1;
+
+// Fetches the repo, then whether its branch, if it exists, would conflict merging the default branch.
+// A conflict: `git merge-tree` exits 1 and prints the tree; a failure (bad ref, old git) prints nothing and throws.
+export const conflictsWithBase = (repo: Repo, branch: string): boolean => {
+  fetchOrigin(repo);
+  if (!branchExists(repo, branch)) return false;
+  try {
+    sh(repo.path, "git", "merge-tree", "--write-tree", branch, repo.base);
+    return false;
+  } catch (error) {
+    const { status, stdout } = error as { status?: number; stdout?: string };
+    if (status === MERGE_TREE_CONFLICT && stdout) return true;
+    throw error;
+  }
+};
+
 export const isMerged = (repo: Repo, branch: string, into: string): boolean =>
   succeeds(repo.path, "git", "merge-base", "--is-ancestor", branch, into);
+
+// The branch changes files against `into`; merges that only bring `into` in change none.
+export const hasFileDiff = (repo: Repo, branch: string, into: string): boolean =>
+  !succeeds(repo.path, "git", "diff", "--quiet", `${into}...${branch}`);
 
 // Full messages of the merge commits the branch carries past the default branch, first-merged first.
 export const mergeMessages = (repo: Repo, branch: string): readonly string[] =>

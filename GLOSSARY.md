@@ -80,7 +80,7 @@ The repo's own check every agent runs before each commit. A red verify script me
 _Avoid_: CI, pre-commit hook
 
 **Deep verify script**:
-The repo's own slow check, optional, run once over a whole branch at review. What it reports is fixed like any review finding.
+The repo's own slow check, optional, run once over a whole branch at each review pass. What it reports goes into the review issue like any review finding.
 _Avoid_: slow verify, nightly check
 
 **Plan check script**:

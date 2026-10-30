@@ -10,6 +10,7 @@ import { pr } from "../phases/pr/pr.mjs";
 import type { Item } from "../shared/item.mjs";
 import { log, openRunLog } from "../shared/logger.mjs";
 import { inParallel } from "../shared/parallel.mjs";
+import { conflictsWithBase } from "../shared/repo.mjs";
 import type { Run } from "../shared/run.mjs";
 import { withSandbox } from "../shared/sandbox.mjs";
 import { repoNamed, type Repo, type Workspace } from "../shared/workspace.mjs";
@@ -30,7 +31,7 @@ export const startRun = (
   return logDir;
 };
 
-// One cycle: plan, merge default branches if asked, implement each item in parallel in its repo, merge.
+// One cycle: plan, merge default branches (conflicting ones always, plus the plan's), implement each item in parallel in its repo, merge.
 // Resolves to the planned items, none when the plan is empty, and the next cycle's plan session.
 const cycle = async (
   run: Run,
@@ -41,7 +42,10 @@ const cycle = async (
   log.info(`\n=== Cycle ${number}/${MAX_CYCLES} ===`);
   const current = { ...run, number };
 
-  const { defaults, items, next } = await plan(current, openPrsText, session);
+  const conflicting = run.workspace.repos.filter((repo) => conflictsWithBase(repo, run.branch));
+  conflicting.forEach((repo) => log.info(`  ${run.branch} conflicts with ${repo.base} in ${repo.name}`));
+  const { defaults: asked, items, next } = await plan(current, openPrsText, session);
+  const defaults = [...new Set([...conflicting, ...asked])];
   if (defaults.length === 0 && items.length === 0) {
     log.info("Nothing to do: plan is empty.");
     return { items: [], next };
@@ -78,8 +82,17 @@ export const cycles = (run: Run, openPrsText: string): Promise<readonly Item[]> 
   return from(1, freshPlan(run));
 };
 
-// One review per touched repo over its whole branch, then the PRs.
-export const finish = async (run: Run, touched: readonly Repo[], planned: readonly Item[]): Promise<string> => {
-  await inParallel(touched, (repo) => repo.name, (repo) => review(run, repo));
-  return `PR:\n${await pr(run, touched, planned)}`;
+const REVIEW_PASSES = 2;
+
+// Up to two review passes per touched repo over its whole branch, cycles on what each filed (none filed: stop), then the one PR phase.
+// `touched` is read anew after each cycles stretch.
+export const finish = async (run: Run, openPrsText: string, touched: () => readonly Repo[], planned: readonly Item[]): Promise<string> => {
+  let items = planned;
+  for (let pass = 1; pass <= REVIEW_PASSES; pass++) {
+    await inParallel(touched(), (repo) => repo.name, (repo) => review(run, repo, pass));
+    const filed = await cycles(run, openPrsText);
+    items = [...items, ...filed];
+    if (filed.length === 0) break;
+  }
+  return `PR:\n${await pr(run, touched(), items)}`;
 };
