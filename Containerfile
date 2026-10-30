@@ -1,4 +1,4 @@
-# Base image of a sandbox: git, gh, jq, Claude Code, Copilot CLI, and an `agent` user aligned with the host.
+# Base image of a sandbox: git, gh, jq, Claude Code, Copilot CLI, Codex CLI, and an `agent` user aligned with the host.
 # Built as sandcastle-factory:base by the setup wizard; a repo's own Containerfile (home repo: .sandcastle/repos/<repo>/Containerfile) starts FROM it and adds what its verify.sh needs.
 FROM node:22-bookworm
 
@@ -21,7 +21,7 @@ ARG AGENT_UID=1000
 ARG AGENT_GID=1000
 RUN groupmod -o -g $AGENT_GID node && usermod -o -u $AGENT_UID -g $AGENT_GID -d /home/agent -m -l agent node
 
-RUN npm install -g @github/copilot
+RUN npm install -g @github/copilot @openai/codex
 
 USER ${AGENT_UID}:${AGENT_GID}
 

@@ -210,6 +210,7 @@ finish() {
 #   WIZARD_BASE_IMAGE   the image every repo image starts FROM
 #   WIZARD_IMAGES       one line per repo: its image, then its Containerfile
 #   WIZARD_FACTORY_DIR  build context of the base image
+#   WIZARD_CODEX_LOGIN  "1" when the host has a Codex login file
 
 : "${WIZARD_PHASES:?run it with: npm run sandcastle -- setup}"
 read -r -a PHASES <<< "$WIZARD_PHASES"
@@ -218,6 +219,8 @@ read -r -a PROVIDERS <<< "$(awk '{ printf "%s ", $1 }' <<< "$WIZARD_EFFORTS")"
 CLAUDE_ALIASES=(opus sonnet haiku fable)
 PROV=(); MODEL=(); EFF=()   # per phase, in PHASES order
 COPILOT_MODELS=(); COPILOT_READ=0
+# Fixed list, kept by hand like the Claude aliases; goes stale.
+CODEX_MODELS=(gpt-5.5 gpt-5.4 gpt-5.4-mini gpt-5.3-codex)
 DONE=0                      # "done, keep the rest": skip every filled stage
 
 # ── Arrow-key menus: our addition, not wizard library ─────────────────────
@@ -346,6 +349,7 @@ pick_model() {
   load_copilot_models
   for m in "${CLAUDE_ALIASES[@]}"; do providers+=(claudeCode); models+=("$m"); done
   for m in "${COPILOT_MODELS[@]+"${COPILOT_MODELS[@]}"}"; do providers+=(copilot); models+=("$m"); done
+  for m in "${CODEX_MODELS[@]}"; do providers+=(codex); models+=("$m"); done
   cur=${#models[@]}
   for (( m = 0; m < ${#models[@]}; m++ )); do
     items+=("$(printf '%-11s %s' "${providers[m]}" "${models[m]}")")
@@ -564,6 +568,17 @@ copilot_stage() {
   ask_token COPILOT_GITHUB_TOKEN "Paste the token:" ghp_ "a classic token: make a fine-grained one"
 }
 
+codex_stage() {
+  if ! uses_provider codex; then skip; return 0; fi
+  if [[ -n "${WIZARD_CODEX_LOGIN:-}" ]]; then skip; return 0; fi
+  if (( DONE )) && filled CODEX_API_KEY; then skip; return 0; fi
+  stage "Codex API key"
+  say "No Codex login on this host. Either run \`codex login\` here (ChatGPT account) and rerun setup, or use an API key."
+  token_page CODEX_API_KEY "https://platform.openai.com/api-keys"
+  step "Create new secret key, copy it."
+  ask_token CODEX_API_KEY "Paste the API key:"
+}
+
 # is_clone PATH: PATH is a git clone.
 is_clone() { [[ -n "$1" ]] && git -C "$1" rev-parse --git-dir >/dev/null 2>&1; }
 
@@ -645,6 +660,7 @@ sandbox_stage
 gh_token_stage
 claude_stage
 copilot_stage
+codex_stage
 repos_stage
 images_stage
 

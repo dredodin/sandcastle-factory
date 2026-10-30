@@ -9,6 +9,7 @@ import { message } from "./cli.mjs";
 import type { Env } from "./env.mjs";
 import { log, timed } from "./logger.mjs";
 import { imageName, repoDir } from "./names.mjs";
+import { SANDBOX_CODEX_LOGIN, hostCodexLogin } from "./paths.mjs";
 import { branchExists, worktreeOf } from "./repo.mjs";
 import { sh, shIn } from "./shell.mjs";
 import type { Repo, Workspace } from "./workspace.mjs";
@@ -29,7 +30,9 @@ export type SandboxContext = { readonly workspace: Workspace; readonly env: Env 
 export type SandboxSpec = { readonly repo: Repo; readonly name: string; readonly branch: string; readonly baseBranch: string };
 
 const providerFor = ({ workspace, env }: SandboxContext, repo: Repo): SandboxProvider => {
-  const options = { imageName: imageName(workspace.home.name, repo.name), env: env.secrets };
+  // Read-write: a token refresh inside the sandbox must land on the host login, not invalidate it.
+  const mounts = env.mountCodexLogin ? [{ hostPath: hostCodexLogin(), sandboxPath: SANDBOX_CODEX_LOGIN }] : [];
+  const options = { imageName: imageName(workspace.home.name, repo.name), env: env.secrets, mounts };
   if (env.sandbox === "docker") return docker(options);
   if (env.sandbox === "podman") return podman(options);
   return noSandbox({ env: env.secrets });

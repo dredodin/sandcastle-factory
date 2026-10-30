@@ -2,9 +2,10 @@ import { spawnSync } from "node:child_process";
 import { existsSync, lstatSync, mkdirSync, rmSync, symlinkSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import type { Command } from "../shared/cli.mjs";
-import { EFFORTS, PHASES, PROVIDERS, SANDBOXES, checkEnv, envPath, missingKeys, readValues, withShellOverrides, type Env, type Values } from "../shared/env.mjs";
+import { EFFORTS, PHASES, PROVIDERS, SANDBOXES, checkEnv, envPath, missingKeys, readValues, withHints, withShellOverrides, type Env, type Values } from "../shared/env.mjs";
 import { log } from "../shared/logger.mjs";
 import { imageName, repoDir, repoKey } from "../shared/names.mjs";
+import { hostCodexLogin } from "../shared/paths.mjs";
 import { succeeds, sh } from "../shared/shell.mjs";
 import { appRepoNames, readLayout, resolveWorkspace, type Layout, type Workspace } from "../shared/workspace.mjs";
 
@@ -14,6 +15,8 @@ const FACTORY_DIR = forwardSlashes(fileURLToPath(new URL("..", import.meta.url))
 // The image every repo image starts FROM, built from FACTORY_DIR.
 const BASE_IMAGE = "sandcastle-factory:base";
 
+const hasCodexLogin = (): boolean => existsSync(hostCodexLogin());
+
 const isGitRepo = (path: string): boolean => existsSync(path) && succeeds(path, "git", "rev-parse", "--git-dir");
 
 // `.env` with the shell's overrides; nothing else is read.
@@ -21,7 +24,7 @@ const settingsOf = (layout: Layout): Values => withShellOverrides(readValues(lay
 
 // Keys a run cannot start with: missing ones, and repo paths that are no git clone. Names only, never values.
 const unready = (values: Values, names: readonly string[]): readonly string[] => [
-  ...missingKeys(values, names),
+  ...missingKeys(values, names, hasCodexLogin()),
   ...names.map(repoKey).filter((key) => values[key] !== undefined && !isGitRepo(values[key])),
 ];
 
@@ -38,6 +41,7 @@ const wizardEnv = (layout: Layout): Values => {
     WIZARD_BASE_IMAGE: BASE_IMAGE,
     WIZARD_IMAGES: [layout.homeName, ...names].map((name) => `${imageName(layout.homeName, name)} ${repoDir(name)}/Containerfile`).join("\n"),
     WIZARD_FACTORY_DIR: FACTORY_DIR,
+    WIZARD_CODEX_LOGIN: hasCodexLogin() ? "1" : "",
   };
 };
 
@@ -95,8 +99,8 @@ export const setup = async (mode: Command["mode"]): Promise<{ readonly workspace
   if (process.stdin.isTTY && (mode === "setup" || unready(settingsOf(layout), names).length > 0)) runWizard(layout);
   const values = settingsOf(layout);
   const left = unready(values, names);
-  if (left.length > 0) throw new Error(`Missing or wrong in .sandcastle/.env: ${left.join(", ")}. A human runs \`npm run sandcastle -- setup\` in their terminal.`);
-  const env = checkEnv(values, names);
+  if (left.length > 0) throw new Error(`Missing or wrong in .sandcastle/.env: ${withHints(left)}. A human runs \`npm run sandcastle -- setup\` in their terminal.`);
+  const env = checkEnv(values, names, hasCodexLogin());
   if (env.sandbox === "podman") startPodmanMachine(layout.root);
   const workspace = resolveWorkspace(layout, env.repoPaths);
   linkSources(workspace);
