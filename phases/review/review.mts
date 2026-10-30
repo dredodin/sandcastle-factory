@@ -5,7 +5,7 @@ import { IDLE_TIMEOUT_SECONDS, phaseAgent, type Run } from "../../shared/run.mjs
 import { otherBranchesText } from "../../shared/text.mjs";
 import type { Repo } from "../../shared/workspace.mjs";
 
-// Runs the one review agent, pass 1 or 2, once over the whole integration branch of one repo against its default branch.
+// Runs the one review agent, once over the whole integration branch of one repo against its default branch.
 export const review = async (run: Run, repo: Repo, pass: number): Promise<void> => {
   const { home } = run.workspace;
   const integration = await run.integrations.get(repo);
@@ -14,7 +14,6 @@ export const review = async (run: Run, repo: Repo, pass: number): Promise<void> 
     promptArgs: {
       ROOT: run.root,
       HOME_SLUG: home.slug,
-      PASS: pass,
       HOME_NAME: home.name,
       REPO_NAME: repo.name,
       REPO_SLUG: repo.slug,

@@ -12,10 +12,7 @@ The spec is the root issue, its sub-issues, and the open PR's comments of this b
 # Rules for this run
 
 - Nobody is there to answer: never ask a question, decide and go on.
-- Read only: never edit a file, commit or push. Never close or comment on an issue, never merge a PR. The one write is the issue below.
-- This is branch review pass {{PASS}} of 2.
-  - Pass 1, strict: every finding on every axis, smells included.
-  - Pass 2, critical only: a bug; a spec requirement missing or wrong; a hard breach of a documented standard. No smells, no judgement calls. Read the root's earlier review issues (sub-issues whose body says it comes from branch review) and do not repeat what they fixed or what was rejected.
+- Read the root's earlier review issues (sub-issues whose body says it comes from branch review); do not repeat what they fixed or what was rejected.
 
 # Task
 
@@ -23,13 +20,13 @@ Review the whole branch and file what you find.
 
 1. Read the diff: `git diff {{BASE_BRANCH}}...HEAD` and the commit list `git log {{BASE_BRANCH}}..HEAD --oneline`. Code in it (source, scripts, config, tests) → the **code review** below. Markdown in it → the **doc review** below. Both → code first.
 2. Deep verify script, when its file is in the worktree: `{{DEEP_VERIFY}}`, once, now. It is slow. What it reports are findings too.
-3. Findings → one issue: create it in `{{HOME_SLUG}}` (`gh issue create`, body file outside the worktree), add it as a sub-issue of root #{{ROOT}}, label it `repo:{{REPO_NAME}}` unless `{{REPO_NAME}}` is the home repo `{{HOME_NAME}}`. No other label. The body says it comes from branch review pass {{PASS}} of repo `{{REPO_NAME}}`, then lists the findings, each with file, axis, what is wrong and how to fix it. A finding that contradicts the issue or an ADR is not listed. Nothing found: no issue.
+3. Findings → one issue: create it in `{{HOME_SLUG}}` (`gh issue create`, body file outside the worktree), add it as a sub-issue of root #{{ROOT}}, label it `repo:{{REPO_NAME}}` unless `{{REPO_NAME}}` is the home repo `{{HOME_NAME}}`. No other label. The body says it comes from branch review of repo `{{REPO_NAME}}`, then lists the findings, each with file, axis, what is wrong and how to fix it. A finding that contradicts the issue or an ADR is not listed. Nothing found: no issue.
 
 ## Code review
 
 Two axes, kept apart: a change can pass one and fail the other. Report each separately and do not rerank across them.
 
-**Standards**: does the code conform to the repo's documented standards (`CODING_STANDARDS.md`, `CONTRIBUTING.md`, ADRs, anything that says how code is written), plus `.sandcastle/repos/{{REPO_NAME}}/CODING_STANDARDS.md` when present (it wins on conflict)? Report every breach, citing the standard (file and rule). Then the smell baseline (pass 1 only), always a judgement call, and a documented repo standard overrides it. Skip what tooling enforces. Each smell is *what it is* → *how to fix*:
+**Standards**: does the code conform to the repo's documented standards (`CODING_STANDARDS.md`, `CONTRIBUTING.md`, ADRs, anything that says how code is written), plus `.sandcastle/repos/{{REPO_NAME}}/CODING_STANDARDS.md` when present (it wins on conflict)? Report every breach, citing the standard (file and rule). Then the smell baseline, always a judgement call, and a documented repo standard overrides it. Skip what tooling enforces. Each smell is *what it is* → *how to fix*:
 
 - **Mysterious Name**: a name that does not reveal what it does or holds. → rename; if no honest name comes, the design is murky.
 - **Duplicated Code**: the same logic shape in more than one place of the change. → extract it, call it from both.
