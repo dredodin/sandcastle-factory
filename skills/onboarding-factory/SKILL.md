@@ -26,6 +26,12 @@ code-review, codebase-design, diagnosing-bugs, domain-modeling, grill-with-docs,
 
 `--copy` always: real files, no `.agents/`, no junction. Never `skills update`: it has no `--copy`.
 
+## 1b. Agent instructions file
+
+Done-check: the home repo has `AGENTS.md`, `CLAUDE.md` or `.github/copilot-instructions.md`.
+
+None of them: ask the human which one to create, so the repo fits the agents they run. One exists: add nothing. Tailoring it further is the human's.
+
 ## 2. Workspace repos
 
 Done-check: none, always ask.
@@ -80,7 +86,7 @@ Done-check: `.sandcastle/repos/<home>/` has `Containerfile`, `setup.sh`, `verify
 
 Inspect the home repo: its language, package manager, build, typecheck, test and lint commands, CI workflows. Write:
 
-- `Containerfile`: `FROM sandcastle-factory:base` (node 22, git, gh, jq, Claude Code, Copilot CLI; user `agent`, home `/home/agent`) plus each tool `verify.sh` needs. Install user-level tools as `agent`, under `/home/agent`.
+- `Containerfile`: `FROM sandcastle-factory:base` (node 22, git, gh, jq, Claude Code, Copilot CLI, Codex CLI; user `agent`, home `/home/agent`) plus each tool `verify.sh` needs. Install user-level tools as `agent`, under `/home/agent`.
 - `setup.sh`: `#!/bin/sh`, `set -e`; runs in the sandbox once the worktree is ready, cwd the worktree root: install dependencies.
 - `verify.sh`: `#!/bin/sh`, `set -e`; cwd the worktree root: the repo's real checks, the ones CI runs. Agents run it before every commit; red means no commit.
 
