@@ -7,7 +7,7 @@ import { log, timed } from "../../shared/logger.mjs";
 import { planCheckCommand } from "../../shared/names.mjs";
 import { promptPath } from "../../shared/paths.mjs";
 import { fillPrompt } from "../../shared/prompt.mjs";
-import { branchExists, isMerged, itemBranch, mergedIssues } from "../../shared/repo.mjs";
+import { branchExists, itemBranch, mergedIssues } from "../../shared/repo.mjs";
 import { DISCLAIMER, IDLE_TIMEOUT_SECONDS, phaseAgent, type Cycle, type Plan, type Run } from "../../shared/run.mjs";
 import { reposText, stateText } from "../../shared/text.mjs";
 import { repoNamed } from "../../shared/workspace.mjs";
@@ -18,7 +18,7 @@ export type PlanSession = (prompt: string, options: ResumeSandboxRunResultOption
 export const freshPlan = (run: Run): PlanSession => async (prompt, options) =>
   (await run.integrations.get(run.workspace.home)).run({ ...options, agent: run.agents.PLAN, prompt, maxIterations: 1 });
 
-// What to do now: the repos whose default branch to merge first, and the items unblocked and not yet merged on the branches.
+// What to do now: the items unblocked and not yet merged on the branches.
 // The plan agent runs in the home repo's integration worktree; `openPrsText` lists the run's open PRs to read comments from (resume only).
 // `next` resumes this plan's session when the provider can (sandcastle's `resume`), else starts fresh.
 export const plan = async (cycle: Cycle, openPrsText: string, session: PlanSession): Promise<Plan & { readonly next: PlanSession }> => {
@@ -35,8 +35,6 @@ export const plan = async (cycle: Cycle, openPrsText: string, session: PlanSessi
         repo: repo.name,
         opened,
         merged: opened ? mergedIssues(repo, branch) : [],
-        baseMerged: opened && isMerged(repo, repo.base, branch),
-        base: repo.base,
       };
     }),
   );
@@ -60,15 +58,12 @@ export const plan = async (cycle: Cycle, openPrsText: string, session: PlanSessi
   }));
 
   const planSchema = z.object({
-    defaults: z.array(z.string()),
     items: z.array(
       itemSchema.omit({ branch: true }).refine((item) => itemFits(item, repos), "item outside the Workspace"),
     ),
   });
   const planned = extract(result.stdout, "plan", planSchema);
-  const defaults = planned.defaults.map((name) => repoNamed(workspace, name));
   const items = planned.items.map((item) => ({ ...item, branch: itemBranch(repoNamed(workspace, item.repo), branch, item.issue) }));
-  defaults.forEach((repo) => log.info(`  merge ${repo.base} in ${repo.name}`));
   items.forEach((item) => log.info(`  ${item.issue}: ${item.title} → ${item.repo}: ${item.branch}`));
-  return { defaults, items, next: result.resume ?? freshPlan(cycle) };
+  return { items, next: result.resume ?? freshPlan(cycle) };
 };

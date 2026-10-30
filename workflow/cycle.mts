@@ -31,7 +31,7 @@ export const startRun = (
   return logDir;
 };
 
-// One cycle: plan, merge default branches (conflicting ones always, plus the plan's), implement each item in parallel in its repo, merge.
+// One cycle: plan, merge default branches (the conflicting ones), implement each item in parallel in its repo, merge.
 // Resolves to the planned items, none when the plan is empty, and the next cycle's plan session.
 const cycle = async (
   run: Run,
@@ -44,13 +44,12 @@ const cycle = async (
 
   const conflicting = run.workspace.repos.filter((repo) => conflictsWithBase(repo, run.branch));
   conflicting.forEach((repo) => log.info(`  ${run.branch} conflicts with ${repo.base} in ${repo.name}`));
-  const { defaults: asked, items, next } = await plan(current, openPrsText, session);
-  const defaults = [...new Set([...conflicting, ...asked])];
-  if (defaults.length === 0 && items.length === 0) {
+  const { items, next } = await plan(current, openPrsText, session);
+  if (conflicting.length === 0 && items.length === 0) {
     log.info("Nothing to do: plan is empty.");
     return { items: [], next };
   }
-  await mergeDefaults(current, defaults);
+  await mergeDefaults(current, conflicting);
   await Promise.all([...new Set(items.map((item) => item.repo))].map((name) => current.integrations.get(repoNamed(run.workspace, name))));
 
   // Each item in its own worktree of its repo, done by its one agent.
