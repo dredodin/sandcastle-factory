@@ -1,6 +1,6 @@
 # sandcastle-factory
 
-AFK orchestrator over [`@ai-hero/sandcastle`](https://github.com/ai-hero-dev/sandcastle) (pinned `0.12.0`). `take <issue>`: plan → implement in parallel → merge → review → PR, in sandboxes, nobody asked mid-run. One PR per touched repo. Terms: [GLOSSARY.md](GLOSSARY.md).
+AFK orchestrator over [`@ai-hero/sandcastle`](https://github.com/ai-hero-dev/sandcastle) (pinned `0.12.0`). `take <issue>`: plan → implement in parallel → merge → review (finds, files an issue) → PR, in sandboxes, nobody asked mid-run. One PR per touched repo. Terms: [GLOSSARY.md](GLOSSARY.md).
 
 ## Prerequisites
 
