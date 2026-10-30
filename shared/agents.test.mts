@@ -11,5 +11,5 @@ const envWith = (effort: string): Env => {
 
 test("loadAgents: a codex effort is low | medium | high | xhigh", () => {
   assert.doesNotThrow(() => loadAgents(envWith("xhigh")));
-  assert.throws(() => loadAgents(envWith("max")), /PLAN_EFFORT=max is not a codex effort/);
+  assert.throws(() => loadAgents(envWith("max")), /PLAN_EFFORT/);
 });

@@ -33,6 +33,12 @@ export type Env = {
 const CLAUDE_AUTH = ["CLAUDE_CODE_OAUTH_TOKEN", "ANTHROPIC_API_KEY"] as const;
 const COPILOT_TOKEN = "COPILOT_GITHUB_TOKEN";
 const CODEX_KEY = "CODEX_API_KEY";
+// What a human does about a missing key, where a bare name is not enough.
+const KEY_HINTS: Readonly<Record<string, string>> = { [CODEX_KEY]: "run codex login or set CODEX_API_KEY" };
+
+// The missing keys as one list, each with its hint.
+export const withHints = (keys: readonly string[]): string => keys.map((key) => (KEY_HINTS[key] ? `${key} (${KEY_HINTS[key]})` : key)).join(", ");
+
 const SECRET_KEYS = ["GH_TOKEN", ...CLAUDE_AUTH, COPILOT_TOKEN, CODEX_KEY] as const;
 
 const phaseKeys = (phase: Phase): readonly string[] => [`${phase}_PROVIDER`, `${phase}_MODEL`, `${phase}_EFFORT`];
@@ -105,7 +111,7 @@ const schemaFor = (repoNames: readonly string[], hostLogin: boolean): z.ZodType<
         ctx.addIssue({ code: "custom", path: [COPILOT_TOKEN], message: "a phase uses copilot" });
       }
       if (providers.includes("codex") && !values[CODEX_KEY] && !hostLogin) {
-        ctx.addIssue({ code: "custom", path: [CODEX_KEY], message: "run codex login or set CODEX_API_KEY" });
+        ctx.addIssue({ code: "custom", path: [CODEX_KEY], message: KEY_HINTS[CODEX_KEY] ?? "" });
       }
     }) as z.ZodType<Record<string, string | undefined>>;
 
@@ -115,8 +121,7 @@ export const checkEnv = (values: Values, repoNames: readonly string[], hostLogin
   const parsed = schemaFor(repoNames, hostLogin).safeParse(values);
   if (!parsed.success) {
     const keys = [...new Set(parsed.error.issues.map((issue) => String(issue.path[0] ?? "?")))];
-    const hints = [...new Set(parsed.error.issues.filter((issue) => issue.path[0] === CODEX_KEY).map((issue) => issue.message))];
-    throw new Error(`.sandcastle/.env is incomplete or wrong, fix: ${keys.join(", ")}${hints.length > 0 ? ` (${hints.join("; ")})` : ""}. Run \`setup\` to fill the missing ones.`);
+    throw new Error(`.sandcastle/.env is incomplete or wrong, fix: ${keys.join(", ")}. Run \`setup\` to fill the missing ones.`);
   }
   const value = (key: string): string => parsed.data[key] ?? "";
   const phases = Object.fromEntries(
