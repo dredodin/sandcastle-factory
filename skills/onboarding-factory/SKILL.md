@@ -75,9 +75,9 @@ Done-check: `package.json` has `sandcastle-factory` in `devDependencies`, `tsx` 
 
 Done-check: every path below is in `.gitignore`, and the deny rules are in `.claude/settings.json`.
 
-Read `node_modules/sandcastle-factory/README.md`: its *Home repo layout* is the layout every later step follows, this installed version, not memory.
+Read `node_modules/sandcastle-factory/docs/home-repo-layout.md`: the layout every later step follows, this installed version, not memory.
 
-- `.gitignore`: each path the README lists, plus `.sandcastle/worktrees/` and `node_modules/`.
+- `.gitignore`: each path that doc lists, plus `node_modules/`.
 - `.claude/settings.json`, merged into what is there: `permissions.deny` holds `Read(./.sandcastle/.env)`, `Edit(./.sandcastle/.env)`, `Write(./.sandcastle/.env)`.
 
 ## 6. Home repo scripts
