@@ -33,13 +33,13 @@ The same change may continue in other repos, on the same branch name. Their bran
 
 # Procedure
 
-1. Write the work. Do not read coding standards or repo docs first. Test first where there is a seam to test: write the failing test, make it pass, repeat. Run typechecking and single test files as you go.
-2. Launch reviewer subagents in parallel with your provider's subagent feature (Claude Code's agent tool, Copilot CLI's subagents). Each gets fresh context, the diff since the start commit (`git diff <start commit>`), and reports separately:
-   - **Standards**, only when the diff has code: the repo's documented standards (`CODING_STANDARDS.md`, `CONTRIBUTING.md`, ADRs), plus `.sandcastle/repos/{{REPO_NAME}}/CODING_STANDARDS.md` when present (it wins on conflict), plus the smell baseline as judgement calls: mysterious names, duplicated code, feature envy, data clumps, primitive obsession, repeated switches, shotgun surgery, divergent change, speculative generality, message chains, middle men. A documented rule overrides the baseline. Skip what tooling enforces.
-   - **Docs**, when the diff has code or Markdown: changed Markdown against the glossary, ADRs, format docs, one fact one home, links, paths and commands that still resolve, the writing style; and docs anywhere in the repo that describe changed code (names, paths, commands, behaviour) and are now wrong.
-   - **Spec**, always, once over the whole diff: anything missing or partial, anything added that was not asked, anything done but wrong. Quote the spec line.
-3. Fix every finding. A finding that contradicts the issue or an ADR is left and named in the commit body.
-4. `{{VERIFY}}`, commit to the current branch.
+1. Write the work, test first where there is a seam.
+2. Review it: launch fresh-context subagents in parallel on `git diff <start commit>`, each reporting alone.
+   - **Standards**, if the diff has code: the repo's documented standards, `.sandcastle/repos/{{REPO_NAME}}/CODING_STANDARDS.md` when present (wins on conflict), and code smells as judgement calls.
+   - **Docs**, if the diff has code or Markdown: the changed Markdown, and docs that describe the changed code and are now wrong.
+   - **Spec**, always: anything missing, extra or wrong, quoting the spec line.
+3. Fix every finding, except one that contradicts the issue or an ADR: name it in the commit body.
+4. `{{VERIFY}}`, commit.
 
 When the work is committed, print:
 

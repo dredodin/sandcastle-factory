@@ -10,7 +10,6 @@ import { pr } from "../phases/pr/pr.mjs";
 import type { Item } from "../shared/item.mjs";
 import { log, openRunLog } from "../shared/logger.mjs";
 import { inParallel } from "../shared/parallel.mjs";
-import { afterReview } from "../shared/review-pass.mjs";
 import type { Run } from "../shared/run.mjs";
 import { withSandbox } from "../shared/sandbox.mjs";
 import { repoNamed, type Repo, type Workspace } from "../shared/workspace.mjs";
@@ -79,15 +78,17 @@ export const cycles = (run: Run, openPrsText: string): Promise<readonly Item[]> 
   return from(1, freshPlan(run));
 };
 
-// Review pass 1 per touched repo over its whole branch, cycles on what it filed, then pass 2 the same way, then the PRs.
+const REVIEW_PASSES = 2;
+
+// Up to two review passes per touched repo over its whole branch, cycles on what each filed (none filed: stop), then the one PR phase.
 // `touched` is read anew after each cycles stretch.
 export const finish = async (run: Run, openPrsText: string, touched: () => readonly Repo[], planned: readonly Item[]): Promise<string> => {
-  const from = async (pass: number, before: readonly Item[]): Promise<string> => {
+  let items = planned;
+  for (let pass = 1; pass <= REVIEW_PASSES; pass++) {
     await inParallel(touched(), (repo) => repo.name, (repo) => review(run, repo, pass));
     const filed = await cycles(run, openPrsText);
-    const all = [...before, ...filed];
-    if (afterReview(pass, filed.length > 0) === "pr") return `PR:\n${await pr(run, touched(), all)}`;
-    return from(pass + 1, all);
-  };
-  return from(1, planned);
+    items = [...items, ...filed];
+    if (filed.length === 0) break;
+  }
+  return `PR:\n${await pr(run, touched(), items)}`;
 };
