@@ -10,6 +10,7 @@ import { pr } from "../phases/pr/pr.mjs";
 import type { Item } from "../shared/item.mjs";
 import { log, openRunLog } from "../shared/logger.mjs";
 import { inParallel } from "../shared/parallel.mjs";
+import { conflictsWithBase } from "../shared/repo.mjs";
 import type { Run } from "../shared/run.mjs";
 import { withSandbox } from "../shared/sandbox.mjs";
 import { repoNamed, type Repo, type Workspace } from "../shared/workspace.mjs";
@@ -30,7 +31,7 @@ export const startRun = (
   return logDir;
 };
 
-// One cycle: plan, merge default branches if asked, implement each item in parallel in its repo, merge.
+// One cycle: plan, merge default branches (conflicting ones always, plus the plan's), implement each item in parallel in its repo, merge.
 // Resolves to the planned items, none when the plan is empty, and the next cycle's plan session.
 const cycle = async (
   run: Run,
@@ -41,7 +42,11 @@ const cycle = async (
   log.info(`\n=== Cycle ${number}/${MAX_CYCLES} ===`);
   const current = { ...run, number };
 
-  const { defaults, items, next } = await plan(current, openPrsText, session);
+  const conflicting = run.workspace.repos.filter((repo) => conflictsWithBase(repo, run.branch));
+  conflicting.forEach((repo) => log.info(`  ${run.branch} conflicts with ${repo.base} in ${repo.name}`));
+  const planned = await plan(current, openPrsText, session);
+  const { items, next } = planned;
+  const defaults = [...new Set([...conflicting, ...planned.defaults])];
   if (defaults.length === 0 && items.length === 0) {
     log.info("Nothing to do: plan is empty.");
     return { items: [], next };
