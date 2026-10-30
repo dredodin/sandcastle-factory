@@ -110,14 +110,19 @@ const open = async (context: SandboxContext, spec: SandboxSpec): Promise<Opened>
   const sandbox = await timed(`${step} sandbox`, () => worktree.createSandbox({ sandbox: providerFor(context, repo) })).catch((error: unknown) => {
     throw kept(message(error));
   });
-  const setup = await timed(`${step} setup.sh`, () => sandbox.exec(`bash ${repoDir(repo.name)}/setup.sh`)).catch(async (error: unknown) => {
+  // A failed step closes the sandbox and keeps the worktree.
+  const prepare = async (label: string, command: string): Promise<void> => {
+    const result = await timed(`${step} ${label}`, () => sandbox.exec(command)).catch(async (error: unknown) => {
+      await closeSandbox(sandbox, branch);
+      throw kept(`${command}: ${message(error)}`);
+    });
+    if (result.exitCode === 0) return;
     await closeSandbox(sandbox, branch);
-    throw kept(message(error));
-  });
-  if (setup.exitCode !== 0) {
-    await closeSandbox(sandbox, branch);
-    throw kept(`${repoDir(repo.name)}/setup.sh exited ${setup.exitCode}: ${`${setup.stdout}\n${setup.stderr}`.trim().slice(-SETUP_OUTPUT_TAIL)}`);
-  }
+    throw kept(`${command} exited ${result.exitCode}: ${`${result.stdout}\n${result.stderr}`.trim().slice(-SETUP_OUTPUT_TAIL)}`);
+  };
+  // git pushes and fetches with the run's GitHub token, the same in every phase.
+  await prepare("git auth", "gh auth setup-git");
+  await prepare("setup.sh", `bash ${repoDir(repo.name)}/setup.sh`);
 
   return {
     sandbox,
