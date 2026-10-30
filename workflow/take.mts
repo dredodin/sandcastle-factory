@@ -9,6 +9,8 @@ import { withIntegrations } from "../shared/sandbox.mjs";
 import type { Repo, Workspace } from "../shared/workspace.mjs";
 import { cycles, finish, startRun } from "./cycle.mjs";
 
+const FIRST_TAKE_PRS = "(none: this is a first take)";
+
 export const take = async (workspace: Workspace, env: Env, root: number): Promise<string> => {
   const { agents, settings } = loadAgents(env);
   const title = checkRoot(workspace, root);
@@ -18,9 +20,9 @@ export const take = async (workspace: Workspace, env: Env, root: number): Promis
   const context = { workspace, env };
   return withIntegrations(context, (repo) => ({ repo, branch, baseBranch: repo.base }), async (integrations) => {
     const run: Run = { agents, context, workspace, root, title, branch, integrations, logDir };
-    const planned = await cycles(run, "(none: this is a first take)");
+    const planned = await cycles(run, FIRST_TAKE_PRS);
     const touched = (): readonly Repo[] => integrations.opened().filter((repo) => !isMerged(repo, branch, repo.base));
     if (touched().length === 0) return "Nothing completed: no PR.";
-    return finish(run, "(none: this is a first take)", touched, planned);
+    return finish(run, FIRST_TAKE_PRS, touched, planned);
   });
 };

@@ -1,6 +1,6 @@
 # Context
 
-Branch `{{INTEGRATION_BRANCH}}` (the current branch) carries the work of root issue #{{ROOT}} in the repo `{{REPO_NAME}}` ({{REPO_SLUG}}): every item merged in, none reviewed yet. Review the whole of it against `{{BASE_BRANCH}}`, the fixed point. The work may continue in other repos on the same branch name; their branches, for reference only (you may read them with `gh`, never change them, and comments go only on this repo's PR):
+Branch `{{INTEGRATION_BRANCH}}` (the current branch) carries the work of root issue #{{ROOT}} in the repo `{{REPO_NAME}}` ({{REPO_SLUG}}): every item merged in, each reviewed on its own. Review the whole of it against `{{BASE_BRANCH}}`, the fixed point. The work may continue in other repos on the same branch name; their branches, for reference only (you may read them with `gh`, never change them):
 
 {{OTHER_BRANCHES}}
 
