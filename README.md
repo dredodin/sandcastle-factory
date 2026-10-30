@@ -35,6 +35,7 @@ GLOSSARY-MAP.md                      # links .sandcastle/repos/<name>/… name t
     ├── verify.sh                    # agents run it before every commit
     ├── sparse-checkout              # optional; what sandbox worktrees check out, as git non-cone sparse-checkout patterns
     ├── deep-verify.sh               # optional; the review agent runs it once per branch, base branch as $1
+    ├── CODING_STANDARDS.md          # optional; personal standards, copied into every worktree; reviewers read it on top of the repo's own, it wins on conflict
     ├── plan-check.sh                # optional, home repo only; the plan agent runs it each cycle, non-zero = its output is work
     └── source                       # link to an app repo's clone; setup makes it
 ```
