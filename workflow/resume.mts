@@ -1,5 +1,5 @@
 // `resume <N>`: continues the latest take of issue N from whatever state it stopped in, found by its branch.
-// Syncs the branches with origin, same cycle as `take`, then review and the PR phase for every repo whose take branch is ahead of its default branch.
+// Syncs the branches with origin, same cycle as `take`, then review (from pass 1) and the PR phase for every repo whose take branch is ahead of its default branch.
 
 import { loadAgents } from "../shared/agents.mjs";
 import type { Env } from "../shared/env.mjs";
@@ -22,9 +22,10 @@ export const resume = async (workspace: Workspace, env: Env, root: number): Prom
   const specFor = (repo: Repo): Omit<SandboxSpec, "name"> => ({ repo, branch, baseBranch: branchExists(repo, branch) ? branch : repo.base });
   return withIntegrations(context, specFor, async (integrations) => {
     const run: Run = { agents, context, workspace, root, title, branch, integrations, logDir };
-    const planned = await cycles(run, openPrsText(workspace, branch));
-    const touched = workspace.repos.filter((repo) => branchExists(repo, branch) && !isMerged(repo, branch, repo.base));
-    if (touched.length === 0) return "Nothing to resume";
-    return finish(run, touched, planned);
+    const prsText = openPrsText(workspace, branch);
+    const planned = await cycles(run, prsText);
+    const touched = (): readonly Repo[] => workspace.repos.filter((repo) => branchExists(repo, branch) && !isMerged(repo, branch, repo.base));
+    if (touched().length === 0) return "Nothing to resume";
+    return finish(run, prsText, touched, planned);
   });
 };
