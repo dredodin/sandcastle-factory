@@ -41,7 +41,7 @@ GLOSSARY-MAP.md                      # links .sandcastle/repos/<name>/… name t
 
 - `.gitignore`: `.sandcastle/.env`, `.sandcastle/repos/*/source`, `.sandcastle/logs/`.
 - Tracker rule: whoever slices an issue sets its repo label.
-- `GH_TOKEN`: one fine-grained token for every repo: Issues, Contents, Pull requests read/write; Metadata read.
+- `GH_TOKEN`: one fine-grained token for every repo: Issues, Contents, Pull requests read/write; Metadata read. Every sandbox runs `gh auth setup-git` on open, so agents' `git` fetches and pushes with it too; `SANDBOX=none`: this sets your host's global git credential helper.
 - Agents never read `.sandcastle/.env`: deny them Read/Edit/Write on it (Claude Code: `permissions.deny` in `.claude/settings.json`).
 
 ## Commands

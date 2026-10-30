@@ -14,7 +14,7 @@ AFK rules of this run: commit subjects start with `SANDCASTLE:`, the body has `I
 
 ## Steps
 
-1. Push: `gh auth setup-git`, then `git push https://github.com/{{REPO_SLUG}}.git HEAD:refs/heads/{{INTEGRATION_BRANCH}}`. Never force, never push anywhere else.
+1. Push: `git push https://github.com/{{REPO_SLUG}}.git HEAD:refs/heads/{{INTEGRATION_BRANCH}}`. Never force, never push anywhere else.
 2. Body: write `/tmp/pr-body.md` (outside the worktree) from the template below. It describes the branch as it stands now, whole, not only the latest commits. Skip preambles, keep prose brief, use the repo's own domain terms. End the body with these lines, verbatim:
 
 {{CLOSES}}
