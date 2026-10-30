@@ -75,6 +75,10 @@ export const conflictsWithBase = (repo: Repo, branch: string): boolean => {
 export const isMerged = (repo: Repo, branch: string, into: string): boolean =>
   succeeds(repo.path, "git", "merge-base", "--is-ancestor", branch, into);
 
+// The branch changes files against `into`; merges that only bring `into` in change none.
+export const hasFileDiff = (repo: Repo, branch: string, into: string): boolean =>
+  !succeeds(repo.path, "git", "diff", "--quiet", `${into}...${branch}`);
+
 // Full messages of the merge commits the branch carries past the default branch, first-merged first.
 export const mergeMessages = (repo: Repo, branch: string): readonly string[] =>
   sh(repo.path, "git", "log", "--merges", "--reverse", "--format=%B%x00", `${repo.base}..${branch}`).split("\0");
