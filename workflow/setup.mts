@@ -99,7 +99,8 @@ export const setup = async (mode: Command["mode"]): Promise<{ readonly workspace
   if (process.stdin.isTTY && (mode === "setup" || unready(settingsOf(layout), names).length > 0)) runWizard(layout);
   const values = settingsOf(layout);
   const left = unready(values, names);
-  if (left.length > 0) throw new Error(`Missing or wrong in .sandcastle/.env: ${left.join(", ")}. A human runs \`npm run sandcastle -- setup\` in their terminal.`);
+  const hint = left.includes("CODEX_API_KEY") ? " (CODEX_API_KEY: run codex login or set CODEX_API_KEY)" : "";
+  if (left.length > 0) throw new Error(`Missing or wrong in .sandcastle/.env: ${left.join(", ")}${hint}. A human runs \`npm run sandcastle -- setup\` in their terminal.`);
   const env = checkEnv(values, names, hasCodexLogin());
   if (env.sandbox === "podman") startPodmanMachine(layout.root);
   const workspace = resolveWorkspace(layout, env.repoPaths);
