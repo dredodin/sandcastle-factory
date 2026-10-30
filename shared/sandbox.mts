@@ -114,7 +114,7 @@ const open = async (context: SandboxContext, spec: SandboxSpec): Promise<Opened>
   const prepare = async (label: string, command: string): Promise<void> => {
     const result = await timed(`${step} ${label}`, () => sandbox.exec(command)).catch(async (error: unknown) => {
       await closeSandbox(sandbox, branch);
-      throw kept(message(error));
+      throw kept(`${command}: ${message(error)}`);
     });
     if (result.exitCode === 0) return;
     await closeSandbox(sandbox, branch);
