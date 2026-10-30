@@ -1,5 +1,5 @@
 // `resume <N>`: continues the latest take of issue N from whatever state it stopped in, found by its branch.
-// Syncs the branches with origin, same cycle as `take`, then review and the PR phase for every repo whose take branch is ahead of its default branch.
+// Syncs the branches with origin, same cycle as `take`, then review and the PR phase for every repo whose take branch changes files against its default branch.
 
 import { loadAgents } from "../shared/agents.mjs";
 import type { Env } from "../shared/env.mjs";
