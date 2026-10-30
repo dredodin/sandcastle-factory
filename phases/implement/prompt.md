@@ -41,6 +41,8 @@ The same change may continue in other repos, on the same branch name. Their bran
 3. Fix every finding, except one that contradicts the issue or an ADR: name it in the commit body.
 4. `{{VERIFY}}`, commit.
 
+Nothing to change because the issue's criteria already hold on this branch: no review, `git commit --allow-empty` instead, subject `SANDCASTLE: Already done: <title>`, body with the `Issue: #{{ISSUE}}` line and the commit that did it. The merge records the issue as done, so it is planned no more. Never for work that is blocked or failed: those follow the cannot-finish rule.
+
 When the work is committed, print:
 
 <promise>COMPLETE</promise>
