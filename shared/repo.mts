@@ -55,6 +55,12 @@ export const integrationBranch = (workspace: Workspace, root: number): string =>
   return nextTakeBranch(runKey(workspace, root), refNames(workspace.home));
 };
 
+// Fetches the repo, then whether its branch, if it exists, would conflict merging the default branch (`git merge-tree` exits 1).
+export const conflictsWithBase = (repo: Repo, branch: string): boolean => {
+  fetchOrigin(repo);
+  return branchExists(repo, branch) && !succeeds(repo.path, "git", "merge-tree", "--write-tree", branch, repo.base);
+};
+
 export const isMerged = (repo: Repo, branch: string, into: string): boolean =>
   succeeds(repo.path, "git", "merge-base", "--is-ancestor", branch, into);
 
