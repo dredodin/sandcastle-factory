@@ -70,17 +70,21 @@ export const reopensOldTake = (current: Status | null): boolean => current === "
 export const takeLine = (branch: string): string => `Take: \`${branch}\`.`;
 export const closedByTake = (comments: readonly string[], branch: string): boolean => comments.some((body) => body.split("\n").includes(takeLine(branch)));
 
-export type Board = {
+export type KanbanField = {
   readonly options: readonly string[];
   readonly workflows: readonly { readonly name: string; readonly enabled: boolean }[];
 };
 
 // Built-in workflows the machine depends on and the API lists. Item reopened is not here: the API omits it even when on.
-const REQUIRED_WORKFLOWS = ["Item closed"] as const;
+const REQUIRED_WORKFLOWS = ["Item added to project", "Item closed"] as const;
 
 // Why the Kanban cannot run the machine; empty when it can.
-export const preflight = (board: Board): readonly string[] => [
-  ...STATUSES.filter((status) => !board.options.includes(status)).map((status) => `Status option "${status}" is missing: add it`),
-  ...board.options.filter((option) => toStatus(option) === null).map((option) => `Status option "${option}" is extra: remove it or rename it to one of ${STATUSES.join(", ")}`),
-  ...REQUIRED_WORKFLOWS.filter((name) => !board.workflows.some((workflow) => workflow.name === name && workflow.enabled)).map((name) => `Built-in workflow "${name}" is off: switch it on`),
+export const preflight = (kanban: KanbanField): readonly string[] => [
+  ...STATUSES.filter((status) => !kanban.options.includes(status)).map((status) => `Status option "${status}" is missing: add it`),
+  ...kanban.options.filter((option) => toStatus(option) === null).map((option) => `Status option "${option}" is extra: remove it or rename it to one of ${STATUSES.join(", ")}`),
+  ...REQUIRED_WORKFLOWS.filter((name) => !kanban.workflows.some((workflow) => workflow.name === name && workflow.enabled)).map((name) => `Built-in workflow "${name}" is off: switch it on`),
 ];
+
+// What `addReady` does with an issue it has just added to the Kanban, given its Status before and after the add:
+// "skip" when it was already there and past Backlog (a retry: Item added has fired or never will), else "wait" for Backlog.
+export const readyStep = (before: Status | null, after: Status | null): "skip" | "wait" => (before !== null && after !== "Backlog" ? "skip" : "wait");

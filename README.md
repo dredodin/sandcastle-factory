@@ -7,7 +7,7 @@ Hand it a GitHub issue, walk away, come back to a pull request. AI agents plan t
 - **Tools**: Node 22+, git, [`gh`](https://cli.github.com) (logged in). Windows: git bash.
 - **Sandboxes**: docker or podman. Without them, see `SANDBOX=none` below.
 - **GitHub only**: GitLab, Bitbucket and others are not supported. The home repo needs issues enabled and a Kanban (below).
-- **Kanban**: a GitHub Project whose Status has exactly `Backlog`, `Ready for agent`, `Agent working`, `In review`, `Done`, with the built-in workflows Item added to project → Backlog, Item closed → Done and Item reopened → Ready for agent on. The factory refuses to start otherwise. A PR closes no issue: close the root yourself after the last PR merges. A sub-issue the factory cannot finish, or whose merge conflicts, goes to Backlog with a comment; the PR's Run block lists them.
+- **Kanban**: a GitHub Project whose Status has exactly `Backlog`, `Ready for agent`, `Agent working`, `In review`, `Done`, with the built-in workflows Item added to project → Backlog, Item closed → Done and Item reopened → Ready for agent on. The factory refuses to start otherwise.
 - **Token**: one classic GitHub token (`repo`, `project`, `workflow`, `read:org`, `read:discussion`).
 - **At least one agent provider**, picked per phase ([details](docs/agents.md)):
 
@@ -109,6 +109,8 @@ npm run sandcastle -- take <issue>     # start fresh on an issue
 npm run sandcastle -- resume <issue>   # continue its latest take in every repo, e.g. after PR comments
 npm run sandcastle -- setup            # change settings, add repos
 ```
+
+A PR closes no issue: close the root yourself after the last PR merges. A sub-issue the factory cannot finish, or whose merge conflicts, goes to Backlog with a comment; the PR's Run block lists them.
 
 A shell variable overrides its setting for one run: `PLAN_MODEL=sonnet npm run sandcastle -- take 42`.
 

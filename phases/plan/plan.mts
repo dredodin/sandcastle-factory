@@ -11,7 +11,7 @@ import { branchExists, itemBranch, mergedIssues } from "../../shared/repo.mjs";
 import { DISCLAIMER, IDLE_TIMEOUT_SECONDS, phaseAgent, type Cycle, type Plan, type Run } from "../../shared/run.mjs";
 import { reposText } from "../../shared/text.mjs";
 import { repoNamed } from "../../shared/workspace.mjs";
-import { readyCreated, startItems } from "./kanban-items.mjs";
+import { readyCreated, startItems } from "../../shared/kanban-moves.mjs";
 
 // Runs the plan prompt, either in a fresh session or continuing the last plan's.
 export type PlanSession = (prompt: string, options: ResumeSandboxRunResultOptions) => Promise<SandboxRunResult>;
@@ -25,8 +25,8 @@ export const freshPlan = (run: Run): PlanSession => async (prompt, options) =>
 export const plan = async (cycle: Cycle, openPrsText: string, session: PlanSession): Promise<Plan & { readonly next: PlanSession }> => {
   const { workspace, branch } = cycle;
   const { home, repos } = workspace;
-  const { kanban } = cycle.context.env;
-  // Opened before STATE is read: a take's first cycle creates the home branch here.
+  const { owner, number } = cycle.context.env.kanban;
+  // A take's first cycle creates the home branch here, before the plan agent runs.
   await cycle.integrations.get(home);
   const prompt = fillPrompt(readFileSync(promptPath("plan"), "utf8"), {
     ROOT: String(cycle.root),
@@ -35,8 +35,8 @@ export const plan = async (cycle: Cycle, openPrsText: string, session: PlanSessi
     HOME_SLUG: home.slug,
     HOME_NAME: home.name,
     REPOS: reposText(home.name, repos),
-    KANBAN_OWNER: kanban.owner,
-    KANBAN_NUMBER: String(kanban.number),
+    KANBAN_OWNER: owner,
+    KANBAN_NUMBER: String(number),
     OPEN_PRS: openPrsText,
     PLAN_CHECK: planCheckCommand(home.name),
   });
@@ -54,14 +54,14 @@ export const plan = async (cycle: Cycle, openPrsText: string, session: PlanSessi
     created: z.array(z.string().regex(/^[1-9][0-9]*$/)).default([]),
   });
   const planned = extract(result.stdout, "plan", planSchema);
-  await readyCreated(cycle, planned.created);
+  await readyCreated(cycle.kanban, planned.created.map(Number));
   // The root as item has no card to move; once merged on the branch it is not worked again. A repo's branch, not its worktree: a resume has none opened yet.
   const worked = planned.items.filter((item) => {
     if (Number(item.issue) !== cycle.root) return true;
     const repo = repoNamed(workspace, item.repo);
     return !(branchExists(repo, branch) && mergedIssues(repo, branch).includes(cycle.root));
   });
-  const items = startItems(
+  const items = await startItems(
     cycle,
     worked.map((item) => ({ ...item, branch: itemBranch(repoNamed(workspace, item.repo), branch, item.issue) })),
   );

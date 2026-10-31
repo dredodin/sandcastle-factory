@@ -67,6 +67,10 @@ test("runBlock: PR list in merge order, and the repo without a PR with its open 
   );
 });
 
+test("runBlock: one PR and a repo left without one still list the PR", () => {
+  assert.match(runBlock("Models: m.", "acme/hub", 7, [hub], [{ repo: "lib", open: [6] }], {}, []), /1\. acme\/hub#9 \(hub\)\n\nNo PR in `lib`/);
+});
+
 test("runBlock: several PRs with nothing left out still list the merge order", () => {
   assert.match(runBlock("Models: m.", "acme/hub", 7, [hub, app], [], {}, []), /1\. acme\/hub#9 \(hub\)\n2\. acme\/app#12 \(app\)/);
 });

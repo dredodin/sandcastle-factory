@@ -55,6 +55,6 @@ End by printing one outcome as JSON inside `<outcome>` tags. The factory reads i
 {"outcome": "committed", "note": ""}
 </outcome>
 
-When the work is committed, print the outcome above and then:
+After the outcome, whichever it is, print:
 
 <promise>COMPLETE</promise>

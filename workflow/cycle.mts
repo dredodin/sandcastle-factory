@@ -6,14 +6,15 @@ import { review } from "../phases/review/review.mjs";
 import { implement } from "../phases/implement/implement.mjs";
 import { merge, mergeDefaults } from "../phases/merge/merge.mjs";
 import { freshPlan, plan, type PlanSession } from "../phases/plan/plan.mjs";
-import { closeMerged, readyFiled, settle } from "../phases/plan/kanban-items.mjs";
+import { closeMerged, readyNewSince, settle, subIssuesOf } from "../shared/kanban-moves.mjs";
 import { outcomeEvent } from "../shared/outcome.mjs";
 import { pr } from "../phases/pr/pr.mjs";
+import { comment } from "../shared/kanban-gh.mjs";
 import type { Item } from "../shared/item.mjs";
 import { log, openRunLog } from "../shared/logger.mjs";
 import { inParallel } from "../shared/parallel.mjs";
 import { conflictsWithBase } from "../shared/repo.mjs";
-import type { Run } from "../shared/run.mjs";
+import { DISCLAIMER, type Run } from "../shared/run.mjs";
 import { withSandbox } from "../shared/sandbox.mjs";
 import { repoNamed, type Repo, type Workspace } from "../shared/workspace.mjs";
 
@@ -34,13 +35,13 @@ export const startRun = (
 };
 
 // One cycle: plan, merge default branches (the conflicting ones), implement each item in parallel in its repo, merge.
-// Resolves to the planned items, none when the plan is empty, and the next cycle's plan session.
+// Resolves to the planned items, none when the plan is empty, whether the root as item ended without code (the cycles stop), and the next cycle's plan session.
 const cycle = async (
   run: Run,
   number: number,
   openPrsText: string,
   session: PlanSession,
-): Promise<{ readonly items: readonly Item[]; readonly next: PlanSession }> => {
+): Promise<{ readonly items: readonly Item[]; readonly next: PlanSession; readonly stop: boolean }> => {
   log.info(`\n=== Cycle ${number}/${MAX_CYCLES} ===`);
   const current = { ...run, number };
 
@@ -49,7 +50,7 @@ const cycle = async (
   const { items, next } = await plan(current, openPrsText, session);
   if (conflicting.length === 0 && items.length === 0) {
     log.info("Nothing to do: plan is empty.");
-    return { items: [], next };
+    return { items: [], next, stop: false };
   }
   await mergeDefaults(current, conflicting);
   await Promise.all([...new Set(items.map((item) => item.repo))].map((name) => current.integrations.get(repoNamed(run.workspace, name))));
@@ -61,19 +62,23 @@ const cycle = async (
     ),
   );
   // Without code: the sub-issue is closed or sent to Backlog now. Committed: merged first.
-  settle(current, items.flatMap((item, index) => {
+  const reported = items.flatMap((item, index) => {
     const { outcome, note } = outcomes[index]!;
     const event = outcomeEvent(outcome);
     return event === null ? [] : [{ item, event, note: note === "" ? `Implement reported: ${outcome}.` : note }];
-  }));
+  });
+  await settle(current, reported);
+  // The root as item has no card: its note goes on the root, and it is not planned again.
+  const rootEnded = reported.find(({ item }) => Number(item.issue) === run.root);
+  if (rootEnded !== undefined) comment(run.kanban, run.root, `${DISCLAIMER}\n\n${rootEnded.note}`);
   const done = items.filter((_, index) => outcomes[index]!.outcome === "committed");
   if (done.length === 0) log.info("No item committed. Nothing to merge.");
   else {
     const leftOut = await merge(current, done);
-    closeMerged(current, done.filter((item) => !leftOut.includes(item)));
-    settle(current, leftOut.map((item) => ({ item, event: "mergeConflict", note: `The merge of \`${item.branch}\` into \`${run.branch}\` left it out: resolve the conflict, then move this issue to Ready for agent.` })));
+    await closeMerged(current, done.filter((item) => !leftOut.includes(item)));
+    await settle(current, leftOut.map((item) => ({ item, event: "mergeConflict", note: `The merge of \`${item.branch}\` into \`${run.branch}\` left it out: resolve the conflict, then move this issue to Ready for agent.` })));
   }
-  return { items, next };
+  return { items, next, stop: rootEnded !== undefined };
 };
 
 // Cycles until the plan is empty or the cap is reached; one after another, each plans on the last one's merge.
@@ -81,8 +86,9 @@ const cycle = async (
 // Resolves to every item planned along the way.
 export const cycles = (run: Run, openPrsText: string): Promise<readonly Item[]> => {
   const from = async (number: number, session: PlanSession): Promise<readonly Item[]> => {
-    const { items, next } = await cycle(run, number, openPrsText, session);
+    const { items, next, stop } = await cycle(run, number, openPrsText, session);
     if (items.length === 0) return [];
+    if (stop) return items;
     if (number === MAX_CYCLES) {
       log.info(`Cycle cap (${MAX_CYCLES}) reached.`);
       return items;
@@ -99,7 +105,9 @@ const REVIEW_PASSES = 2;
 export const finish = async (run: Run, openPrsText: string, touched: () => readonly Repo[], planned: readonly Item[]): Promise<string> => {
   let items = planned;
   for (let pass = 1; pass <= REVIEW_PASSES; pass++) {
-    await inParallel(touched(), (repo) => repo.name, (repo) => readyFiled(run, () => review(run, repo, pass)));
+    const before = subIssuesOf(run);
+    await inParallel(touched(), (repo) => repo.name, (repo) => review(run, repo, pass));
+    await readyNewSince(run, before);
     const filed = await cycles(run, openPrsText);
     items = [...items, ...filed];
     if (filed.length === 0) break;

@@ -21,8 +21,8 @@ export const take = async (workspace: Workspace, env: Env, root: number): Promis
   const logDir = startRun("take", { workspace, env, settings }, root, title, branch);
 
   const context = { workspace, env };
-  return tracked(card, "take", () => withIntegrations(context, (repo) => ({ repo, branch, baseBranch: repo.base }), async (integrations) => {
-    const run: Run = { agents, context, workspace, root, title, branch, integrations, logDir };
+  return tracked(card, "take", branch, () => withIntegrations(context, (repo) => ({ repo, branch, baseBranch: repo.base }), async (integrations) => {
+    const run: Run = { agents, context, workspace, kanban: card.kanban, root, title, branch, integrations, logDir };
     const planned = await cycles(run, FIRST_TAKE_PRS);
     const touched = (): readonly Repo[] => integrations.opened().filter((repo) => hasFileDiff(repo, branch, repo.base));
     if (touched().length === 0) return { text: "Nothing completed: no PR.", pr: false };
