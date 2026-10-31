@@ -110,10 +110,10 @@ Done-check: `docs/agents/issue-tracker.md` has the Status rule below, and the hu
 
 The Kanban is the home repo's GitHub Project; every issue's Status is the factory's state machine (terms: Kanban, Status in the factory's `GLOSSARY.md`). The factory refuses to start without a correct one.
 
-- Create or link: `gh project list --owner <owner>` shows the owner's projects; ask the human to pick one or make one (`gh project create --owner <owner> --title <title>`), and link it to the home repo (`gh project link <number> --owner <owner> --repo <home>`). Needs `gh auth refresh -s project,read:org,read:discussion`.
+- Create or link: `gh project list --owner <owner>` shows the owner's projects; ask the human to pick one or make one (`gh project create --owner <owner> --title <title>`), and link it to the home repo (`gh project link <number> --owner <owner> --repo <home>`). Needs the token scopes in the factory's `README.md`.
 - Status options, exactly these five, in order: `Backlog`, `Ready for agent`, `Agent working`, `In review`, `Done`. No others.
 - Built-in workflows, the human switches them on in the project's Workflows page: `Item added to project` → Status `Backlog`, `Item closed` → Status `Done`, `Item reopened` → Status `Ready for agent`. The factory checks only the Status options; a run fails at the first move that needs one, so the human confirms all three.
-- Token: one classic token with `repo`, `project`, `workflow`, `read:org`, `read:discussion`. Setup asks for it, with the Kanban's owner and number.
+- Token: one classic token, scopes in the factory's `README.md`. Setup asks for it, with the Kanban's owner and number.
 - Tracker rule: add to `docs/agents/issue-tracker.md` that applying `ready-for-agent` also sets Status = Ready for agent.
 
 ## 8. Setup, by the human

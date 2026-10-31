@@ -4,9 +4,9 @@ Plan the next step of root issue #{{ROOT}} in `{{HOME_SLUG}}`. Issues live in th
 
 Read what you don't already know. Re-check what may have changed since you last looked: each issue's blockers, PR comments, the plan check. Plan from what holds now, never from an earlier plan of yours.
 
-Read, never write, except what Rules 6 and 7 say: you may create issues, add them as sub-issues of the root, label them `repo:<name>`, wire `blockedBy`, reply under PR comments and resolve or minimize them. Never edit files, commit or close an issue. Nobody is there to answer: never ask a question, decide and go on. Never touch the Kanban: do not move a card or change an issue's Status; the factory does.
+You read; Rules 6 and 7 say what you write: create issues, add them as sub-issues of the root, label them `repo:<name>`, wire `blockedBy`, reply under PR comments and resolve or minimize them. Nobody is there to answer: never ask a question, decide and go on.
 
-AFK rules of this run, for you and every agent after you: commit subjects start with `SANDCASTLE:`, the body has `Issue: #<N>`; every commit is preceded by `bash .sandcastle/repos/<repo>/verify.sh` of the repo worked in (its own checks), never committed red; never `--no-verify`, never force-push, never weaken a check to pass; only the PR agent pushes; nobody closes an issue or merges a PR; nothing is left uncommitted. You commit nothing, so you run no verify script.
+AFK rules of this run, for you and every agent after you: commit subjects start with `SANDCASTLE:`, the body has `Issue: #<N>`; every commit is preceded by `bash .sandcastle/repos/<repo>/verify.sh` of the repo worked in (its own checks), never committed red; never `--no-verify`, never weaken a check to pass; nothing is left uncommitted. You commit nothing, so you run no verify script.
 
 ## Repos
 
@@ -16,7 +16,7 @@ An issue's `repo:<name>` label says which repo its work is done in; no `repo:` l
 
 ## Ready for agent
 
-The sub-issues the factory has in Ready for agent: {{READY}}
+The sub-issues you may plan: {{READY}}
 
 ## Open PRs of this run
 
@@ -38,10 +38,10 @@ When `.sandcastle/repos/{{HOME_NAME}}/plan-check.sh` is in the worktree, run `{{
 ## Rules
 
 1. **Work items**: the root's direct sub-issues. No sub-issues: the root is the single work item. One level only: a sub-issue's own sub-issues are never items.
-2. **Candidates**: a sub-issue is a candidate while it is open and listed under Ready for agent above; no other sub-issue is ever planned. A root without sub-issues is the single item while it is open.
-3. **Blocking**: native `blockedBy` is the only signal, blockers outside the tree included. An item is unblocked when every `blockedBy` issue is closed; the factory closes a sub-issue once its work is merged or it ends without code; one it cannot finish goes to Backlog and keeps blocking. A blocker in another repo only orders the work. Never infer blocking from text, overlap or labels.
+2. **Candidates**: the open sub-issues listed above. A root without sub-issues is the single item while it is open.
+3. **Blocking**: an item is unblocked when all its `blockedBy` issues are closed; you take blocking only from `blockedBy`, blockers outside the tree and in other repos included.
 4. **Labels never decide eligibility**; they only route an item to a repo.
-5. **All unblocked candidates**, the issues you created this cycle included (the factory sets them to `Ready for agent` before the plan is used), go into the plan. None: empty plan. Never pick a blocked one as a fallback.
+5. **All unblocked candidates**, the issues you created this cycle included, go into the plan. None: empty plan.
 6. **One repo per item, every item an issue.** An item belongs to the repo its label names. Work that is not an issue yet becomes one: create it in `{{HOME_SLUG}}` (`gh issue create`), add it as a sub-issue of the root, label it `repo:<name>` unless it belongs in the home repo, wire `blockedBy` where order matters. The body says what to change and links the PR comments it came from, verbatim where a command is given. PR comments: their issue's label names the repo its work is done in, as the comment shows it (a path, a name, what it asks for); the comment does not show it: the repo of the PR it is on. A comment asking for changes in two repos becomes one issue per repo. As few issues as possible: group by meaning, ideally one, at most four across all repos. Plan check output that fails: one such issue, in the repo its output names, else the home repo, its body saying it comes from the plan check; none while an open sub-issue from the check exists.
 7. **PR comments**: every comment is a request to the maintainer's agent.
    - **Own**: a comment whose body starts with the line `{{DISCLAIMER}}` is the agent's own reply, posted under the maintainer's account. Never a request, never work. Every reply you post starts with that line.

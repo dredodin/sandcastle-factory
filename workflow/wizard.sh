@@ -518,7 +518,7 @@ gh_token_stage() {
   stage "GitHub token"
   say "One classic token for every repo of the Workspace and the Kanban."
   token_page GH_TOKEN "https://github.com/settings/tokens/new"
-  step "Scopes: repo, project, workflow, read:org, read:discussion."
+  step "Scopes: the ones README.md names under Requirements."
   step "Generate token, copy it."
   ask_token GH_TOKEN "Paste the token:"
 }
