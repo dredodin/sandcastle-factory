@@ -8,7 +8,7 @@ import { log, timed } from "../../shared/logger.mjs";
 import { logFileName, verifyCommand } from "../../shared/names.mjs";
 import { inParallel } from "../../shared/parallel.mjs";
 import { mergedIssues } from "../../shared/repo.mjs";
-import { backlogged } from "../plan/kanban-items.mjs";
+import { backlogged } from "../../shared/kanban-moves.mjs";
 import { promptPath } from "../../shared/paths.mjs";
 import { blockersFromJson, modelsLine, reposWithoutPr, runBlock, withRunBlock, type BlockedBy, type Pr } from "../../shared/pr-body.mjs";
 import { IDLE_TIMEOUT_SECONDS, phaseAgent, type Run } from "../../shared/run.mjs";

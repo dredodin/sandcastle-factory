@@ -1,13 +1,11 @@
 // What an implement run reports: one outcome the harness maps to the sub-issue's move.
 
-import { z } from "zod";
 import type { SubEvent } from "./kanban.mjs";
 
-export const outcomeSchema = z.object({
-  outcome: z.enum(["committed", "done without code", "already done", "findings rejected", "cannot finish"]),
-  note: z.string().default(""),
-});
-export type ImplementOutcome = z.infer<typeof outcomeSchema>;
+export type ImplementOutcome = {
+  readonly outcome: "committed" | "done without code" | "already done" | "findings rejected" | "cannot finish";
+  readonly note: string;
+};
 
 // The event of an outcome without code; null for `committed`, whose work is merged first.
 export const outcomeEvent = (outcome: ImplementOutcome["outcome"]): SubEvent | null => {

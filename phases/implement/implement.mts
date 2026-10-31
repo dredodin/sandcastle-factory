@@ -1,14 +1,20 @@
 import type { Sandbox } from "@ai-hero/sandcastle";
+import { z } from "zod";
 import { extract } from "../../shared/extract.mjs";
 import { implementRunOf, type Item } from "../../shared/item.mjs";
 import { message } from "../../shared/cli.mjs";
 import { log, timed } from "../../shared/logger.mjs";
-import { missingOutcome, outcomeSchema, reconcile, type ImplementOutcome } from "../../shared/outcome.mjs";
+import { missingOutcome, reconcile, type ImplementOutcome } from "../../shared/outcome.mjs";
 import { promptPath } from "../../shared/paths.mjs";
 import { IDLE_TIMEOUT_SECONDS, phaseAgent, type Cycle } from "../../shared/run.mjs";
 import { otherBranchesText } from "../../shared/text.mjs";
 
 const IMPLEMENT_ITERATIONS = 100;
+
+const outcomeSchema = z.object({
+  outcome: z.enum(["committed", "done without code", "already done", "findings rejected", "cannot finish"]),
+  note: z.string().default(""),
+}) satisfies z.ZodType<ImplementOutcome, unknown>;
 
 // Runs the implement agent on the item's branch; returns the outcome it reported, else the one its commits imply.
 export const implement = async (cycle: Cycle, sandbox: Sandbox, item: Item): Promise<ImplementOutcome> => {

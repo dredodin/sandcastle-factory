@@ -3,6 +3,7 @@ import type { AgentProvider } from "@ai-hero/sandcastle";
 import type { Agents } from "./agents.mjs";
 import type { Phase } from "./env.mjs";
 import type { Item } from "./item.mjs";
+import type { KanbanHandle } from "./kanban-gh.mjs";
 import type { Integrations, SandboxContext } from "./sandbox.mjs";
 import type { Repo, Workspace } from "./workspace.mjs";
 
@@ -11,6 +12,7 @@ export type Run = {
   readonly agents: Agents;
   readonly context: SandboxContext;
   readonly workspace: Workspace;
+  readonly kanban: KanbanHandle;
   readonly root: number;
   readonly title: string;
   readonly branch: string;

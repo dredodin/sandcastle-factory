@@ -15,6 +15,7 @@
     "shared/kanban.mts",
     "shared/merge-record.mts",
     "shared/names.mts",
+    "shared/outcome.mts",
     "shared/parallel.mts",
     "shared/pr-body.mts",
     "shared/prompt.mts"
