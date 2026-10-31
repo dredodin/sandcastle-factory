@@ -1,5 +1,5 @@
 // The Kanban: the state machine of an issue's Status, and the `gh` calls that apply it. A failed call throws; no write is best effort.
-// `gh project` needs a classic token with `project`, `read:org`, `read:discussion`.
+// Token scopes: README, Requirements.
 
 import { z } from "zod";
 import { message } from "./cli.mjs";
@@ -111,7 +111,7 @@ export const openKanban = (workspace: Workspace, ref: KanbanRef, root: number): 
       if (field === undefined) throw new Error("it has no Status field");
       return { projectId: id, fieldId: field.id, options: Object.fromEntries(field.options.map((option) => [option.name, option.id])) };
     } catch (error) {
-      throw new Error(`The Kanban ${where} cannot be read: ${message(error)}. Check KANBAN_OWNER, KANBAN_NUMBER and that GH_TOKEN is a classic token with repo, project, workflow, read:org, read:discussion.`);
+      throw new Error(`The Kanban ${where} cannot be read: ${message(error)}. Check KANBAN_OWNER, KANBAN_NUMBER and that GH_TOKEN is the classic token the README names.`);
     }
   })();
   const problems = preflight(Object.keys(read.options));

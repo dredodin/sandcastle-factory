@@ -28,7 +28,7 @@ The same change may continue in other repos, on the same branch name. Their bran
 - Run `{{VERIFY}}` before every commit. Red: fix, never commit. Never `--no-verify`. Never weaken, skip or delete a check to make a commit pass: a check that refuses is right until an issue says otherwise.
 - Commits: the subject starts with `SANDCASTLE:`. The body has an `Issue: #{{ISSUE}}` line, says what changed and which decisions were made.
 - Leave nothing uncommitted: that fails the run.
-- Only the PR agent pushes: never push, never force-push. Never close an issue, never merge a PR. Never reply to or close a PR comment: the planner does. Never touch the Kanban: do not move a card or change an issue's Status; the factory does.
+- The factory pushes the branch and does the rest on GitHub.
 - Cannot finish: leave nothing uncommitted, report outcome `cannot finish` with what was done and what stopped you as the note. Then stop.
 
 # Procedure
@@ -43,7 +43,7 @@ The same change may continue in other repos, on the same branch name. Their bran
 
 # Outcome
 
-End by printing one outcome as JSON inside `<outcome>` tags. The factory reads it, posts the note on #{{ISSUE}} and moves the issue; you move nothing, comment nothing.
+End by printing one outcome as JSON inside `<outcome>` tags. The factory reads it, comments the note on #{{ISSUE}} and moves the card.
 
 - `committed`: the work is committed (the default). No note needed.
 - `done without code`: the work needs no commit (a measurement, a manual check). Note: the result.

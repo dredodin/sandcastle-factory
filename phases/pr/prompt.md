@@ -6,7 +6,7 @@ Head: `{{INTEGRATION_BRANCH}}`. Title: `{{ROOT_TITLE}}`.
 
 Nobody is there to answer: never ask a question, decide and go on.
 
-AFK rules of this run: commit subjects start with `SANDCASTLE:`, the body has `Issue: #<N>`; every commit is preceded by `{{VERIFY}}`, never committed red; never `--no-verify`, never force-push, never weaken a check to pass; only you push, and only the integration branch; nobody closes an issue or merges a PR; nothing is left uncommitted. You commit nothing, so you run no check.
+AFK rules of this run: commit subjects start with `SANDCASTLE:`, the body has `Issue: #<N>`; every commit is preceded by `{{VERIFY}}`, never committed red; never `--no-verify`, never weaken a check to pass; nothing is left uncommitted. You commit nothing, so you run no check.
 
 ## Commits
 
@@ -14,12 +14,10 @@ AFK rules of this run: commit subjects start with `SANDCASTLE:`, the body has `I
 
 ## Steps
 
-1. Push: `git push https://github.com/{{REPO_SLUG}}.git HEAD:refs/heads/{{INTEGRATION_BRANCH}}`. Never force, never push anywhere else.
+1. Push: `git push https://github.com/{{REPO_SLUG}}.git HEAD:refs/heads/{{INTEGRATION_BRANCH}}`. No force.
 2. Body: write `/tmp/pr-body.md` (outside the worktree) from the template below. It describes the branch as it stands now, whole, not only the latest commits. Skip preambles, keep prose brief, use the repo's own domain terms. Write no `Closes` line: the PR closes no issue.
 
 3. Existing PR: `gh pr list --repo {{REPO_SLUG}} --head {{INTEGRATION_BRANCH}} --state open --json url`. One found: reuse it, rewriting its body: `gh pr edit <url> --body-file /tmp/pr-body.md`. None: `gh pr create --repo {{REPO_SLUG}} --base {{DEFAULT_BRANCH}} --head {{INTEGRATION_BRANCH}} --title "<title above>" --body-file /tmp/pr-body.md`. Never `--draft`. A later step adds the models and the run's PR list to the body: leave a block between `<!-- sandcastle-run -->` and `<!-- /sandcastle-run -->` as it is.
-
-Never merge the PR, never close or comment on an issue, never commit. Never touch the Kanban: do not move a card or change an issue's Status; the factory does.
 
 ## Body template
 

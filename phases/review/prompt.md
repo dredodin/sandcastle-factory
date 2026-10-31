@@ -12,7 +12,6 @@ The spec is the root issue, its sub-issues, and the open PR's comments of this b
 # Rules for this run
 
 - Nobody is there to answer: never ask a question, decide and go on.
-- Never touch the Kanban: do not move a card or change an issue's Status; the factory does.
 - Read the root's earlier review issues (sub-issues whose body says it comes from branch review); do not repeat what they fixed or what was rejected.
 
 # Task
