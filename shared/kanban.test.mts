@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { preflight, rootAction, subAction, toStatus, type Action, type RootEvent, type Status } from "./kanban.mjs";
+import { closedByTake, preflight, reopensOldTake, rootAction, subAction, takeLine, toStatus, type Action, type RootEvent, type Status, type SubAction, type SubEvent } from "./kanban.mjs";
 
 const set = (status: Status): Action => ({ type: "set", status });
 const refused = (current: Status | null, event: RootEvent): boolean => rootAction(current, event).type === "refuse";
@@ -98,4 +98,42 @@ for (const [from, event] of [["Backlog", "planned"], ["Agent working", "planned"
 
 test("subAction: a refusal says why", () => {
   assert.deepEqual(subAction("Backlog", "planned"), { type: "refuse", reason: "planned while its Status is Backlog, not Ready for agent" });
+});
+
+const SUB_TRANSITIONS: readonly (readonly [string, Status, SubEvent, SubAction])[] = [
+  ["S4 done without code", "Agent working", "doneWithoutCode", { type: "close", reason: "completed" }],
+  ["S4 already done", "Agent working", "alreadyDone", { type: "close", reason: "completed" }],
+  ["S4 findings rejected", "Agent working", "findingsRejected", { type: "close", reason: "not planned" }],
+  ["S5 cannot finish", "Agent working", "cannotFinish", set("Backlog")],
+  ["S5 merge conflict", "Agent working", "mergeConflict", set("Backlog")],
+  ["S6 crashed", "Agent working", "crashed", set("Ready for agent")],
+  ["S7 retake", "Done", "retake", { type: "reopen" }],
+];
+
+for (const [row, from, event, action] of SUB_TRANSITIONS) {
+  test(`subAction: ${row}`, () => assert.deepEqual(subAction(from, event), action));
+}
+
+for (const event of ["doneWithoutCode", "alreadyDone", "findingsRejected", "cannotFinish", "mergeConflict", "crashed"] as const) {
+  for (const from of ["Backlog", "Ready for agent", "In review", "Done", null] as const) {
+    test(`subAction: ${event} from ${from ?? "no card"} is refused`, () => assert.equal(subAction(from, event).type, "refuse"));
+  }
+}
+
+test("subAction: retake only from Done", () => {
+  assert.deepEqual(subAction("Backlog", "retake"), { type: "refuse", reason: "retake while its Status is Backlog, not Done" });
+  assert.equal(subAction("Agent working", "retake").type, "refuse");
+});
+
+test("reopensOldTake: R3 from In review only", () => {
+  assert.equal(reopensOldTake("In review"), true);
+  assert.equal(reopensOldTake("Ready for agent"), false);
+  assert.equal(reopensOldTake(null), false);
+});
+
+test("closedByTake: a comment with the take's line, whole", () => {
+  assert.equal(takeLine("sandcastle/app/issue-7-take-1"), "Take: `sandcastle/app/issue-7-take-1`.");
+  assert.equal(closedByTake(["hi", `Done.\n\n${takeLine("b-1")}`], "b-1"), true);
+  assert.equal(closedByTake([takeLine("b-1")], "b-10"), false);
+  assert.equal(closedByTake([], "b-1"), false);
 });

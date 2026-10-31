@@ -1,4 +1,4 @@
-// Pure assembly of what the run adds to every PR body: the Closes lines, the models and the run's PR list.
+// Pure assembly of what the run adds to every PR body: the models and the run's PR list.
 import { z } from "zod";
 import type { Item } from "./item.mjs";
 import { PHASES, type Phase, type PhaseSetting } from "./env.mjs";
@@ -17,12 +17,6 @@ export type BlockedBy = Readonly<Record<number, readonly number[]>>;
 
 const START = "<!-- sandcastle-run -->";
 const END = "<!-- /sandcastle-run -->";
-
-// Issues live in the home repo, so every line names it.
-export const closesLines = (homeSlug: string, ids: readonly number[]): string => ids.map((id) => `Closes ${homeSlug}#${id}`).join("\n");
-
-// Only the home repo's PR closes the root, so a multi-repo run keeps it open until the home PR merges; with no home PR, every PR does.
-export const closesRoot = (repo: string, homeRepo: string, prRepos: readonly string[]): boolean => repo === homeRepo || !prRepos.includes(homeRepo);
 
 const blockedBySchema = z.object({ blockedBy: z.object({ nodes: z.array(z.object({ number: z.number() })) }) });
 
@@ -64,19 +58,26 @@ const issueList = (issues: readonly number[]): string => issues.map((id) => `#${
 export const modelsLine = (phases: Readonly<Record<Phase, PhaseSetting>>): string =>
   `Models: ${PHASES.map((phase) => `${phase} \`${phases[phase].model}\` (${phases[phase].provider}, ${phases[phase].effort})`).join(", ")}.`;
 
-// The block every PR of the run ends with: the models line, then the run's PR list when it has several PRs or a repo left out.
-export const runBlock = (models: string, homeSlug: string, root: number, prs: readonly Pr[], noPr: readonly NoPr[], blockedBy: BlockedBy): string => {
+// The block every PR of the run ends with: the models line, then the run's PR list when it has several PRs or a repo left out,
+// and the sub-issues left in Backlog, which this run did not deliver.
+export const runBlock = (models: string, homeSlug: string, root: number, prs: readonly Pr[], noPr: readonly NoPr[], blockedBy: BlockedBy, backlog: readonly number[]): string => {
+  const several = prs.length > 1 || noPr.length > 0;
   const run =
-    prs.length <= 1 && noPr.length === 0
+    !several && backlog.length === 0
       ? []
       : [
           "",
           "## Run",
-          "",
-          `One change over several repos, root ${homeSlug}#${root}. Merge in this order:`,
-          "",
-          ...mergeOrder(prs, blockedBy).map((pr, index) => `${index + 1}. ${prRef(pr.url)} (${pr.repo})`),
-          ...noPr.map((entry) => `\nNo PR in \`${entry.repo}\`: no commits. Still open: ${issueList(entry.open)}.`),
+          ...(several
+            ? [
+                "",
+                `One change over several repos, root ${homeSlug}#${root}. Merge in this order:`,
+                "",
+                ...mergeOrder(prs, blockedBy).map((pr, index) => `${index + 1}. ${prRef(pr.url)} (${pr.repo})`),
+                ...noPr.map((entry) => `\nNo PR in \`${entry.repo}\`: no commits. Still open: ${issueList(entry.open)}.`),
+              ]
+            : []),
+          ...(backlog.length > 0 ? [`\nLeft in Backlog, not delivered: ${issueList(backlog)}.`] : []),
         ];
   return [START, models, ...run, END].join("\n");
 };

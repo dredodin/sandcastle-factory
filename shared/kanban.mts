@@ -34,20 +34,41 @@ export const rootAction = (current: Status | null, event: RootEvent): Action => 
 };
 
 export type CloseReason = "completed" | "not planned";
-export type SubAction = Action | { readonly type: "close"; readonly reason: CloseReason };
+export type SubAction = Action | { readonly type: "close"; readonly reason: CloseReason } | { readonly type: "reopen" };
 
-// What happens to a sub-issue's card: the plan took it (S3), its work merged into the integration branch (S4).
-export type SubEvent = "planned" | "merged";
+// What happens to a sub-issue's card: the plan took it (S3); its work merged (S4); implement ended without commits (S4, S5);
+// a merge left its branch out (S5); the run crashed (S6); a new take reopens what the old one closed (S7).
+export type SubEvent = "planned" | "merged" | "doneWithoutCode" | "alreadyDone" | "findingsRejected" | "cannotFinish" | "mergeConflict" | "crashed" | "retake";
+
+const close = (reason: CloseReason): SubAction => ({ type: "close", reason });
 
 // What the factory does with a sub-issue, given its Status. `current` is null when it is not on the Kanban.
 export const subAction = (current: Status | null, event: SubEvent): SubAction => {
+  const from = current ?? "none";
+  if (event === "planned") return current === "Ready for agent" ? set("Agent working") : refuse(`planned while its Status is ${from}, not Ready for agent`);
+  if (event === "retake") return current === "Done" ? { type: "reopen" } : refuse(`retake while its Status is ${from}, not Done`);
+  if (current !== "Agent working") return refuse(`${event} while its Status is ${from}, not Agent working`);
   switch (event) {
-    case "planned":
-      return current === "Ready for agent" ? set("Agent working") : refuse(`planned while its Status is ${current ?? "none"}, not Ready for agent`);
     case "merged":
-      return current === "Agent working" ? { type: "close", reason: "completed" } : refuse(`merged while its Status is ${current ?? "none"}, not Agent working`);
+    case "doneWithoutCode":
+    case "alreadyDone":
+      return close("completed");
+    case "findingsRejected":
+      return close("not planned");
+    case "cannotFinish":
+    case "mergeConflict":
+      return set("Backlog");
+    case "crashed":
+      return set("Ready for agent");
   }
 };
+
+// Whether a take from this Status first closes the old take's PRs and reopens what it closed (R3).
+export const reopensOldTake = (current: Status | null): boolean => current === "In review";
+
+// The line of a close comment that names the take, and whether any comment carries it.
+export const takeLine = (branch: string): string => `Take: \`${branch}\`.`;
+export const closedByTake = (comments: readonly string[], branch: string): boolean => comments.some((body) => body.split("\n").includes(takeLine(branch)));
 
 export type Board = {
   readonly options: readonly string[];

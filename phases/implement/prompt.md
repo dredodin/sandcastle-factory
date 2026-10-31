@@ -29,7 +29,7 @@ The same change may continue in other repos, on the same branch name. Their bran
 - Commits: the subject starts with `SANDCASTLE:`. The body has an `Issue: #{{ISSUE}}` line, says what changed and which decisions were made.
 - Leave nothing uncommitted: that fails the run.
 - Only the PR agent pushes: never push, never force-push. Never close an issue, never merge a PR. Never reply to or close a PR comment: the planner does. Never touch the Kanban: do not move a card or change an issue's Status; the factory does.
-- Cannot finish: leave nothing uncommitted, comment on #{{ISSUE}} what was done and what stopped you: `gh issue comment {{ISSUE}} --repo {{HOME_SLUG}} --body-file /tmp/comment.md` (outside the worktree). Then stop.
+- Cannot finish: leave nothing uncommitted, report outcome `cannot finish` with what was done and what stopped you as the note. Then stop.
 
 # Procedure
 
@@ -41,8 +41,20 @@ The same change may continue in other repos, on the same branch name. Their bran
 3. Fix every finding, except one that contradicts the issue or an ADR: name it in the commit body.
 4. `{{VERIFY}}`, commit.
 
-Nothing to change because the issue's criteria already hold on this branch: no review, `git commit --allow-empty` instead, subject `SANDCASTLE: Already done: <title>`, body with the `Issue: #{{ISSUE}}` line and the commit that did it. The merge follows, then the factory closes the issue, so it is planned no more. Never for work that is blocked or failed: those follow the cannot-finish rule.
+# Outcome
 
-When the work is committed, print:
+End by printing one outcome as JSON inside `<outcome>` tags. The factory reads it, posts the note on #{{ISSUE}} and moves the issue; you move nothing, comment nothing.
+
+- `committed`: the work is committed (the default). No note needed.
+- `done without code`: the work needs no commit (a measurement, a manual check). Note: the result.
+- `already done`: the issue's criteria already hold on this branch. No review, no commit. Note: the commit that did it.
+- `findings rejected`: a review-filed issue whose every finding you reject (it contradicts the issue or an ADR). Note: the reason.
+- `cannot finish`: blocked or failed; never for work that is merely hard. Note: what was done and what stopped you.
+
+<outcome>
+{"outcome": "committed", "note": ""}
+</outcome>
+
+When the work is committed, print the outcome above and then:
 
 <promise>COMPLETE</promise>
