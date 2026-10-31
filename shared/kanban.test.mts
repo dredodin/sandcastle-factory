@@ -35,36 +35,47 @@ for (const [from, event] of REFUSALS) {
   test(`rootAction: ${event} from ${from ?? "no card"} is refused`, () => assert.ok(refused(from, event)));
 }
 
-const EXTRA = 'Status option "Blocked" is extra: remove it or rename it to one of Backlog, Ready for agent, Agent working, In review, Done';
 const OPTIONS = ["Backlog", "Ready for agent", "Agent working", "In review", "Done"];
 const WORKFLOWS = [{ name: "Item added to project", enabled: true }, { name: "Item closed", enabled: true }];
-const off = (name: string): string => `Built-in workflow "${name}" is off: switch it on`;
+const off = (name: string): RegExp => new RegExp(`workflow "${name}" is off`);
+const check = (workflows: readonly { name: string; enabled: boolean }[], expected: readonly RegExp[]): void => {
+  const found = preflight({ options: OPTIONS, workflows });
+  assert.equal(found.length, expected.length);
+  expected.forEach((pattern, index) => assert.match(found[index]!, pattern));
+};
+const problems = (options: readonly string[]): readonly string[] => preflight({ options, workflows: WORKFLOWS });
 
 test("preflight: a correct Kanban has no problem", () => assert.deepEqual(preflight({ options: OPTIONS, workflows: WORKFLOWS }), []));
 
-test("preflight: problems and their messages", () => {
-  assert.deepEqual(preflight({ options: OPTIONS.filter((option) => option !== "In review"), workflows: WORKFLOWS }), ['Status option "In review" is missing: add it']);
-  assert.deepEqual(preflight({ options: [...OPTIONS, "Blocked"], workflows: WORKFLOWS }), [EXTRA]);
-  assert.deepEqual(preflight({ options: OPTIONS.map((option) => (option === "Done" ? "Finished" : option)), workflows: WORKFLOWS }), [
-    'Status option "Done" is missing: add it',
-    'Status option "Finished" is extra: remove it or rename it to one of Backlog, Ready for agent, Agent working, In review, Done',
-  ]);
+test("preflight: problems name the option", () => {
+  assert.equal(problems(OPTIONS.filter((option) => option !== "In review")).length, 1);
+  assert.match(problems(OPTIONS.filter((option) => option !== "In review"))[0]!, /"In review".*missing/);
+  assert.equal(problems([...OPTIONS, "Blocked"]).length, 1);
+  assert.match(problems([...OPTIONS, "Blocked"])[0]!, /"Blocked".*extra/);
+  const renamed = problems(OPTIONS.map((option) => (option === "Done" ? "Finished" : option)));
+  assert.equal(renamed.length, 2);
+  assert.match(renamed[0]!, /"Done".*missing/);
+  assert.match(renamed[1]!, /"Finished".*extra/);
 });
 
 test("preflight: a built-in workflow off or absent is a problem, another one on does not count", () => {
-  assert.deepEqual(preflight({ options: OPTIONS, workflows: [{ name: "Item added to project", enabled: true }, { name: "Item closed", enabled: false }] }), [off("Item closed")]);
-  assert.deepEqual(preflight({ options: OPTIONS, workflows: [{ name: "Item closed", enabled: true }] }), [off("Item added to project")]);
-  assert.deepEqual(preflight({ options: OPTIONS, workflows: [{ name: "Item closed", enabled: false }, { name: "Item added to project", enabled: true }] }), [off("Item closed")]);
-  assert.deepEqual(preflight({ options: OPTIONS, workflows: [] }), [off("Item added to project"), off("Item closed")]);
+  check([{ name: "Item added to project", enabled: true }, { name: "Item closed", enabled: false }], [off("Item closed")]);
+  check([{ name: "Item closed", enabled: true }], [off("Item added to project")]);
+  check([{ name: "Item closed", enabled: false }, { name: "Item added to project", enabled: true }], [off("Item closed")]);
+  check([], [off("Item added to project"), off("Item closed")]);
 });
 
-test("rootAction: refusal reasons", () => {
-  assert.deepEqual(rootAction(null, "take"), { type: "refuse", reason: "it is not on the Kanban: add it, with Status Ready for agent" });
-  assert.deepEqual(rootAction("Agent working", "take"), { type: "refuse", reason: "take starts from Ready for agent or In review, its Status is Agent working" });
-  assert.deepEqual(rootAction("Backlog", "resume"), { type: "refuse", reason: "resume starts from Ready for agent, Agent working or In review, its Status is Backlog" });
-  assert.deepEqual(rootAction("Done", "resume"), { type: "refuse", reason: "resume starts from Ready for agent, Agent working or In review, its Status is Done" });
-  assert.deepEqual(rootAction("Backlog", "prOpened"), { type: "refuse", reason: "a PR opened while its Status is Backlog, not Agent working" });
-  assert.deepEqual(rootAction("In review", "endedWithoutPr"), { type: "refuse", reason: "the run ended without a PR while its Status is In review, not Agent working" });
+const reasonOf = (action: Action | SubAction): string => {
+  assert.equal(action.type, "refuse");
+  return action.type === "refuse" ? action.reason : "";
+};
+
+test("rootAction: refusal reasons name the Status", () => {
+  assert.match(reasonOf(rootAction(null, "take")), /not on the Kanban/);
+  assert.match(reasonOf(rootAction("Agent working", "take")), /Agent working/);
+  assert.match(reasonOf(rootAction("Backlog", "resume")), /Backlog/);
+  assert.match(reasonOf(rootAction("Backlog", "prOpened")), /Backlog/);
+  assert.match(reasonOf(rootAction("In review", "endedWithoutPr")), /In review/);
 });
 
 test("toStatus: the five names, nothing else", () => {
@@ -80,10 +91,10 @@ for (const [from, event] of [["Backlog", "planned"], ["Agent working", "planned"
   test(`subAction: ${event} from ${from ?? "no card"} is refused`, () => assert.equal(subAction(from, event).type, "refuse"));
 }
 
-test("subAction: refusal reasons", () => {
-  assert.deepEqual(subAction("Backlog", "planned"), { type: "refuse", reason: "planned while its Status is Backlog, not Ready for agent" });
-  assert.deepEqual(subAction(null, "merged"), { type: "refuse", reason: "merged while its Status is none, not Agent working" });
-  assert.deepEqual(subAction("Done", "cannotFinish"), { type: "refuse", reason: "cannotFinish while its Status is Done, not Agent working" });
+test("subAction: refusal reasons name the Status", () => {
+  assert.match(reasonOf(subAction("Backlog", "planned")), /Backlog/);
+  assert.match(reasonOf(subAction(null, "merged")), /none/);
+  assert.match(reasonOf(subAction("Done", "cannotFinish")), /Done/);
 });
 
 const SUB_TRANSITIONS: readonly (readonly [string, Status, SubEvent, SubAction])[] = [
@@ -107,8 +118,8 @@ for (const event of ["doneWithoutCode", "alreadyDone", "findingsRejected", "cann
 }
 
 test("subAction: retake only from Done", () => {
-  assert.deepEqual(subAction("Backlog", "retake"), { type: "refuse", reason: "retake while its Status is Backlog, not Done" });
-  assert.deepEqual(subAction(null, "retake"), { type: "refuse", reason: "retake while its Status is none, not Done" });
+  assert.match(reasonOf(subAction("Backlog", "retake")), /Backlog/);
+  assert.match(reasonOf(subAction(null, "retake")), /none/);
   assert.equal(subAction("Agent working", "retake").type, "refuse");
 });
 

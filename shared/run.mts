@@ -12,7 +12,7 @@ export type Run = {
   readonly agents: Agents;
   readonly context: SandboxContext;
   readonly workspace: Workspace;
-  readonly kanban: KanbanHandle;
+  readonly kanbanHandle: KanbanHandle;
   readonly root: number;
   readonly title: string;
   readonly branch: string;

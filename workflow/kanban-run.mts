@@ -12,7 +12,7 @@ import { sh } from "../shared/shell.mjs";
 import type { Workspace } from "../shared/workspace.mjs";
 import { apply } from "../shared/kanban-moves.mjs";
 
-export type Card = { readonly workspace: Workspace; readonly kanban: KanbanHandle; readonly root: number };
+export type Card = { readonly workspace: Workspace; readonly handle: KanbanHandle; readonly root: number };
 
 // What a run came to: its report, and whether it opened or updated a PR.
 export type RunResult = { readonly text: string; readonly pr: boolean };
@@ -27,14 +27,14 @@ const readOrThrow = (workspace: Workspace, kanban: Kanban): KanbanHandle => {
 
 // The Status the event moves the root's card to; a refusal throws.
 const decide = (card: Card, event: RootEvent): Status => {
-  const action = rootAction(readStatus(card.kanban, card.root), event);
+  const action = rootAction(readStatus(card.handle, card.root), event);
   if (action.type === "refuse") throw new Error(`#${card.root} cannot ${event}: ${action.reason}.`);
   return action.status;
 };
 
 const move = (card: Card, event: RootEvent): void => {
   const status = decide(card, event);
-  setStatus(card.kanban, card.root, status);
+  setStatus(card.handle, card.root, status);
   log.info(`#${card.root} -> ${status}`);
 };
 
@@ -43,28 +43,28 @@ export const gate = (workspace: Workspace, env: Env, root: number, event: "take"
   const kanban = readOrThrow(workspace, env.kanban);
   const problems = preflight(kanban);
   if (problems.length > 0) throw new Error(`The Kanban ${env.kanban.owner}/${env.kanban.number} cannot run the factory:\n${problems.map((problem) => `- ${problem}`).join("\n")}`);
-  const card = { workspace, kanban, root };
+  const card = { workspace, handle: kanban, root };
   decide(card, event);
   return card;
 };
 
 const endWithoutPr = (card: Card, reason: string): void => {
   move(card, "endedWithoutPr");
-  comment(card.kanban, card.root, `${DISCLAIMER}\n\nThe run ended without a PR; this issue is back in Backlog.\n\n${reason}`);
+  comment(card.handle, card.root, `${DISCLAIMER}\n\nThe run ended without a PR; this issue is back in Backlog.\n\n${reason}`);
 };
 
 // Returns the root's Agent working sub-issues to Ready for agent (S6): work nobody is doing. A process killed mid-run leaves them.
 const sweep = async (card: Card, branch: string): Promise<void> => {
-  for (const issue of subIssues(card.kanban, card.root)) {
-    if (readStatus(card.kanban, issue) === "Agent working") await apply(card.kanban, issue, "crashed", "", branch);
+  for (const issue of subIssues(card.handle, card.root)) {
+    if (readStatus(card.handle, issue) === "Agent working") await apply(card.handle, issue, "crashed", "", branch);
   }
 };
 
 // R3 from In review: closes the old take's open PRs and reopens the sub-issues it closed (S7). Before the new take's branch is named:
 // an open PR of the old take stops it.
 export const closeOldTake = async (card: Card): Promise<void> => {
-  const { workspace, kanban, root } = card;
-  if (!reopensOldTake(readStatus(kanban, root))) return;
+  const { workspace, handle, root } = card;
+  if (!reopensOldTake(readStatus(handle, root))) return;
   const old = latestTake(workspace, root).branch;
   for (const repo of workspace.repos) {
     const urls = z.array(z.object({ url: z.string() })).parse(JSON.parse(sh(repo.path, "gh", "pr", "list", "--repo", repo.slug, "--head", old, "--state", "open", "--json", "url")));
@@ -73,8 +73,8 @@ export const closeOldTake = async (card: Card): Promise<void> => {
       log.info(`${url} closed`);
     }
   }
-  for (const issue of subIssues(kanban, root)) {
-    if (closedByTakeOf(kanban, issue, old)) await apply(kanban, issue, "retake", "", old);
+  for (const issue of subIssues(handle, root)) {
+    if (closedByTakeOf(handle, issue, old)) await apply(handle, issue, "retake", "", old);
   }
 };
 

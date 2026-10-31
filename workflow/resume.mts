@@ -23,7 +23,7 @@ export const resume = async (workspace: Workspace, env: Env, root: number): Prom
   // A repo new to the take starts from its default branch.
   const specFor = (repo: Repo): Omit<SandboxSpec, "name"> => ({ repo, branch, baseBranch: branchExists(repo, branch) ? branch : repo.base });
   return tracked(card, "resume", branch, () => withIntegrations(context, specFor, async (integrations) => {
-    const run: Run = { agents, context, workspace, kanban: card.kanban, root, title, branch, integrations, logDir };
+    const run: Run = { agents, context, workspace, kanbanHandle: card.handle, root, title, branch, integrations, logDir };
     const prsText = openPrsText(workspace, branch);
     const planned = await cycles(run, prsText);
     const touched = (): readonly Repo[] => workspace.repos.filter((repo) => branchExists(repo, branch) && hasFileDiff(repo, branch, repo.base));

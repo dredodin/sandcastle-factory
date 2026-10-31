@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import type { ResumeSandboxRunResultOptions, SandboxRunResult } from "@ai-hero/sandcastle";
 import { z } from "zod";
 import { extract } from "../../shared/extract.mjs";
-import { itemFits, itemSchema } from "../../shared/item.mjs";
+import { isRoot, itemFits, itemSchema } from "../../shared/item.mjs";
 import { log, timed } from "../../shared/logger.mjs";
 import { planCheckCommand } from "../../shared/names.mjs";
 import { promptPath } from "../../shared/paths.mjs";
@@ -25,7 +25,7 @@ export const freshPlan = (run: Run): PlanSession => async (prompt, options) =>
 export const plan = async (cycle: Cycle, openPrsText: string, session: PlanSession): Promise<Plan & { readonly next: PlanSession }> => {
   const { workspace, branch } = cycle;
   const { home, repos } = workspace;
-  const { owner, number } = cycle.context.env.kanban;
+  const { owner, number } = cycle.kanbanHandle.kanban;
   // A take's first cycle creates the home branch here, before the plan agent runs.
   await cycle.integrations.get(home);
   const prompt = fillPrompt(readFileSync(promptPath("plan"), "utf8"), {
@@ -54,10 +54,10 @@ export const plan = async (cycle: Cycle, openPrsText: string, session: PlanSessi
     created: z.array(z.string().regex(/^[1-9][0-9]*$/)).default([]),
   });
   const planned = extract(result.stdout, "plan", planSchema);
-  await readyCreated(cycle.kanban, planned.created.map(Number));
+  await readyCreated(cycle.kanbanHandle, planned.created.map(Number));
   // The root as item has no card to move; once merged on the branch it is not worked again. A repo's branch, not its worktree: a resume has none opened yet.
   const worked = planned.items.filter((item) => {
-    if (Number(item.issue) !== cycle.root) return true;
+    if (!isRoot(item, cycle.root)) return true;
     const repo = repoNamed(workspace, item.repo);
     return !(branchExists(repo, branch) && mergedIssues(repo, branch).includes(cycle.root));
   });
