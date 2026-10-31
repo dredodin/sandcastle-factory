@@ -94,9 +94,12 @@ const itemsSchema = z.object({
   items: z.array(z.object({ status: z.string().optional(), content: z.object({ number: z.number().optional(), repository: z.string().optional() }) })),
 });
 const idSchema = z.object({ id: z.string() });
-const subIssuesSchema = z.object({ subIssues: z.array(z.object({ number: z.number() })) });
+const subIssuesSchema = z.object({ subIssues: z.object({ nodes: z.array(z.object({ number: z.number() })) }) });
 const prsSchema = z.array(z.object({ url: z.string() }));
 const viewSchema = z.object({ state: z.string(), comments: z.array(z.object({ body: z.string() })) });
+
+// `gh issue view --json subIssues` output → the sub-issue numbers.
+export const subIssueNumbers = (json: string): readonly number[] => subIssuesSchema.parse(JSON.parse(json)).subIssues.nodes.map((sub) => sub.number);
 
 // Reads the Kanban and refuses (throws, naming what to fix) when it cannot run the machine.
 export const openKanban = (workspace: Workspace, ref: KanbanRef, root: number): KanbanRun => {
@@ -129,8 +132,7 @@ export const openKanban = (workspace: Workspace, ref: KanbanRef, root: number): 
     );
   };
   const status = (issue: number): Status | null => statuses().get(issue) ?? null;
-  const subIssues = (): readonly number[] =>
-    subIssuesSchema.parse(JSON.parse(gh("issue", "view", `${root}`, "--repo", home.slug, "--json", "subIssues"))).subIssues.map((sub) => sub.number);
+  const subIssues = (): readonly number[] => subIssueNumbers(gh("issue", "view", `${root}`, "--repo", home.slug, "--json", "subIssues"));
   const inStatus = (wanted: Status): readonly number[] => {
     const all = statuses();
     return subIssues().filter((issue) => all.get(issue) === wanted);
