@@ -514,17 +514,34 @@ token_page() {
 }
 
 gh_token_stage() {
-  local repos="" key name
   if (( DONE )) && filled GH_TOKEN; then skip; return 0; fi
-  while read -r key name; do if [[ -n "$name" ]]; then repos+=" $name"; fi; done <<< "$WIZARD_REPOS"
   stage "GitHub token"
-  say "One fine-grained token for every repo of the Workspace."
-  token_page GH_TOKEN "https://github.com/settings/personal-access-tokens/new"
-  step "Resource owner: the owner of the repos."
-  step "Repository access → Only select repositories: $WIZARD_HOME_SLUG${repos:+, and the app repos$repos}."
-  step "Repository permissions: Contents, Issues, Pull requests → Read and write; Metadata: Read-only."
+  say "One classic token for every repo of the Workspace and the Kanban."
+  token_page GH_TOKEN "https://github.com/settings/tokens/new"
+  step "Scopes: the ones README.md names under Requirements."
   step "Generate token, copy it."
   ask_token GH_TOKEN "Paste the token:"
+}
+
+kanban_stage() {
+  local number
+  if (( DONE )) && filled KANBAN_OWNER && filled KANBAN_NUMBER; then skip; return 0; fi
+  stage "Kanban"
+  say "The GitHub Project of $WIZARD_HOME_SLUG: its issues' Status is the factory's state machine."
+  say "Not made yet? /onboarding-factory creates or links one."
+  while :; do
+    ask KANBAN_OWNER "Owner of the Kanban (user or organization):" || exit 1
+    if [[ -n "$KANBAN_OWNER" ]]; then break; fi
+    warn "required"
+  done
+  while :; do
+    ask KANBAN_NUMBER "Number of the Kanban (the N in .../projects/N):" || exit 1
+    number=$KANBAN_NUMBER
+    if [[ "$number" =~ ^[1-9][0-9]*$ ]]; then break; fi
+    warn "${number:-(empty)} is not a project number"
+  done
+  save KANBAN_OWNER "$KANBAN_OWNER"
+  save KANBAN_NUMBER "$KANBAN_NUMBER"
 }
 
 claude_stage() {
@@ -652,12 +669,13 @@ images_stage() {
 
 run_wizard() {
 
-TOTAL_STAGES=8
+TOTAL_STAGES=10
 
 models_stage
 prerequisites_stage
 sandbox_stage
 gh_token_stage
+kanban_stage
 claude_stage
 copilot_stage
 codex_stage

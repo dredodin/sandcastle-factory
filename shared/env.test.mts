@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { checkEnv, missingKeys, withShellOverrides } from "./env.mjs";
 
+const kanban = { KANBAN_OWNER: "acme", KANBAN_NUMBER: "3" };
+
 const phases = (provider: string): Record<string, string> =>
   Object.fromEntries(["PLAN", "IMPLEMENT", "REVIEW", "MERGE", "PR"].flatMap((p) => [[`${p}_PROVIDER`, provider], [`${p}_MODEL`, "m"], [`${p}_EFFORT`, "high"]]));
 
@@ -10,20 +12,20 @@ test("missingKeys: empty file asks for the base keys and the phase keys, in orde
 });
 
 test("missingKeys: claudeCode phases need one Claude credential, either one", () => {
-  const base = { GH_TOKEN: "t", SANDBOX: "none", ...phases("claudeCode") };
+  const base = { GH_TOKEN: "t", SANDBOX: "none", ...kanban, ...phases("claudeCode") };
   assert.deepEqual(missingKeys(base, [], false), ["CLAUDE_CODE_OAUTH_TOKEN"]);
   assert.deepEqual(missingKeys({ ...base, ANTHROPIC_API_KEY: "k" }, [], false), []);
   assert.deepEqual(missingKeys({ ...base, CLAUDE_CODE_OAUTH_TOKEN: "k" }, [], false), []);
 });
 
 test("missingKeys: copilot token only when a phase uses copilot", () => {
-  const base = { GH_TOKEN: "t", SANDBOX: "none", ...phases("claudeCode"), ANTHROPIC_API_KEY: "k" };
+  const base = { GH_TOKEN: "t", SANDBOX: "none", ...kanban, ...phases("claudeCode"), ANTHROPIC_API_KEY: "k" };
   assert.deepEqual(missingKeys(base, [], false), []);
   assert.deepEqual(missingKeys({ ...base, PR_PROVIDER: "copilot" }, [], false), ["COPILOT_GITHUB_TOKEN"]);
 });
 
 test("missingKeys: a repo path per non-home repo, blank counts as missing", () => {
-  const base = { GH_TOKEN: "t", SANDBOX: "podman", ...phases("copilot"), COPILOT_GITHUB_TOKEN: "c", REPO_WEB: "" };
+  const base = { GH_TOKEN: "t", SANDBOX: "podman", ...kanban, ...phases("copilot"), COPILOT_GITHUB_TOKEN: "c", REPO_WEB: "" };
   assert.deepEqual(missingKeys(base, ["web", "my-api"], false), ["REPO_WEB", "REPO_MY_API"]);
 });
 
@@ -44,7 +46,7 @@ test("withShellOverrides: the REPO_ key of a listed repo is honoured", () => {
   assert.deepEqual(withShellOverrides({ REPO_MY_API: "/a" }, { REPO_MY_API: "/b" }, ["my-api"]), { REPO_MY_API: "/b" });
 });
 
-const codexBase = { GH_TOKEN: "t", SANDBOX: "podman", ...phases("claudeCode"), ANTHROPIC_API_KEY: "k", IMPLEMENT_PROVIDER: "codex" };
+const codexBase = { GH_TOKEN: "t", SANDBOX: "podman", ...kanban, ...phases("claudeCode"), ANTHROPIC_API_KEY: "k", IMPLEMENT_PROVIDER: "codex" };
 
 test("checkEnv: codex phase with neither key nor host login fails naming CODEX_API_KEY", () => {
   assert.deepEqual(missingKeys(codexBase, [], false), ["CODEX_API_KEY"]);

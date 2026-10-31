@@ -49,7 +49,7 @@ One step in a run: plan, implement, merge, review or PR. Each is an agent's, exc
 _Avoid_: stage, step
 
 **Item**:
-One unit of work a plan hands to one implement agent: an unblocked sub-issue, or the root when it has none. Always in exactly one repo.
+One unit of work a plan hands to one implement agent: an unblocked sub-issue in Ready for agent, or the root when it has none. Always in exactly one repo.
 _Avoid_: task, job, work unit
 
 ## Branches and delivery
@@ -86,6 +86,16 @@ _Avoid_: slow verify, nightly check
 **Plan check script**:
 The home repo's own check of what work is due, optional, run by the plan agent every cycle. Passing means no work; what a failing one prints becomes a sub-issue of the root.
 _Avoid_: pre-plan hook
+
+## Kanban
+
+**Kanban**:
+The home repo's GitHub Project.
+_Avoid_: board, project
+
+**Status**:
+An issue's column on the Kanban: Backlog, Ready for agent, Agent working, In review or Done.
+_Avoid_: state, stage
 
 ## Setup
 

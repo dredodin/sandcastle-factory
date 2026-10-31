@@ -1,4 +1,4 @@
-// Pure text blocks the prompts are given: the Workspace's repos and the run's state in them.
+// Pure text blocks the prompts are given: the Workspace's repos and the other repos' branches.
 
 import type { RepoRef } from "./item.mjs";
 
@@ -15,20 +15,3 @@ export const otherBranchesText = (repos: readonly RepoRef[], current: string, br
   const others = repos.filter((repo) => repo.name !== current);
   return others.length === 0 ? "(no other repo has a branch yet)" : others.map((repo) => `- \`${repo.name}\` (${repo.slug}): \`${branch}\``).join("\n");
 };
-
-export type RepoState = {
-  readonly repo: string;
-  // False until the repo's integration worktree was opened.
-  readonly opened: boolean;
-  readonly merged: readonly number[];
-};
-
-// What is on the run's branches so far, per repo.
-export const stateText = (branch: string, states: readonly RepoState[]): string =>
-  states
-    .map((state) => {
-      if (!state.opened) return `- \`${state.repo}\`: no branch yet`;
-      const merged = state.merged.length === 0 ? "none" : state.merged.map((id) => `#${id}`).join(", ");
-      return `- \`${state.repo}\`: \`${branch}\` carries merged issues: ${merged}`;
-    })
-    .join("\n");

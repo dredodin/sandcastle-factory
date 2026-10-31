@@ -6,7 +6,9 @@ Hand it a GitHub issue, walk away, come back to a pull request. AI agents plan t
 
 - **Tools**: Node 22+, git, [`gh`](https://cli.github.com) (logged in). Windows: git bash.
 - **Sandboxes**: docker or podman. Without them, see `SANDBOX=none` below.
-- **GitHub only**: GitLab, Bitbucket and others are not supported. The home repo needs issues enabled.
+- **GitHub only**: GitLab, Bitbucket and others are not supported. The home repo needs issues enabled and a Kanban (below).
+- **Kanban**: a GitHub Project whose Status has exactly `Backlog`, `Ready for agent`, `Agent working`, `In review`, `Done`, and the built-in workflows Item added to project → Backlog, Item closed → Done and Item reopened → Ready for agent on. The factory refuses to start when the Status options differ; a switched-off workflow fails the run at the first move that needs it.
+- **Token**: one classic GitHub token (`repo`, `project`, `workflow`, `read:org`, `read:discussion`).
 - **At least one agent provider**, picked per phase ([details](docs/agents.md)):
 
   | Provider | You need |
@@ -24,12 +26,12 @@ Run in your **home repo**: the repo that holds the issues.
    npx skills add dredodin/sandcastle-factory -s onboarding-factory --copy
    ```
 2. In your agent, run `/onboarding-factory`. It installs the factory, asks which app repos to add, writes their check scripts and builds their images. Rerun it later to add more repos.
-3. When the skill stops and asks, run setup in your own terminal (Windows: Git Bash). It asks for tokens and clone paths, which stay yours:
+3. When the skill stops and asks, run setup in your own terminal (Windows: Git Bash). It asks for the token, the Kanban and clone paths, which stay yours:
    ```sh
    npm run sandcastle -- setup
    ```
    Tell the agent it exited 0; the skill finishes.
-4. Label an issue `ready-for-agent` and start your first run:
+4. Put an issue in `Ready for agent` on your Kanban and start your first run:
    ```sh
    npm run sandcastle -- take <issue>
    ```
@@ -107,6 +109,8 @@ npm run sandcastle -- take <issue>     # start fresh on an issue
 npm run sandcastle -- resume <issue>   # continue its latest take in every repo, e.g. after PR comments
 npm run sandcastle -- setup            # change settings, add repos
 ```
+
+A PR closes no issue: close the root yourself after the last PR merges. A sub-issue the factory cannot finish, or whose merge conflicts, goes to Backlog with a comment; the PR's Run block lists them.
 
 A shell variable overrides its setting for one run: `PLAN_MODEL=sonnet npm run sandcastle -- take 42`.
 
