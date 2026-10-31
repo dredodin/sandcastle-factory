@@ -33,6 +33,22 @@ export const rootAction = (current: Status | null, event: RootEvent): Action => 
   }
 };
 
+export type CloseReason = "completed" | "not planned";
+export type SubAction = Action | { readonly type: "close"; readonly reason: CloseReason };
+
+// What happens to a sub-issue's card: the plan took it (S3), its work merged into the integration branch (S4).
+export type SubEvent = "planned" | "merged";
+
+// What the factory does with a sub-issue, given its Status. `current` is null when it is not on the Kanban.
+export const subAction = (current: Status | null, event: SubEvent): SubAction => {
+  switch (event) {
+    case "planned":
+      return current === "Ready for agent" ? set("Agent working") : refuse(`planned while its Status is ${current ?? "none"}, not Ready for agent`);
+    case "merged":
+      return current === "Agent working" ? { type: "close", reason: "completed" } : refuse(`merged while its Status is ${current ?? "none"}, not Agent working`);
+  }
+};
+
 export type Board = {
   readonly options: readonly string[];
   readonly workflows: readonly { readonly name: string; readonly enabled: boolean }[];
