@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { next, preflight, type Event, type Next } from "./kanban.mjs";
+import { next, preflight, subIssueNumbers, type Event, type Next } from "./kanban.mjs";
 import type { Status } from "./status.mjs";
 
 const set = (status: Status): Next => ({ type: "set", status });
@@ -65,4 +65,10 @@ test("preflight: a missing, an extra and a renamed option are named", () => {
   assert.match(preflight(OPTIONS.filter((option) => option !== "In review")).join("\n"), /"In review"/);
   assert.match(preflight([...OPTIONS, "Blocked"]).join("\n"), /"Blocked".*Backlog, Ready for agent/);
   assert.equal(preflight(OPTIONS.map((option) => (option === "Done" ? "Finished" : option))).length, 2);
+});
+
+// The shape `gh issue view --json subIssues` prints.
+test("subIssueNumbers: reads gh's sub-issue nodes", () => {
+  assert.deepEqual(subIssueNumbers('{"subIssues":{"nodes":[{"number":12},{"number":7}],"totalCount":2}}'), [12, 7]);
+  assert.deepEqual(subIssueNumbers('{"subIssues":{"nodes":[],"totalCount":0}}'), []);
 });
