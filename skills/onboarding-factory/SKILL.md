@@ -94,6 +94,8 @@ Each file opens with a one-line comment saying what it is for. Run `bash .sandca
 
 ## 7. Label
 
+The label mirrors Status; it does not gate a run.
+
 Done-check: `gh label list --search ready-for-agent` shows it.
 
 ```sh
@@ -101,6 +103,18 @@ gh label create ready-for-agent --description "Ready for the AFK agent"
 ```
 
 The rest of the triage vocabulary is the home repo's own.
+
+## 7b. Kanban
+
+Done-check: `docs/agents/issue-tracker.md` has the Status rule below, and the human confirmed the built-in workflows.
+
+The Kanban is the home repo's GitHub Project; every issue's Status is the factory's state machine (terms: Kanban, Status in the factory's `GLOSSARY.md`). The factory refuses to start without a correct one.
+
+- Create or link: `gh project list --owner <owner>` shows the owner's projects; ask the human to pick one or make one (`gh project create --owner <owner> --title <title>`), and link it to the home repo (`gh project link <number> --owner <owner> --repo <home>`). Needs `gh auth refresh -s project,read:org,read:discussion`.
+- Status options, exactly these five, in order: `Backlog`, `Ready for agent`, `Agent working`, `In review`, `Done`. No others.
+- Built-in workflows, the human switches them on in the project's Workflows page: `Item closed` → Status `Done`, `Item reopened` → Status `Ready for agent`. Preflight checks the first; the API hides the second, so the human confirms it.
+- Token: one classic token with `repo`, `project`, `workflow`, `read:org`, `read:discussion`. Setup asks for it, with the Kanban's owner and number.
+- Tracker rule: add to `docs/agents/issue-tracker.md` that applying `ready-for-agent` also sets Status = Ready for agent.
 
 ## 8. Setup, by the human
 
@@ -112,7 +126,7 @@ Stop. The human runs, in their own terminal (Windows: Git Bash, not PowerShell o
 npm run sandcastle -- setup
 ```
 
-Tokens, sandbox engine and clone paths are theirs: never read `.sandcastle/.env`, never ask for a path. Setup warns about Containerfiles still missing; that is expected. Continue once they say it exited 0.
+Tokens, the Kanban, sandbox engine and clone paths are theirs: never read `.sandcastle/.env`, never ask for a path. Setup warns about Containerfiles still missing; that is expected. Continue once they say it exited 0.
 
 ## 9. App repo scripts
 
@@ -140,4 +154,4 @@ npx sandcastle <engine> build-image <file-flag> .sandcastle/repos/<name>/Contain
 
 ## Done
 
-Setup exited 0, every verify script passes, every repo image exists or the engine is none. Tell the human the Workspace is ready: `npm run sandcastle -- take <issue>` on an issue labelled `ready-for-agent`.
+Setup exited 0, every verify script passes, every repo image exists or the engine is none. Tell the human the Workspace is ready: `npm run sandcastle -- take <issue>` on an issue whose Status is Ready for agent.

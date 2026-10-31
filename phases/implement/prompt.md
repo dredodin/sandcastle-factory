@@ -28,7 +28,7 @@ The same change may continue in other repos, on the same branch name. Their bran
 - Run `{{VERIFY}}` before every commit. Red: fix, never commit. Never `--no-verify`. Never weaken, skip or delete a check to make a commit pass: a check that refuses is right until an issue says otherwise.
 - Commits: the subject starts with `SANDCASTLE:`. The body has an `Issue: #{{ISSUE}}` line, says what changed and which decisions were made.
 - Leave nothing uncommitted: that fails the run.
-- Only the PR agent pushes: never push, never force-push. Never close an issue, never merge a PR. Never reply to or close a PR comment: the planner does.
+- Only the PR agent pushes: never push, never force-push. Never close an issue, never merge a PR. Never reply to or close a PR comment: the planner does. Never touch the Kanban: do not move a card or change an issue's Status; the factory does.
 - Cannot finish: leave nothing uncommitted, comment on #{{ISSUE}} what was done and what stopped you: `gh issue comment {{ISSUE}} --repo {{HOME_SLUG}} --body-file /tmp/comment.md` (outside the worktree). Then stop.
 
 # Procedure

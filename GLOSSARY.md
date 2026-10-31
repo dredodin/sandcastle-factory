@@ -87,6 +87,16 @@ _Avoid_: slow verify, nightly check
 The home repo's own check of what work is due, optional, run by the plan agent every cycle. Passing means no work; what a failing one prints becomes a sub-issue of the root.
 _Avoid_: pre-plan hook
 
+## Kanban
+
+**Kanban**:
+The home repo's GitHub Project. The factory moves issues on it; agents never do.
+_Avoid_: board, project
+
+**Status**:
+An issue's column on the Kanban: Backlog, Ready for agent, Agent working, In review or Done.
+_Avoid_: state, stage
+
 ## Setup
 
 **Setup wizard**:
