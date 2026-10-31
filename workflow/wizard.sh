@@ -669,7 +669,7 @@ images_stage() {
 
 run_wizard() {
 
-TOTAL_STAGES=9
+TOTAL_STAGES=10
 
 models_stage
 prerequisites_stage

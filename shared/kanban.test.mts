@@ -32,7 +32,7 @@ for (const [row, from, event, expected] of TRANSITIONS) {
 }
 
 const REFUSALS: readonly (readonly [Status | null, Event, RegExp])[] = [
-  ["Backlog", "take", /Backlog/],
+  ["Backlog", "take", /Ready for agent or In review/],
   ["Agent working", "take", /Agent working/],
   ["Done", "take", /Done/],
   ["Backlog", "resume", /Backlog/],
@@ -63,6 +63,6 @@ test("preflight: a correct Kanban has no problem", () => assert.deepEqual(prefli
 
 test("preflight: a missing, an extra and a renamed option are named", () => {
   assert.match(preflight(OPTIONS.filter((option) => option !== "In review")).join("\n"), /"In review"/);
-  assert.match(preflight([...OPTIONS, "Blocked"]).join("\n"), /"Blocked"/);
+  assert.match(preflight([...OPTIONS, "Blocked"]).join("\n"), /"Blocked".*Backlog, Ready for agent/);
   assert.equal(preflight(OPTIONS.map((option) => (option === "Done" ? "Finished" : option))).length, 2);
 });

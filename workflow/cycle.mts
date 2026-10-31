@@ -65,13 +65,11 @@ const cycle = async (
   });
   for (const { item, outcome, note } of ended) await run.kanban.move(Number(item.issue), outcome, note);
   const done = items.filter((_, index) => outcomes[index]!.outcome === "committed");
+  const leftOut = done.length === 0 ? [] : await merge(current, done);
   if (done.length === 0) log.info("No item committed. Nothing to merge.");
-  else {
-    const leftOut = await merge(current, done);
-    for (const item of done) {
-      if (leftOut.includes(item)) await run.kanban.move(Number(item.issue), "merge conflict", `The merge of \`${item.branch}\` into \`${run.branch}\` left it out: resolve the conflict, then move this issue to Ready for agent.`);
-      else await run.kanban.move(Number(item.issue), "merged", `Done: merged into \`${run.branch}\`.`);
-    }
+  for (const item of done) {
+    if (leftOut.includes(item)) await run.kanban.move(Number(item.issue), "merge conflict", `The merge of \`${item.branch}\` into \`${run.branch}\` left it out: resolve the conflict, then move this issue to Ready for agent.`);
+    else await run.kanban.move(Number(item.issue), "merged", `Done: merged into \`${run.branch}\`.`);
   }
   // The root as item is worked once, merged, left out or ended without code: planning it again would repeat the same end.
   return { items, next, stop: items.some((item) => Number(item.issue) === run.root) };

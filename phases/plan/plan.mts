@@ -53,7 +53,7 @@ export const plan = async (cycle: Cycle, openPrsText: string, session: PlanSessi
   });
   const planned = extract(result.stdout, "plan", planSchema);
   await cycle.kanban.ready(planned.created.map(Number));
-  const started = await Promise.all(planned.items.map(async (item) => ({ item, taken: await cycle.kanban.move(Number(item.issue), "planned") })));
+  const started = await Promise.all(planned.items.map(async (item) => ({ item, taken: await cycle.kanban.move(Number(item.issue), "planned", "") })));
   const items = started.filter(({ taken }) => taken).map(({ item }) => ({ ...item, branch: itemBranch(repoNamed(workspace, item.repo), branch, item.issue) }));
   items.forEach((item) => log.info(`  ${item.issue}: ${item.title} → ${item.repo}: ${item.branch}`));
   return { items, next: result.resume ?? freshPlan(cycle) };

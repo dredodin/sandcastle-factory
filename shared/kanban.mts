@@ -67,7 +67,7 @@ export const preflight = (options: readonly string[]): readonly string[] => [
 export type Kanban = {
   // Applies `event` to the issue: reads its Status, asks the machine, writes. A refusal is logged. Resolves to whether it was not refused.
   // The root's card moves only by `run`; here it only gets the note of an implement outcome or a merge conflict.
-  readonly move: (issue: number, event: Event, note?: string) => Promise<boolean>;
+  readonly move: (issue: number, event: Event, note: string) => Promise<boolean>;
   // Adds new issues to the Kanban in Ready for agent (S1).
   readonly ready: (issues: readonly number[]) => Promise<void>;
   // The root's sub-issues, and those in the Status.
@@ -144,18 +144,18 @@ export const openKanban = (workspace: Workspace, ref: KanbanRef, root: number): 
   const comment = (issue: number, body: string): void => {
     shIn(home.path, `${DISCLAIMER}\n\n${body}`, "gh", "issue", "comment", `${issue}`, "--repo", home.slug, "--body-file", "-");
   };
-  // Waits until a built-in workflow shows the issue's Status as `ok`; throws naming `fix` when it never does.
-  const waitFor = async (issue: number, ok: (current: Status | null) => boolean, shown: string, fix: string): Promise<void> => {
+  // Waits until a built-in workflow shows the issue's `wanted` Status (or any); throws naming `fix` when it never does.
+  const waitFor = async (issue: number, wanted: Status | "any", fix: string): Promise<void> => {
     const deadline = Date.now() + WAIT_MS;
-    while (!ok(status(issue))) {
-      if (Date.now() > deadline) throw new Error(`#${issue} did not show ${shown} on the Kanban: ${fix}.`);
+    while (!(wanted === "any" ? status(issue) !== null : status(issue) === wanted)) {
+      if (Date.now() > deadline) throw new Error(`#${issue} did not show ${wanted === "any" ? "a Status" : wanted} on the Kanban: ${fix}.`);
       await new Promise((resolve) => setTimeout(resolve, POLL_MS));
     }
   };
   const takeLine = (branch: string): string => `Take: \`${branch}\`.`;
 
-  const at = (branch: string): Kanban => {
-    const move = async (issue: number, event: Event, note = ""): Promise<boolean> => {
+  const kanbanOf = (branch: string): Kanban => {
+    const move = async (issue: number, event: Event, note: string): Promise<boolean> => {
       if (issue === root) {
         if (note !== "" && (event === "merge conflict" || OUTCOMES.some((outcome) => outcome === event))) comment(issue, note);
         return true;
@@ -167,7 +167,7 @@ export const openKanban = (workspace: Workspace, ref: KanbanRef, root: number): 
           return false;
         case "close":
           gh("issue", "close", `${issue}`, "--repo", home.slug, "--reason", action.reason, "--comment", [DISCLAIMER, note, takeLine(branch)].filter((part) => part !== "").join("\n\n"));
-          await waitFor(issue, (current) => current === "Done", "Done", `switch on the built-in workflow "Item closed" (Status Done)`);
+          await waitFor(issue, "Done", `switch on the built-in workflow "Item closed" (Status Done)`);
           log.info(`  #${issue} closed ${action.reason}`);
           return true;
         case "set":
@@ -177,7 +177,7 @@ export const openKanban = (workspace: Workspace, ref: KanbanRef, root: number): 
           return true;
         case "reopen":
           gh("issue", "reopen", `${issue}`, "--repo", home.slug);
-          await waitFor(issue, (current) => current === "Ready for agent", "Ready for agent", `switch on the built-in workflow "Item reopened" (Status Ready for agent)`);
+          await waitFor(issue, "Ready for agent", `switch on the built-in workflow "Item reopened" (Status Ready for agent)`);
           log.info(`  #${issue} reopened`);
           return true;
       }
@@ -187,8 +187,8 @@ export const openKanban = (workspace: Workspace, ref: KanbanRef, root: number): 
     const ready = async (issues: readonly number[]): Promise<void> => {
       for (const issue of issues) {
         add(issue);
-        await waitFor(issue, (current) => current !== null, "a Status", `switch on its built-in workflow "Item added to project" (Status Backlog)`);
-        await move(issue, "created");
+        await waitFor(issue, "any", `switch on its built-in workflow "Item added to project" (Status Backlog)`);
+        await move(issue, "created", "");
       }
     };
     return { move, ready, subIssues, inStatus };
@@ -199,7 +199,7 @@ export const openKanban = (workspace: Workspace, ref: KanbanRef, root: number): 
     if (action.type !== "set") throw new Error(`#${root} cannot ${event}: ${action.type === "refuse" ? action.reason : action.type}.`);
     return action.status;
   };
-  const shift = (event: Event): void => {
+  const moveRoot = (event: Event): void => {
     const to = rootTarget(event);
     put(root, to);
     log.info(`#${root} -> ${to}`);
@@ -216,10 +216,10 @@ export const openKanban = (workspace: Workspace, ref: KanbanRef, root: number): 
         log.info(`${url} closed`);
       }
     }
-    const kanban = at(old);
+    const kanban = kanbanOf(old);
     for (const issue of subIssues()) {
       const view = viewSchema.parse(JSON.parse(gh("issue", "view", `${issue}`, "--repo", home.slug, "--json", "state,comments")));
-      if (view.state === "CLOSED" && view.comments.some(({ body }) => body.split("\n").includes(takeLine(old)))) await kanban.move(issue, "retake");
+      if (view.state === "CLOSED" && view.comments.some(({ body }) => body.split("\n").includes(takeLine(old)))) await kanban.move(issue, "retake", "");
     }
   };
 
@@ -228,19 +228,19 @@ export const openKanban = (workspace: Workspace, ref: KanbanRef, root: number): 
     rootTarget(event);
     if (event === "take" && from === "In review") await closeOldTake();
     const branch = branchOf();
-    const kanban = at(branch);
+    const kanban = kanbanOf(branch);
     const sweep = async (): Promise<void> => {
-      for (const issue of kanban.inStatus("Agent working")) await kanban.move(issue, "crashed");
+      for (const issue of kanban.inStatus("Agent working")) await kanban.move(issue, "crashed", "");
     };
-    shift(event);
+    moveRoot(event);
     await sweep();
     const result = await work(kanban, branch).catch(async (error: unknown) => {
       await sweep().catch((sweepError: unknown) => log.error(`Could not return the Agent working sub-issues: ${message(sweepError)}`));
       throw error;
     });
-    if (result.pr) shift("pr opened");
+    if (result.pr) moveRoot("pr opened");
     else {
-      shift("run ended without pr");
+      moveRoot("run ended without pr");
       comment(root, `The run ended without a PR; this issue is back in Backlog.\n\n${result.text}`);
     }
     return result.text;
