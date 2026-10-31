@@ -24,7 +24,7 @@ export type Next =
 const set = (status: Status): Next => ({ type: "set", status });
 const close = (reason: "completed" | "not planned"): Next => ({ type: "close", reason });
 
-// The machine: each event, the Statuses it may start from, and what it does. Root: take .. run ended without PR. Sub-issue: the rest.
+// The machine: each event, the Statuses it may start from, and what it does. Root: take .. run ended without PR. Sub-issue: the rest. `created` is S1 for issues the factory adds.
 type Move = { readonly from: readonly Status[]; readonly to: Next };
 
 const MOVES = {
@@ -33,6 +33,7 @@ const MOVES = {
   "pr opened": { from: ["Agent working"], to: set("In review") },
   "run ended without pr": { from: ["Agent working"], to: set("Backlog") },
   planned: { from: ["Ready for agent"], to: set("Agent working") },
+  created: { from: ["Backlog"], to: set("Ready for agent") },
   merged: { from: ["Agent working"], to: close("completed") },
   "done without code": { from: ["Agent working"], to: close("completed") },
   "already done": { from: ["Agent working"], to: close("completed") },
@@ -65,7 +66,7 @@ export const preflight = (options: readonly string[]): readonly string[] => [
 // Stryker disable all: from here the code is `gh` calls, beside the pure machine above.
 export type Kanban = {
   // Applies `event` to the issue: reads its Status, asks the machine, writes. A refusal is logged. Resolves to whether it was not refused.
-  // The root has no card of its own: it only gets the note of an implement outcome.
+  // The root's card moves only by `run`; here it only gets the note of an implement outcome or a merge conflict.
   readonly move: (issue: number, event: Event, note?: string) => Promise<boolean>;
   // Adds new issues to the Kanban in Ready for agent (S1).
   readonly ready: (issues: readonly number[]) => Promise<void>;
@@ -74,7 +75,7 @@ export type Kanban = {
   readonly inStatus: (status: Status) => readonly number[];
 };
 
-export type Opened = {
+export type KanbanRun = {
   // Refuses (throws) unless the root's Status allows the event. Then: R3 from In review closes the old take's PRs and reopens what it closed;
   // `branchOf` names the integration branch (after that); root to Agent working; Agent working sub-issues left by a killed process back to Ready for agent;
   // `work` (given the Kanban bound to the branch); root to In review when it opened a PR, else to Backlog with the reason.
@@ -84,6 +85,7 @@ export type Opened = {
 
 const WAIT_MS = 120_000;
 const POLL_MS = 2_000;
+const LIMIT = 1000;
 
 const fieldsSchema = z.object({
   fields: z.array(z.object({ id: z.string(), name: z.string(), options: z.array(z.object({ id: z.string(), name: z.string() })).default([]) })),
@@ -97,7 +99,7 @@ const prsSchema = z.array(z.object({ url: z.string() }));
 const viewSchema = z.object({ state: z.string(), comments: z.array(z.object({ body: z.string() })) });
 
 // Reads the Kanban and refuses (throws, naming what to fix) when it cannot run the machine.
-export const openKanban = (workspace: Workspace, ref: KanbanRef, root: number): Opened => {
+export const openKanban = (workspace: Workspace, ref: KanbanRef, root: number): KanbanRun => {
   const { home } = workspace;
   const number = `${ref.number}`;
   const gh = (...args: readonly string[]): string => sh(home.path, "gh", ...args);
@@ -118,7 +120,8 @@ export const openKanban = (workspace: Workspace, ref: KanbanRef, root: number): 
   if (problems.length > 0) throw new Error(`The Kanban ${where} cannot run the factory:\n${problems.map((problem) => `- ${problem}`).join("\n")}`);
 
   const statuses = (): ReadonlyMap<number, Status | null> => {
-    const { items } = itemsSchema.parse(JSON.parse(project("item-list", number, "--format", "json", "--limit", "1000")));
+    const { items } = itemsSchema.parse(JSON.parse(project("item-list", number, "--format", "json", "--limit", `${LIMIT}`)));
+    if (items.length >= LIMIT) throw new Error(`The Kanban ${where} has ${LIMIT} items or more: the factory cannot read it whole.`);
     return new Map(
       items.flatMap(({ status, content }) =>
         content.repository === home.slug && content.number !== undefined ? [[content.number, STATUSES.find((entry) => entry === status) ?? null] as const] : [],
@@ -141,11 +144,11 @@ export const openKanban = (workspace: Workspace, ref: KanbanRef, root: number): 
   const comment = (issue: number, body: string): void => {
     shIn(home.path, `${DISCLAIMER}\n\n${body}`, "gh", "issue", "comment", `${issue}`, "--repo", home.slug, "--body-file", "-");
   };
-  // Waits until a built-in workflow shows the Status on the issue; throws naming `fix` when it never does.
-  const waitFor = async (issue: number, wanted: Status, fix: string): Promise<void> => {
+  // Waits until a built-in workflow shows the issue's Status as `ok`; throws naming `fix` when it never does.
+  const waitFor = async (issue: number, ok: (current: Status | null) => boolean, shown: string, fix: string): Promise<void> => {
     const deadline = Date.now() + WAIT_MS;
-    while (status(issue) !== wanted) {
-      if (Date.now() > deadline) throw new Error(`#${issue} did not show ${wanted} on the Kanban: ${fix}.`);
+    while (!ok(status(issue))) {
+      if (Date.now() > deadline) throw new Error(`#${issue} did not show ${shown} on the Kanban: ${fix}.`);
       await new Promise((resolve) => setTimeout(resolve, POLL_MS));
     }
   };
@@ -154,7 +157,7 @@ export const openKanban = (workspace: Workspace, ref: KanbanRef, root: number): 
   const at = (branch: string): Kanban => {
     const move = async (issue: number, event: Event, note = ""): Promise<boolean> => {
       if (issue === root) {
-        if (note !== "" && OUTCOMES.some((outcome) => outcome === event)) comment(issue, note);
+        if (note !== "" && (event === "merge conflict" || OUTCOMES.some((outcome) => outcome === event))) comment(issue, note);
         return true;
       }
       const action = next(status(issue), event);
@@ -164,6 +167,7 @@ export const openKanban = (workspace: Workspace, ref: KanbanRef, root: number): 
           return false;
         case "close":
           gh("issue", "close", `${issue}`, "--repo", home.slug, "--reason", action.reason, "--comment", [DISCLAIMER, note, takeLine(branch)].filter((part) => part !== "").join("\n\n"));
+          await waitFor(issue, (current) => current === "Done", "Done", `switch on the built-in workflow "Item closed" (Status Done)`);
           log.info(`  #${issue} closed ${action.reason}`);
           return true;
         case "set":
@@ -173,21 +177,18 @@ export const openKanban = (workspace: Workspace, ref: KanbanRef, root: number): 
           return true;
         case "reopen":
           gh("issue", "reopen", `${issue}`, "--repo", home.slug);
-          await waitFor(issue, "Ready for agent", `switch on the built-in workflow "Item reopened" (Status Ready for agent)`);
+          await waitFor(issue, (current) => current === "Ready for agent", "Ready for agent", `switch on the built-in workflow "Item reopened" (Status Ready for agent)`);
           log.info(`  #${issue} reopened`);
           return true;
       }
     };
-    // The built-in Item added workflow sets Backlog on add, asynchronously: wait until the item shows it, so this write lands last.
-    // An issue already on the Kanban and past Backlog is a retry: skip it.
+    // The built-in Item added workflow sets Backlog on add, asynchronously: wait until the item shows a Status, so this write lands last.
+    // An issue already past Backlog is a retry: the machine refuses `created`, which skips it.
     const ready = async (issues: readonly number[]): Promise<void> => {
       for (const issue of issues) {
-        const before = status(issue);
         add(issue);
-        if (before !== null && status(issue) !== "Backlog") continue;
-        await waitFor(issue, "Backlog", `switch on its built-in workflow "Item added to project" (Status Backlog)`);
-        put(issue, "Ready for agent");
-        log.info(`  #${issue} -> Ready for agent`);
+        await waitFor(issue, (current) => current !== null, "a Status", `switch on its built-in workflow "Item added to project" (Status Backlog)`);
+        await move(issue, "created");
       }
     };
     return { move, ready, subIssues, inStatus };
@@ -222,7 +223,7 @@ export const openKanban = (workspace: Workspace, ref: KanbanRef, root: number): 
     }
   };
 
-  const run: Opened["run"] = async (event, branchOf, work) => {
+  const run: KanbanRun["run"] = async (event, branchOf, work) => {
     const from = status(root);
     rootTarget(event);
     if (event === "take" && from === "In review") await closeOldTake();

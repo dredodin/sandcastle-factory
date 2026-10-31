@@ -90,7 +90,7 @@ _Avoid_: pre-plan hook
 ## Kanban
 
 **Kanban**:
-The home repo's GitHub Project. The factory moves issues on it; agents never do.
+The home repo's GitHub Project.
 _Avoid_: board, project
 
 **Status**:

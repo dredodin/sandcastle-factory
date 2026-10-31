@@ -66,8 +66,8 @@ export const merge = async (cycle: Cycle, items: readonly Item[]): Promise<reado
 export const mergeDefaults = async (cycle: Cycle, repos: readonly Repo[]): Promise<void> => {
   const unmerged = await inParallel(repos, (repo) => repo.name, (repo) =>
     runMerge(cycle, repo, "merge-default", [
-      { of: repo.base, branch: repo.base, command: mergeCommand(repo.base, [`SANDCASTLE: merge ${repo.base}`]), brings: "brings the branch up to date" },
+      { of: repo, branch: repo.base, command: mergeCommand(repo.base, [`SANDCASTLE: merge ${repo.base}`]), brings: "brings the branch up to date" },
     ]),
   );
-  if (unmerged.flat().length > 0) throw new Error(`Merge of the default branch left out ${unmerged.flat().join(", ")}.`);
+  if (unmerged.flat().length > 0) throw new Error(`Merge of the default branch failed in ${unmerged.flat().map((left) => left.name).join(", ")}.`);
 };
