@@ -1,4 +1,4 @@
-// Pure text blocks the prompts are given: the Workspace's repos and the run's state in them.
+// Pure text blocks the prompts are given: the Workspace's repos and the other repos' branches.
 
 import type { RepoRef } from "./item.mjs";
 

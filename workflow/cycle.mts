@@ -6,11 +6,11 @@ import { review } from "../phases/review/review.mjs";
 import { implement } from "../phases/implement/implement.mjs";
 import { merge, mergeDefaults } from "../phases/merge/merge.mjs";
 import { freshPlan, plan, type PlanSession } from "../phases/plan/plan.mjs";
-import { closeMerged, readyNewSince, settle, subIssuesOf } from "../shared/kanban-moves.mjs";
+import { closeMerged, readyNewSince, settle } from "../shared/kanban-moves.mjs";
 import { outcomeEvent } from "../shared/outcome.mjs";
 import { pr } from "../phases/pr/pr.mjs";
-import { comment } from "../shared/kanban-gh.mjs";
-import type { Item } from "../shared/item.mjs";
+import { comment, subIssues } from "../shared/kanban-gh.mjs";
+import { isRoot, type Item } from "../shared/item.mjs";
 import { log, openRunLog } from "../shared/logger.mjs";
 import { inParallel } from "../shared/parallel.mjs";
 import { conflictsWithBase } from "../shared/repo.mjs";
@@ -69,8 +69,8 @@ const cycle = async (
   });
   await settle(current, reported);
   // The root as item has no card: its note goes on the root, and it is not planned again.
-  const rootEnded = reported.find(({ item }) => Number(item.issue) === run.root);
-  if (rootEnded !== undefined) comment(run.kanban, run.root, `${DISCLAIMER}\n\n${rootEnded.note}`);
+  const rootEnded = reported.find(({ item }) => isRoot(item, run.root));
+  if (rootEnded !== undefined) comment(run.kanbanHandle, run.root, `${DISCLAIMER}\n\n${rootEnded.note}`);
   const done = items.filter((_, index) => outcomes[index]!.outcome === "committed");
   if (done.length === 0) log.info("No item committed. Nothing to merge.");
   else {
@@ -105,7 +105,7 @@ const REVIEW_PASSES = 2;
 export const finish = async (run: Run, openPrsText: string, touched: () => readonly Repo[], planned: readonly Item[]): Promise<string> => {
   let items = planned;
   for (let pass = 1; pass <= REVIEW_PASSES; pass++) {
-    const before = subIssuesOf(run);
+    const before = subIssues(run.kanbanHandle, run.root);
     await inParallel(touched(), (repo) => repo.name, (repo) => review(run, repo, pass));
     await readyNewSince(run, before);
     const filed = await cycles(run, openPrsText);

@@ -2,8 +2,10 @@
 
 import type { SubEvent } from "./kanban.mjs";
 
+export const OUTCOMES = ["committed", "done without code", "already done", "findings rejected", "cannot finish"] as const;
+
 export type ImplementOutcome = {
-  readonly outcome: "committed" | "done without code" | "already done" | "findings rejected" | "cannot finish";
+  readonly outcome: (typeof OUTCOMES)[number];
   readonly note: string;
 };
 
