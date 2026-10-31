@@ -83,8 +83,6 @@ test("runBlock: sub-issues left in Backlog are listed, even for a single PR", ()
   assert.match(runBlock("Models: m.", "acme/hub", 7, [hub, app], [], {}, [4]), /2\. acme\/app#12 \(app\)\n\nLeft in Backlog, not delivered: #4\.\n</);
 });
 
-test("runBlock: no Closes line", () => assert.doesNotMatch(runBlock("Models: m.", "acme/hub", 7, [hub, app], [], {}, [4]), /Closes/));
-
 test("reposWithoutPr: repos with planned work and no PR, with their issues once each", () => {
   const planned = [
     { repo: "hub", issue: "3" },

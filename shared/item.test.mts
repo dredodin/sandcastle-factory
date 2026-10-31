@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { implementRunOf, isRoot, itemFits, itemSchema, type Item } from "./item.mjs";
+import { implementRunOf, itemFits, itemSchema, type Item } from "./item.mjs";
 
 const home = { name: "hub", slug: "acme/hub" };
 const context = { home, otherBranches: "- app: sandcastle/hub/issue-7-take-1" };
@@ -42,9 +42,4 @@ test("itemFits: a repo of the Workspace fits, an unknown one does not", () => {
   assert.equal(itemFits({ repo: "hub" }, repos), true);
   assert.equal(itemFits({ repo: "app" }, repos), true);
   assert.equal(itemFits({ repo: "web" }, repos), false);
-});
-
-test("isRoot: the item's issue number against the root", () => {
-  assert.equal(isRoot({ issue: "7" }, 7), true);
-  assert.equal(isRoot({ issue: "7" }, 8), false);
 });

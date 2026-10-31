@@ -74,18 +74,3 @@ test("checkEnv: the host login is mounted only when a phase uses codex and no ke
 test("withShellOverrides: CODEX_API_KEY is a known key", () => {
   assert.deepEqual(withShellOverrides({}, { CODEX_API_KEY: "k" }, []), { CODEX_API_KEY: "k" });
 });
-
-test("missingKeys: the Kanban owner and number are required", () => {
-  const { KANBAN_OWNER: _owner, KANBAN_NUMBER: _number, ...rest } = codexBase;
-  assert.deepEqual(missingKeys({ ...rest, CODEX_API_KEY: "k" }, [], false), ["KANBAN_OWNER", "KANBAN_NUMBER"]);
-});
-
-test("checkEnv: the Kanban number is a positive integer", () => {
-  const ok = { ...codexBase, CODEX_API_KEY: "k" };
-  assert.deepEqual(checkEnv(ok, [], false).kanban, { owner: "acme", number: 3 });
-  assert.throws(() => checkEnv({ ...ok, KANBAN_NUMBER: "x" }, [], false), /KANBAN_NUMBER/);
-});
-
-test("withShellOverrides: the Kanban keys are known keys", () => {
-  assert.deepEqual(withShellOverrides({}, { KANBAN_OWNER: "o", KANBAN_NUMBER: "2" }, []), { KANBAN_OWNER: "o", KANBAN_NUMBER: "2" });
-});

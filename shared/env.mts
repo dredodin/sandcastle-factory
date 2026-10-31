@@ -3,7 +3,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { parseEnv as parseDotenv } from "node:util";
 import { z } from "zod";
-import type { Kanban } from "./kanban.mjs";
+import type { KanbanRef } from "./kanban.mjs";
 import { repoKey } from "./names.mjs";
 
 export const PHASES = ["PLAN", "IMPLEMENT", "REVIEW", "MERGE", "PR"] as const;
@@ -30,7 +30,7 @@ export type Env = {
   // Local path of every repo that is not the home repo, by repo name.
   readonly repoPaths: Values;
   // The home repo's Kanban.
-  readonly kanban: Kanban;
+  readonly kanban: KanbanRef;
 };
 
 const CLAUDE_AUTH = ["CLAUDE_CODE_OAUTH_TOKEN", "ANTHROPIC_API_KEY"] as const;

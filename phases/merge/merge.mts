@@ -9,12 +9,12 @@ import { isMerged } from "../../shared/repo.mjs";
 import { IDLE_TIMEOUT_SECONDS, phaseAgent, type Cycle } from "../../shared/run.mjs";
 import type { Repo } from "../../shared/workspace.mjs";
 
-// One branch to merge: the exact merge command, and what the branch brings.
-type Merge = { readonly branch: string; readonly command: string; readonly brings: string };
+// One branch to merge for `of` (an item, or the default branch): the exact merge command, and what the branch brings.
+type Merge<T> = { readonly of: T; readonly branch: string; readonly command: string; readonly brings: string };
 
 // Script first: one chain merges every branch in order, then verifies; on any failure it puts HEAD back and exits non-zero,
-// and the merge agent takes over with the merge prompt. Resolves to the branches left out either way.
-const runMerge = async (cycle: Cycle, repo: Repo, name: string, merges: readonly Merge[]): Promise<readonly string[]> => {
+// and the merge agent takes over with the merge prompt. Resolves to what was left out either way.
+const runMerge = async <T extends unknown>(cycle: Cycle, repo: Repo, name: string, merges: readonly Merge<T>[]): Promise<readonly T[]> => {
   const integration = await cycle.integrations.get(repo);
   const byScript = await timed(`${name} ${repo.name}`, async () => {
     const logName = logFileName(`${cycle.number}-${name}`, repo.name, cycle.workspace.home.name);
@@ -40,9 +40,10 @@ const runMerge = async (cycle: Cycle, repo: Repo, name: string, merges: readonly
   });
   const branches = merges.map((merge) => merge.branch);
   const unmerged = branches.filter((branch) => !isMerged(repo, branch, integration.branch));
+  const merged = branches.filter((branch) => !unmerged.includes(branch));
   if (unmerged.length > 0) log.warn(`Merge in ${repo.name} left out ${unmerged.join(", ")}.`);
-  log.info(`Merged into ${repo.name} ${integration.branch} by ${byScript ? "script" : "agent"}: ${branches.filter((branch) => !unmerged.includes(branch)).join(", ")}`);
-  return unmerged;
+  log.info(`Merged into ${repo.name} ${integration.branch} by ${byScript ? "script" : "agent"}: ${merged.join(", ")}`);
+  return merges.filter((merge) => unmerged.includes(merge.branch)).map((merge) => merge.of);
 };
 
 // Repos merge concurrently; items of one repo in their given order. Resolves to the items whose branch was left out.
@@ -55,18 +56,17 @@ export const merge = async (cycle: Cycle, items: readonly Item[]): Promise<reado
       "merge",
       items
         .filter((item) => item.repo === repo.name)
-        .map((item) => ({ branch: item.branch, command: mergeCommand(item.branch, messagesFor(item)), brings: `${item.issue}: ${item.title}` })),
+        .map((item) => ({ of: item, branch: item.branch, command: mergeCommand(item.branch, messagesFor(item)), brings: `${item.issue}: ${item.title}` })),
     ),
   );
-  const left = unmerged.flat();
-  return items.filter((item) => left.includes(item.branch));
+  return unmerged.flat();
 };
 
 // Brings each repo's default branch into its integration branch, repos concurrently; throws if one is left out.
 export const mergeDefaults = async (cycle: Cycle, repos: readonly Repo[]): Promise<void> => {
   const unmerged = await inParallel(repos, (repo) => repo.name, (repo) =>
     runMerge(cycle, repo, "merge-default", [
-      { branch: repo.base, command: mergeCommand(repo.base, [`SANDCASTLE: merge ${repo.base}`]), brings: "brings the branch up to date" },
+      { of: repo.base, branch: repo.base, command: mergeCommand(repo.base, [`SANDCASTLE: merge ${repo.base}`]), brings: "brings the branch up to date" },
     ]),
   );
   if (unmerged.flat().length > 0) throw new Error(`Merge of the default branch left out ${unmerged.flat().join(", ")}.`);

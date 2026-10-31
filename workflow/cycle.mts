@@ -6,15 +6,12 @@ import { review } from "../phases/review/review.mjs";
 import { implement } from "../phases/implement/implement.mjs";
 import { merge, mergeDefaults } from "../phases/merge/merge.mjs";
 import { freshPlan, plan, type PlanSession } from "../phases/plan/plan.mjs";
-import { closeMerged, readyNewSince, settle } from "../shared/kanban-moves.mjs";
-import { outcomeEvent } from "../shared/outcome.mjs";
 import { pr } from "../phases/pr/pr.mjs";
-import { comment, subIssues } from "../shared/kanban-gh.mjs";
-import { isRoot, type Item } from "../shared/item.mjs";
+import type { Item } from "../shared/item.mjs";
 import { log, openRunLog } from "../shared/logger.mjs";
 import { inParallel } from "../shared/parallel.mjs";
 import { conflictsWithBase } from "../shared/repo.mjs";
-import { DISCLAIMER, type Run } from "../shared/run.mjs";
+import type { Run } from "../shared/run.mjs";
 import { withSandbox } from "../shared/sandbox.mjs";
 import { repoNamed, type Repo, type Workspace } from "../shared/workspace.mjs";
 
@@ -62,23 +59,22 @@ const cycle = async (
     ),
   );
   // Without code: the sub-issue is closed or sent to Backlog now. Committed: merged first.
-  const reported = items.flatMap((item, index) => {
+  const ended = items.flatMap((item, index) => {
     const { outcome, note } = outcomes[index]!;
-    const event = outcomeEvent(outcome);
-    return event === null ? [] : [{ item, event, note: note === "" ? `Implement reported: ${outcome}.` : note }];
+    return outcome === "committed" ? [] : [{ item, outcome, note: note === "" ? `Implement reported: ${outcome}.` : note }];
   });
-  await settle(current, reported);
-  // The root as item has no card: its note goes on the root, and it is not planned again.
-  const rootEnded = reported.find(({ item }) => isRoot(item, run.root));
-  if (rootEnded !== undefined) comment(run.kanbanHandle, run.root, `${DISCLAIMER}\n\n${rootEnded.note}`);
+  for (const { item, outcome, note } of ended) await run.kanban.move(Number(item.issue), outcome, note);
   const done = items.filter((_, index) => outcomes[index]!.outcome === "committed");
   if (done.length === 0) log.info("No item committed. Nothing to merge.");
   else {
     const leftOut = await merge(current, done);
-    await closeMerged(current, done.filter((item) => !leftOut.includes(item)));
-    await settle(current, leftOut.map((item) => ({ item, event: "mergeConflict", note: `The merge of \`${item.branch}\` into \`${run.branch}\` left it out: resolve the conflict, then move this issue to Ready for agent.` })));
+    for (const item of done) {
+      if (leftOut.includes(item)) await run.kanban.move(Number(item.issue), "merge conflict", `The merge of \`${item.branch}\` into \`${run.branch}\` left it out: resolve the conflict, then move this issue to Ready for agent.`);
+      else await run.kanban.move(Number(item.issue), "merged", `Done: merged into \`${run.branch}\`.`);
+    }
   }
-  return { items, next, stop: rootEnded !== undefined };
+  // The root as item is not planned again once it ended without code.
+  return { items, next, stop: ended.some(({ item }) => Number(item.issue) === run.root) };
 };
 
 // Cycles until the plan is empty or the cap is reached; one after another, each plans on the last one's merge.
@@ -105,9 +101,9 @@ const REVIEW_PASSES = 2;
 export const finish = async (run: Run, openPrsText: string, touched: () => readonly Repo[], planned: readonly Item[]): Promise<string> => {
   let items = planned;
   for (let pass = 1; pass <= REVIEW_PASSES; pass++) {
-    const before = subIssues(run.kanbanHandle, run.root);
+    const before = run.kanban.subIssues();
     await inParallel(touched(), (repo) => repo.name, (repo) => review(run, repo, pass));
-    await readyNewSince(run, before);
+    await run.kanban.ready(run.kanban.subIssues().filter((issue) => !before.includes(issue)));
     const filed = await cycles(run, openPrsText);
     items = [...items, ...filed];
     if (filed.length === 0) break;

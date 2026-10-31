@@ -3,13 +3,16 @@ import { z } from "zod";
 import { extract } from "../../shared/extract.mjs";
 import { implementRunOf, type Item } from "../../shared/item.mjs";
 import { message } from "../../shared/cli.mjs";
+import { OUTCOMES, type Outcome } from "../../shared/kanban.mjs";
 import { log, timed } from "../../shared/logger.mjs";
-import { OUTCOMES, missingOutcome, reconcile, type ImplementOutcome } from "../../shared/outcome.mjs";
 import { promptPath } from "../../shared/paths.mjs";
 import { IDLE_TIMEOUT_SECONDS, phaseAgent, type Cycle } from "../../shared/run.mjs";
 import { otherBranchesText } from "../../shared/text.mjs";
 
 const IMPLEMENT_ITERATIONS = 100;
+
+// What an implement run reports: one outcome the harness maps to the sub-issue's move.
+export type ImplementOutcome = { readonly outcome: Outcome; readonly note: string };
 
 const outcomeSchema = z.object({
   outcome: z.enum(OUTCOMES),
@@ -29,11 +32,10 @@ export const implement = async (cycle: Cycle, sandbox: Sandbox, item: Item): Pro
     idleTimeoutSeconds: IDLE_TIMEOUT_SECONDS,
     ...phaseAgent(cycle, "IMPLEMENT", inputs.logName),
   }));
-  const commits = result.commits.length;
   try {
-    return reconcile(extract(result.stdout, "outcome", outcomeSchema), commits);
+    return extract(result.stdout, "outcome", outcomeSchema);
   } catch (error) {
     log.warn(`  #${item.issue} outcome unreadable: ${message(error)}`);
-    return missingOutcome(commits);
+    return result.commits.length > 0 ? { outcome: "committed", note: "" } : { outcome: "cannot finish", note: "The implement run ended with no commits and reported no outcome." };
   }
 };
