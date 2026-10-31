@@ -6,6 +6,7 @@ import { review } from "../phases/review/review.mjs";
 import { implement } from "../phases/implement/implement.mjs";
 import { merge, mergeDefaults } from "../phases/merge/merge.mjs";
 import { freshPlan, plan, type PlanSession } from "../phases/plan/plan.mjs";
+import { closeMerged, readyFiled } from "../phases/plan/kanban-items.mjs";
 import { pr } from "../phases/pr/pr.mjs";
 import type { Item } from "../shared/item.mjs";
 import { log, openRunLog } from "../shared/logger.mjs";
@@ -61,7 +62,10 @@ const cycle = async (
   );
   const done = items.filter((_, index) => committed[index]);
   if (done.length === 0) log.info("No item produced commits. Nothing to merge.");
-  else await merge(current, done);
+  else {
+    await merge(current, done);
+    closeMerged(current, done);
+  }
   return { items, next };
 };
 
@@ -88,7 +92,7 @@ const REVIEW_PASSES = 2;
 export const finish = async (run: Run, openPrsText: string, touched: () => readonly Repo[], planned: readonly Item[]): Promise<string> => {
   let items = planned;
   for (let pass = 1; pass <= REVIEW_PASSES; pass++) {
-    await inParallel(touched(), (repo) => repo.name, (repo) => review(run, repo, pass));
+    await inParallel(touched(), (repo) => repo.name, (repo) => readyFiled(run, () => review(run, repo, pass)));
     const filed = await cycles(run, openPrsText);
     items = [...items, ...filed];
     if (filed.length === 0) break;

@@ -49,7 +49,7 @@ One step in a run: plan, implement, merge, review or PR. Each is an agent's, exc
 _Avoid_: stage, step
 
 **Item**:
-One unit of work a plan hands to one implement agent: an unblocked sub-issue, or the root when it has none. Always in exactly one repo.
+One unit of work a plan hands to one implement agent: an unblocked sub-issue in Ready for agent, or the root when it has none. Always in exactly one repo.
 _Avoid_: task, job, work unit
 
 ## Branches and delivery

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { preflight, rootAction, toStatus, type Action, type RootEvent, type Status } from "./kanban.mjs";
+import { preflight, rootAction, subAction, toStatus, type Action, type RootEvent, type Status } from "./kanban.mjs";
 
 const set = (status: Status): Action => ({ type: "set", status });
 const refused = (current: Status | null, event: RootEvent): boolean => rootAction(current, event).type === "refuse";
@@ -86,4 +86,16 @@ test("preflight: an extra option's message", () => {
 
 test("rootAction: resume from Done says its Status", () => {
   assert.deepEqual(rootAction("Done", "resume"), { type: "refuse", reason: "resume starts from Ready for agent, Agent working or In review, its Status is Done" });
+});
+
+test("subAction: S3 the plan takes a Ready for agent sub-issue", () => assert.deepEqual(subAction("Ready for agent", "planned"), set("Agent working")));
+
+test("subAction: S4 merged work closes the sub-issue as completed", () => assert.deepEqual(subAction("Agent working", "merged"), { type: "close", reason: "completed" }));
+
+for (const [from, event] of [["Backlog", "planned"], ["Agent working", "planned"], ["Done", "planned"], [null, "planned"], ["Ready for agent", "merged"], ["Done", "merged"], [null, "merged"]] as const) {
+  test(`subAction: ${event} from ${from ?? "no card"} is refused`, () => assert.equal(subAction(from, event).type, "refuse"));
+}
+
+test("subAction: a refusal says why", () => {
+  assert.deepEqual(subAction("Backlog", "planned"), { type: "refuse", reason: "planned while its Status is Backlog, not Ready for agent" });
 });
