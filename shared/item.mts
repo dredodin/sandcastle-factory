@@ -14,9 +14,6 @@ export type Item = z.infer<typeof itemSchema>;
 
 export type RepoRef = { readonly name: string; readonly slug: string };
 
-// Whether the item is the root issue itself, which has no sub-issue card.
-export const isRoot = (item: Pick<Item, "issue">, root: number): boolean => Number(item.issue) === root;
-
 // Whether the item can be worked: its repo is in the Workspace.
 export const itemFits = (item: Pick<Item, "repo">, repos: readonly RepoRef[]): boolean => repos.some((repo) => repo.name === item.repo);
 

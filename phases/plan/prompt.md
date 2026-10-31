@@ -2,7 +2,7 @@
 
 Plan the next step of root issue #{{ROOT}} in `{{HOME_SLUG}}`. Issues live in this one repo; the work may touch several repos. Integration branch: `{{INTEGRATION_BRANCH}}`, the same name in every repo (the current branch is its copy in `{{HOME_NAME}}`).
 
-Read what you don't already know. Re-check what may have changed since you last looked: each issue's Status and blockers, PR comments, the plan check. Plan from what holds now, never from an earlier plan of yours.
+Read what you don't already know. Re-check what may have changed since you last looked: each issue's blockers, PR comments, the plan check. Plan from what holds now, never from an earlier plan of yours.
 
 Read, never write, except what Rules 6 and 7 say: you may create issues, add them as sub-issues of the root, label them `repo:<name>`, wire `blockedBy`, reply under PR comments and resolve or minimize them. Never edit files, commit or close an issue. Nobody is there to answer: never ask a question, decide and go on. Never touch the Kanban: do not move a card or change an issue's Status; the factory does.
 
@@ -14,6 +14,10 @@ AFK rules of this run, for you and every agent after you: commit subjects start 
 
 An issue's `repo:<name>` label says which repo its work is done in; no `repo:` label means the home repo. Two `repo:` labels, or an unknown one: the item goes to the home repo. A `repo:` label on a root that has sub-issues routes nothing: each sub-issue goes by its own label.
 
+## Ready for agent
+
+The sub-issues the factory has in Ready for agent: {{READY}}
+
 ## Open PRs of this run
 
 {{OPEN_PRS}}
@@ -21,7 +25,7 @@ An issue's `repo:<name>` label says which repo its work is done in; no `repo:` l
 ## Read the tree
 
 - Root: `gh issue view {{ROOT}} --repo {{HOME_SLUG}} --json number,title,state,labels,subIssues`
-- Each sub-issue, and the root itself when it is the item: `gh issue view <n> --repo {{HOME_SLUG}} --json number,title,state,labels,body,blockedBy,comments`. Its Status (read-only: never change it): `gh api graphql -f query='query { repository(owner: "<owner>", name: "<name>") { issue(number: <n>) { projectItems(first: 20) { nodes { project { number owner { ... on Organization { login } ... on User { login } } } fieldValueByName(name: "Status") { ... on ProjectV2ItemFieldSingleSelectValue { name } } } } } } }'`, the node whose `project` is number {{KANBAN_NUMBER}} of `{{KANBAN_OWNER}}`
+- Each sub-issue, and the root itself when it is the item: `gh issue view <n> --repo {{HOME_SLUG}} --json number,title,state,labels,body,blockedBy,comments`.
 
 ## PR comments
 
@@ -34,7 +38,7 @@ When `.sandcastle/repos/{{HOME_NAME}}/plan-check.sh` is in the worktree, run `{{
 ## Rules
 
 1. **Work items**: the root's direct sub-issues. No sub-issues: the root is the single work item. One level only: a sub-issue's own sub-issues are never items.
-2. **Candidates**: a sub-issue is a candidate while it is open and its Status is `Ready for agent`. Any other Status (`Backlog`, `Agent working`, `In review`, `Done`) is never planned. A root without sub-issues is the single item while it is open, whatever its Status.
+2. **Candidates**: a sub-issue is a candidate while it is open and listed under Ready for agent above; no other sub-issue is ever planned. A root without sub-issues is the single item while it is open.
 3. **Blocking**: native `blockedBy` is the only signal, blockers outside the tree included. An item is unblocked when every `blockedBy` issue is closed; the factory closes a sub-issue once its work is merged or it ends without code; one it cannot finish goes to Backlog and keeps blocking. A blocker in another repo only orders the work. Never infer blocking from text, overlap or labels.
 4. **Labels never decide eligibility**; they only route an item to a repo.
 5. **All unblocked candidates**, the issues you created this cycle included (the factory sets them to `Ready for agent` before the plan is used), go into the plan. None: empty plan. Never pick a blocked one as a fallback.

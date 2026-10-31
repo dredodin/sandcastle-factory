@@ -112,7 +112,7 @@ The Kanban is the home repo's GitHub Project; every issue's Status is the factor
 
 - Create or link: `gh project list --owner <owner>` shows the owner's projects; ask the human to pick one or make one (`gh project create --owner <owner> --title <title>`), and link it to the home repo (`gh project link <number> --owner <owner> --repo <home>`). Needs `gh auth refresh -s project,read:org,read:discussion`.
 - Status options, exactly these five, in order: `Backlog`, `Ready for agent`, `Agent working`, `In review`, `Done`. No others.
-- Built-in workflows, the human switches them on in the project's Workflows page: `Item added to project` → Status `Backlog`, `Item closed` → Status `Done`, `Item reopened` → Status `Ready for agent`. Preflight checks the first two; the API hides the last, so the human confirms it.
+- Built-in workflows, the human switches them on in the project's Workflows page: `Item added to project` → Status `Backlog`, `Item closed` → Status `Done`, `Item reopened` → Status `Ready for agent`. The factory checks only the Status options; a run fails at the first move that needs one, so the human confirms all three.
 - Token: one classic token with `repo`, `project`, `workflow`, `read:org`, `read:discussion`. Setup asks for it, with the Kanban's owner and number.
 - Tracker rule: add to `docs/agents/issue-tracker.md` that applying `ready-for-agent` also sets Status = Ready for agent.
 

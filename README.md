@@ -7,7 +7,7 @@ Hand it a GitHub issue, walk away, come back to a pull request. AI agents plan t
 - **Tools**: Node 22+, git, [`gh`](https://cli.github.com) (logged in). Windows: git bash.
 - **Sandboxes**: docker or podman. Without them, see `SANDBOX=none` below.
 - **GitHub only**: GitLab, Bitbucket and others are not supported. The home repo needs issues enabled and a Kanban (below).
-- **Kanban**: a GitHub Project whose Status has exactly `Backlog`, `Ready for agent`, `Agent working`, `In review`, `Done`, with the built-in workflows Item added to project → Backlog, Item closed → Done and Item reopened → Ready for agent on. The factory refuses to start otherwise.
+- **Kanban**: a GitHub Project whose Status has exactly `Backlog`, `Ready for agent`, `Agent working`, `In review`, `Done`, and the built-in workflows Item added to project → Backlog, Item closed → Done and Item reopened → Ready for agent on. The factory refuses to start when the Status options differ; a switched-off workflow fails the run at the first move that needs it.
 - **Token**: one classic GitHub token (`repo`, `project`, `workflow`, `read:org`, `read:discussion`).
 - **At least one agent provider**, picked per phase ([details](docs/agents.md)):
 
