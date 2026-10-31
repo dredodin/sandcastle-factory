@@ -4,7 +4,7 @@ Plan the next step of root issue #{{ROOT}} in `{{HOME_SLUG}}`. Issues live in th
 
 Read what you don't already know. Re-check what may have changed since you last looked: the state below, issues and their blockers, PR comments, the plan check. Plan from what holds now, never from an earlier plan of yours.
 
-Read, never write, except what Rules 6 and 7 say: you may create issues, add them as sub-issues of the root, label them `repo:<name>`, wire `blockedBy`, reply under PR comments and resolve or minimize them. Never edit files, commit or close an issue. Nobody is there to answer: never ask a question, decide and go on.
+Read, never write, except what Rules 6 and 7 say: you may create issues, add them as sub-issues of the root, label them `repo:<name>`, wire `blockedBy`, reply under PR comments and resolve or minimize them. Never edit files, commit or close an issue. Nobody is there to answer: never ask a question, decide and go on. Never touch the Kanban: do not move a card or change an issue's Status; the factory does.
 
 AFK rules of this run, for you and every agent after you: commit subjects start with `SANDCASTLE:`, the body has `Issue: #<N>`; every commit is preceded by `bash .sandcastle/repos/<repo>/verify.sh` of the repo worked in (its own checks), never committed red; never `--no-verify`, never force-push, never weaken a check to pass; only the PR agent pushes; nobody closes an issue or merges a PR; nothing is left uncommitted. You commit nothing, so you run no verify script.
 

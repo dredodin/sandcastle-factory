@@ -21,7 +21,7 @@ AFK rules of this run: commit subjects start with `SANDCASTLE:`, the body has `I
 
 3. Existing PR: `gh pr list --repo {{REPO_SLUG}} --head {{INTEGRATION_BRANCH}} --state open --json url`. One found: reuse it, rewriting its body: `gh pr edit <url> --body-file /tmp/pr-body.md`. None: `gh pr create --repo {{REPO_SLUG}} --base {{DEFAULT_BRANCH}} --head {{INTEGRATION_BRANCH}} --title "<title above>" --body-file /tmp/pr-body.md`. Never `--draft`. A later step adds the models and the run's PR list to the body: leave a block between `<!-- sandcastle-run -->` and `<!-- /sandcastle-run -->` as it is.
 
-Never merge the PR, never close or comment on an issue, never commit.
+Never merge the PR, never close or comment on an issue, never commit. Never touch the Kanban: do not move a card or change an issue's Status; the factory does.
 
 ## Body template
 

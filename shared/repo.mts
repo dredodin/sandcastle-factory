@@ -13,17 +13,13 @@ export const repoUrl = (repo: Repo): string => githubUrl(repo.slug);
 const rootSchema = z.object({
   title: z.string(),
   state: z.string(),
-  labels: z.array(z.object({ name: z.string() })),
 });
 
 // Returns the root issue's title. Issues live in the home repo only.
 export const checkRoot = (workspace: Workspace, root: number): string => {
   const { home } = workspace;
-  const issue = rootSchema.parse(JSON.parse(sh(home.path, "gh", "issue", "view", `${root}`, "--repo", home.slug, "--json", "title,state,labels")));
+  const issue = rootSchema.parse(JSON.parse(sh(home.path, "gh", "issue", "view", `${root}`, "--repo", home.slug, "--json", "title,state")));
   if (issue.state !== "OPEN") throw new Error(`#${root} is ${issue.state.toLowerCase()}.`);
-  if (!issue.labels.some((label) => label.name === "ready-for-agent")) {
-    throw new Error(`#${root} carries no \`ready-for-agent\` label.`);
-  }
   return issue.title;
 };
 

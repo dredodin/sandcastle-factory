@@ -12,6 +12,7 @@
     "shared/config-block.mts",
     "shared/extract.mts",
     "shared/item.mts",
+    "shared/kanban.mts",
     "shared/merge-record.mts",
     "shared/names.mts",
     "shared/parallel.mts",

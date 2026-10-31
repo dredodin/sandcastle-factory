@@ -8,21 +8,23 @@ import type { Run } from "../shared/run.mjs";
 import { withIntegrations } from "../shared/sandbox.mjs";
 import type { Repo, Workspace } from "../shared/workspace.mjs";
 import { cycles, finish, startRun } from "./cycle.mjs";
+import { gate, tracked } from "./kanban-run.mjs";
 
 const FIRST_TAKE_PRS = "(none: this is a first take)";
 
 export const take = async (workspace: Workspace, env: Env, root: number): Promise<string> => {
   const { agents, settings } = loadAgents(env);
+  const card = gate(workspace, env, root, "take");
   const title = checkRoot(workspace, root);
   const branch = integrationBranch(workspace, root);
   const logDir = startRun("take", { workspace, env, settings }, root, title, branch);
 
   const context = { workspace, env };
-  return withIntegrations(context, (repo) => ({ repo, branch, baseBranch: repo.base }), async (integrations) => {
+  return tracked(card, "take", () => withIntegrations(context, (repo) => ({ repo, branch, baseBranch: repo.base }), async (integrations) => {
     const run: Run = { agents, context, workspace, root, title, branch, integrations, logDir };
     const planned = await cycles(run, FIRST_TAKE_PRS);
     const touched = (): readonly Repo[] => integrations.opened().filter((repo) => hasFileDiff(repo, branch, repo.base));
-    if (touched().length === 0) return "Nothing completed: no PR.";
-    return finish(run, FIRST_TAKE_PRS, touched, planned);
-  });
+    if (touched().length === 0) return { text: "Nothing completed: no PR.", pr: false };
+    return { text: await finish(run, FIRST_TAKE_PRS, touched, planned), pr: true };
+  }));
 };
