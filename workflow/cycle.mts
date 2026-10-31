@@ -32,7 +32,7 @@ export const startRun = (
 };
 
 // One cycle: plan, merge default branches (the conflicting ones), implement each item in parallel in its repo, merge.
-// Resolves to the planned items, none when the plan is empty, whether the root as item ended without code (the cycles stop), and the next cycle's plan session.
+// Resolves to the planned items, none when the plan is empty, whether the root as item was worked (the cycles stop), and the next cycle's plan session.
 const cycle = async (
   run: Run,
   number: number,
@@ -73,8 +73,8 @@ const cycle = async (
       else await run.kanban.move(Number(item.issue), "merged", `Done: merged into \`${run.branch}\`.`);
     }
   }
-  // The root as item is not planned again once it ended without code.
-  return { items, next, stop: ended.some(({ item }) => Number(item.issue) === run.root) };
+  // The root as item is worked once, merged, left out or ended without code: planning it again would repeat the same end.
+  return { items, next, stop: items.some((item) => Number(item.issue) === run.root) };
 };
 
 // Cycles until the plan is empty or the cap is reached; one after another, each plans on the last one's merge.

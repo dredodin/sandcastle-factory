@@ -28,8 +28,7 @@ The same change may continue in other repos, on the same branch name. Their bran
 - Run `{{VERIFY}}` before every commit. Red: fix, never commit. Never `--no-verify`. Never weaken, skip or delete a check to make a commit pass: a check that refuses is right until an issue says otherwise.
 - Commits: the subject starts with `SANDCASTLE:`. The body has an `Issue: #{{ISSUE}}` line, says what changed and which decisions were made.
 - Leave nothing uncommitted: that fails the run.
-- The factory pushes the branch and does the rest on GitHub.
-- Cannot finish: leave nothing uncommitted, report outcome `cannot finish` with what was done and what stopped you as the note. Then stop.
+- Cannot finish: leave nothing uncommitted.
 
 # Procedure
 

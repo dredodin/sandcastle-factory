@@ -14,14 +14,14 @@ const FIRST_TAKE_PRS = "(none: this is a first take)";
 
 export const take = async (workspace: Workspace, env: Env, root: number): Promise<string> => {
   const { agents, settings } = loadAgents(env);
-  const kanban = openKanban(workspace, env.kanban, root);
+  const gate = openKanban(workspace, env.kanban, root);
   const title = checkRoot(workspace, root);
 
   const context = { workspace, env };
-  return kanban.run("take", () => integrationBranch(workspace, root), (board, branch) => {
+  return gate.run("take", () => integrationBranch(workspace, root), (kanban, branch) => {
     const logDir = startRun("take", { workspace, env, settings }, root, title, branch);
     return withIntegrations(context, (repo) => ({ repo, branch, baseBranch: repo.base }), async (integrations) => {
-      const run: Run = { agents, context, workspace, kanban: board, root, title, branch, integrations, logDir };
+      const run: Run = { agents, context, workspace, kanban, root, title, branch, integrations, logDir };
       const planned = await cycles(run, FIRST_TAKE_PRS);
       const touched = (): readonly Repo[] => integrations.opened().filter((repo) => hasFileDiff(repo, branch, repo.base));
       if (touched().length === 0) return { text: "Nothing completed: no PR.", pr: false };
