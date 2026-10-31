@@ -8,8 +8,9 @@ import { log, timed } from "../../shared/logger.mjs";
 import { logFileName, verifyCommand } from "../../shared/names.mjs";
 import { inParallel } from "../../shared/parallel.mjs";
 import { mergedIssues } from "../../shared/repo.mjs";
+import { backlogged } from "../plan/kanban-items.mjs";
 import { promptPath } from "../../shared/paths.mjs";
-import { blockersFromJson, closesLines, closesRoot, modelsLine, reposWithoutPr, runBlock, withRunBlock, type BlockedBy, type Pr } from "../../shared/pr-body.mjs";
+import { blockersFromJson, modelsLine, reposWithoutPr, runBlock, withRunBlock, type BlockedBy, type Pr } from "../../shared/pr-body.mjs";
 import { IDLE_TIMEOUT_SECONDS, phaseAgent, type Run } from "../../shared/run.mjs";
 import { sh } from "../../shared/shell.mjs";
 import { repoNamed, type Repo } from "../../shared/workspace.mjs";
@@ -17,12 +18,11 @@ import { repoNamed, type Repo } from "../../shared/workspace.mjs";
 const pullRequestSchema = z.object({ url: z.url() });
 const bodySchema = z.object({ body: z.string() });
 
-// Sub-issues whose merge commit the repo's branch carries; the root is closed apart, see `closesRoot`.
+// Sub-issues whose merge commit the repo's branch carries, the root left out.
 const subIssuesOn = (run: Run, repo: Repo): readonly number[] => mergedIssues(repo, run.branch).filter((id) => id !== run.root);
 
 // First pass for one repo: the PR agent pushes the branch and opens the PR, or rewrites the open one.
-// `prRepos`: every repo of the run with a PR.
-const prOfRepo = async (run: Run, repo: Repo, prRepos: readonly string[]): Promise<Pr> => {
+const prOfRepo = async (run: Run, repo: Repo): Promise<Pr> => {
   const { home } = run.workspace;
   const issues = subIssuesOn(run, repo);
   const integration = await run.integrations.get(repo);
@@ -38,7 +38,6 @@ const prOfRepo = async (run: Run, repo: Repo, prRepos: readonly string[]): Promi
       REPO_SLUG: repo.slug,
       DEFAULT_BRANCH: repo.defaultBranch,
       BASE_BRANCH: repo.base,
-      CLOSES: closesLines(home.slug, closesRoot(repo.name, home.name, prRepos) ? [...issues, run.root] : issues),
     },
     maxIterations: 1,
     completionSignal: "</pull-request>",
@@ -66,11 +65,10 @@ const blockedByOf = (home: Repo, issues: readonly number[]): BlockedBy =>
 // Returns one line per PR.
 export const pr = async (run: Run, touched: readonly Repo[], planned: readonly Item[]): Promise<string> => {
   const { home } = run.workspace;
-  const prRepos = touched.map((repo) => repo.name);
-  const prs = await inParallel(touched, (repo) => repo.name, (repo) => prOfRepo(run, repo, prRepos));
+  const prs = await inParallel(touched, (repo) => repo.name, (repo) => prOfRepo(run, repo));
 
   const blockedBy = blockedByOf(home, [...new Set(prs.flatMap((pr) => pr.issues))]);
-  const block = runBlock(modelsLine(run.context.env.phases), home.slug, run.root, prs, reposWithoutPr(planned, prs.map((pr) => pr.repo)), blockedBy);
+  const block = runBlock(modelsLine(run.context.env.phases), home.slug, run.root, prs, reposWithoutPr(planned, prs.map((pr) => pr.repo)), blockedBy, backlogged(run));
   const dir = mkdtempSync(join(tmpdir(), "sandcastle-pr-"));
   for (const pr of prs) {
     const repo = repoNamed(run.workspace, pr.repo);

@@ -1,20 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { blockersFromJson, closesLines, closesRoot, mergeOrder, modelsLine, prRef, reposWithoutPr, runBlock, withRunBlock, type Pr } from "./pr-body.mjs";
+import { blockersFromJson, mergeOrder, modelsLine, prRef, reposWithoutPr, runBlock, withRunBlock, type Pr } from "./pr-body.mjs";
 
 const hub: Pr = { repo: "hub", url: "https://github.com/acme/hub/pull/9", issues: [3] };
 const app: Pr = { repo: "app", url: "https://github.com/acme/app/pull/12", issues: [4, 5] };
 const lib: Pr = { repo: "lib", url: "https://github.com/acme/lib/pull/2", issues: [6] };
-
-test("closesLines: one line per issue, naming the home repo", () => {
-  assert.equal(closesLines("acme/hub", [7, 3]), "Closes acme/hub#7\nCloses acme/hub#3");
-});
-
-test("closesRoot: only the home repo's PR, unless the run has no home PR", () => {
-  assert.equal(closesRoot("hub", "hub", ["hub", "app"]), true);
-  assert.equal(closesRoot("app", "hub", ["hub", "app"]), false);
-  assert.equal(closesRoot("app", "hub", ["app", "lib"]), true);
-});
 
 test("blockersFromJson: numbers of gh's blockedBy nodes", () => {
   assert.deepEqual(blockersFromJson('{"blockedBy":{"nodes":[{"number":4},{"number":9}],"totalCount":2}}'), [4, 9]);
@@ -53,11 +43,11 @@ test("modelsLine: every phase's model, provider and effort, in phase order", () 
 });
 
 test("runBlock: only the models line for a single PR with nothing left out", () => {
-  assert.equal(runBlock("Models: m.", "acme/hub", 7, [hub], [], {}), "<!-- sandcastle-run -->\nModels: m.\n<!-- /sandcastle-run -->");
+  assert.equal(runBlock("Models: m.", "acme/hub", 7, [hub], [], {}, []), "<!-- sandcastle-run -->\nModels: m.\n<!-- /sandcastle-run -->");
 });
 
 test("runBlock: PR list in merge order, and the repo without a PR with its open issues", () => {
-  const block = runBlock("Models: m.", "acme/hub", 7, [hub, app], [{ repo: "lib", open: [6, 8] }], { 3: [5] });
+  const block = runBlock("Models: m.", "acme/hub", 7, [hub, app], [{ repo: "lib", open: [6, 8] }], { 3: [5] }, []);
   assert.equal(
     block,
     [
@@ -78,8 +68,18 @@ test("runBlock: PR list in merge order, and the repo without a PR with its open 
 });
 
 test("runBlock: several PRs with nothing left out still list the merge order", () => {
-  assert.match(runBlock("Models: m.", "acme/hub", 7, [hub, app], [], {}), /1\. acme\/hub#9 \(hub\)\n2\. acme\/app#12 \(app\)/);
+  assert.match(runBlock("Models: m.", "acme/hub", 7, [hub, app], [], {}, []), /1\. acme\/hub#9 \(hub\)\n2\. acme\/app#12 \(app\)/);
 });
+
+test("runBlock: sub-issues left in Backlog are listed, even for a single PR", () => {
+  assert.equal(
+    runBlock("Models: m.", "acme/hub", 7, [hub], [], {}, [4, 9]),
+    "<!-- sandcastle-run -->\nModels: m.\n\n## Run\n\nLeft in Backlog, not delivered: #4, #9.\n<!-- /sandcastle-run -->",
+  );
+  assert.match(runBlock("Models: m.", "acme/hub", 7, [hub, app], [], {}, [4]), /2\. acme\/app#12 \(app\)\n\nLeft in Backlog, not delivered: #4\.\n</);
+});
+
+test("runBlock: no Closes line", () => assert.doesNotMatch(runBlock("Models: m.", "acme/hub", 7, [hub, app], [], {}, [4]), /Closes/));
 
 test("reposWithoutPr: repos with planned work and no PR, with their issues once each", () => {
   const planned = [
@@ -97,10 +97,10 @@ test("reposWithoutPr: a repo without planned work is never listed", () => {
 });
 
 test("withRunBlock: appends once, then replaces its own earlier block", () => {
-  const first = withRunBlock("Body\n\nCloses acme/hub#7", "<!-- sandcastle-run -->\nA\n<!-- /sandcastle-run -->");
-  assert.equal(first, "Body\n\nCloses acme/hub#7\n\n<!-- sandcastle-run -->\nA\n<!-- /sandcastle-run -->\n");
+  const first = withRunBlock("Body\n\nFixes nothing", "<!-- sandcastle-run -->\nA\n<!-- /sandcastle-run -->");
+  assert.equal(first, "Body\n\nFixes nothing\n\n<!-- sandcastle-run -->\nA\n<!-- /sandcastle-run -->\n");
   const second = withRunBlock(first, "<!-- sandcastle-run -->\nB\n<!-- /sandcastle-run -->");
-  assert.equal(second, "Body\n\nCloses acme/hub#7\n\n<!-- sandcastle-run -->\nB\n<!-- /sandcastle-run -->\n");
+  assert.equal(second, "Body\n\nFixes nothing\n\n<!-- sandcastle-run -->\nB\n<!-- /sandcastle-run -->\n");
 });
 
 test("withRunBlock: an old block amid the body is cut out, the new one goes last", () => {

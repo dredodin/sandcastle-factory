@@ -8,7 +8,7 @@ import type { Run } from "../shared/run.mjs";
 import { withIntegrations } from "../shared/sandbox.mjs";
 import type { Repo, Workspace } from "../shared/workspace.mjs";
 import { cycles, finish, startRun } from "./cycle.mjs";
-import { gate, tracked } from "./kanban-run.mjs";
+import { closeOldTake, gate, tracked } from "./kanban-run.mjs";
 
 const FIRST_TAKE_PRS = "(none: this is a first take)";
 
@@ -16,6 +16,7 @@ export const take = async (workspace: Workspace, env: Env, root: number): Promis
   const { agents, settings } = loadAgents(env);
   const card = gate(workspace, env, root, "take");
   const title = checkRoot(workspace, root);
+  await closeOldTake(card);
   const branch = integrationBranch(workspace, root);
   const logDir = startRun("take", { workspace, env, settings }, root, title, branch);
 

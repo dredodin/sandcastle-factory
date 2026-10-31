@@ -2,7 +2,7 @@
 // `gh project` and the GraphQL project fields need a classic token with `project`, `read:org`, `read:discussion`.
 
 import { z } from "zod";
-import { toStatus, type Board, type CloseReason, type Kanban, type Status } from "./kanban.mjs";
+import { closedByTake, toStatus, type Board, type CloseReason, type Kanban, type Status } from "./kanban.mjs";
 import { sh, shIn } from "./shell.mjs";
 import type { Repo } from "./workspace.mjs";
 
@@ -65,8 +65,8 @@ export const readStatus = (home: Repo, board: BoardRead, issue: number): Status 
   return current === undefined ? null : toStatus(current);
 };
 
-const BACKLOG_WAIT_MS = 120_000;
-const BACKLOG_POLL_MS = 2_000;
+const WAIT_MS = 120_000;
+const POLL_MS = 2_000;
 
 // Adds the issue to the Kanban (an upsert); returns its item id.
 const addItem = (home: Repo, kanban: Kanban, issue: number): string => {
@@ -93,6 +93,15 @@ export const subIssues = (home: Repo, issue: number): readonly number[] => {
   return z.object({ subIssues: z.array(z.object({ number: z.number() })) }).parse(JSON.parse(raw)).subIssues.map((sub) => sub.number);
 };
 
+// Waits until the issue shows the Status, set by a built-in workflow. Throws when it never shows, naming `fix`.
+const waitForStatus = async (home: Repo, board: BoardRead, issue: number, status: Status, fix: string): Promise<void> => {
+  const deadline = Date.now() + WAIT_MS;
+  while (readStatus(home, board, issue) !== status) {
+    if (Date.now() > deadline) throw new Error(`#${issue} did not show ${status} on the Kanban: ${fix}.`);
+    await new Promise((resolve) => setTimeout(resolve, POLL_MS));
+  }
+};
+
 // Adds a new issue to the Kanban and sets it to Ready for agent. The built-in Item added workflow sets Backlog on add, asynchronously:
 // wait until the item shows it, so this write lands last. Throws when it never shows.
 export const addReady = async (home: Repo, kanban: Kanban, board: BoardRead, issue: number): Promise<void> => {
@@ -100,15 +109,24 @@ export const addReady = async (home: Repo, kanban: Kanban, board: BoardRead, iss
   const known = readStatus(home, board, issue) !== null;
   addItem(home, kanban, issue);
   if (known && readStatus(home, board, issue) !== "Backlog") return;
-  const deadline = Date.now() + BACKLOG_WAIT_MS;
-  while (readStatus(home, board, issue) !== "Backlog") {
-    if (Date.now() > deadline) throw new Error(`#${issue} did not show Backlog on the Kanban after being added: switch on its built-in workflow "Item added to project" (Status Backlog).`);
-    await new Promise((resolve) => setTimeout(resolve, BACKLOG_POLL_MS));
-  }
+  await waitForStatus(home, board, issue, "Backlog", `switch on its built-in workflow "Item added to project" (Status Backlog)`);
   setStatus(home, kanban, board, issue, "Ready for agent");
 };
 
 // Closes an issue with a comment; a Kanban built-in workflow then moves its card to Done.
 export const closeIssue = (home: Repo, issue: number, reason: CloseReason, body: string): void => {
   sh(home.path, "gh", "issue", "close", `${issue}`, "--repo", home.slug, "--reason", reason, "--comment", body);
+};
+
+// Reopens an issue closed by a take; the built-in Item reopened workflow then moves its card to Ready for agent. Waits for it.
+export const reopenIssue = async (home: Repo, board: BoardRead, issue: number): Promise<void> => {
+  sh(home.path, "gh", "issue", "reopen", `${issue}`, "--repo", home.slug);
+  await waitForStatus(home, board, issue, "Ready for agent", `switch on the built-in workflow "Item reopened" (Status Ready for agent)`);
+};
+
+// Whether the issue is closed with a comment naming the take (see `takeLine`).
+export const closedByTakeOf = (home: Repo, issue: number, branch: string): boolean => {
+  const raw = sh(home.path, "gh", "issue", "view", `${issue}`, "--repo", home.slug, "--json", "state,comments");
+  const view = z.object({ state: z.string(), comments: z.array(z.object({ body: z.string() })) }).parse(JSON.parse(raw));
+  return view.state === "CLOSED" && closedByTake(view.comments.map((entry) => entry.body), branch);
 };

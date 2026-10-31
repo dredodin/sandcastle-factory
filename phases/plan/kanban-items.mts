@@ -1,8 +1,8 @@
-// The sub-issues' cards over a cycle: new issues born Ready for agent, planned items to Agent working, merged ones closed.
+// The sub-issues' cards over a cycle: new issues born Ready for agent, planned items to Agent working, settled ones closed or sent to Backlog.
 
 import type { Item } from "../../shared/item.mjs";
-import { subAction, type SubAction, type SubEvent } from "../../shared/kanban.mjs";
-import { addReady, closeIssue, readBoard, readStatus, setStatus, subIssues, type BoardRead } from "../../shared/kanban-gh.mjs";
+import { subAction, takeLine, type SubAction, type SubEvent } from "../../shared/kanban.mjs";
+import { addReady, closeIssue, comment, readBoard, readStatus, setStatus, subIssues, type BoardRead } from "../../shared/kanban-gh.mjs";
 import { log } from "../../shared/logger.mjs";
 import { DISCLAIMER, type Cycle, type Run } from "../../shared/run.mjs";
 
@@ -45,16 +45,42 @@ export const startItems = (cycle: Cycle, items: readonly Item[]): readonly Item[
   return items.filter((item) => kept.includes(item));
 };
 
-// Closes the sub-issues whose work is merged into the integration branch; the comment names the take.
-export const closeMerged = (cycle: Cycle, items: readonly Item[]): void => {
+// What happened to one item, with the words for its comment.
+export type Settled = { readonly item: Item; readonly event: SubEvent; readonly note: string };
+
+// Applies the machine to settled sub-issues: closes carry a comment naming the take, a move to Backlog or back carries the note.
+// A refused one is logged. The root as item has no card.
+export const settle = (cycle: Cycle, settled: readonly Settled[]): void => {
   const { home } = cycle.workspace;
-  const board = readBoard(home, cycle.context.env.kanban);
-  for (const { item, action } of decided(cycle, board, items, "merged")) {
-    if (action.type !== "close") {
-      log.info(`  #${item.issue} merged, not closed: ${action.type === "refuse" ? action.reason : action.type}`);
+  const kanban = cycle.context.env.kanban;
+  const board = readBoard(home, kanban);
+  for (const { item, event, note } of settled.filter(({ item }) => Number(item.issue) !== cycle.root)) {
+    const issue = Number(item.issue);
+    const action = subAction(readStatus(home, board, issue), event);
+    if (action.type === "refuse") {
+      log.info(`  #${item.issue} ${event} refused: ${action.reason}`);
       continue;
     }
-    closeIssue(home, Number(item.issue), action.reason, `${DISCLAIMER}\n\nDone: merged into \`${cycle.branch}\`.`);
-    log.info(`  #${item.issue} closed`);
+    if (action.type === "close") {
+      closeIssue(home, issue, action.reason, `${DISCLAIMER}\n\n${note}\n\n${takeLine(cycle.branch)}`);
+      log.info(`  #${item.issue} closed ${action.reason}`);
+      continue;
+    }
+    if (action.type === "set") {
+      comment(home, issue, `${DISCLAIMER}\n\n${note}`);
+      setStatus(home, kanban, board, issue, action.status);
+      log.info(`  #${item.issue} -> ${action.status}`);
+    }
   }
+};
+
+// Closes the sub-issues whose work is merged into the integration branch.
+export const closeMerged = (cycle: Cycle, items: readonly Item[]): void =>
+  settle(cycle, items.map((item) => ({ item, event: "merged", note: `Done: merged into \`${cycle.branch}\`.` })));
+
+// Sub-issues of the root that sit in Backlog.
+export const backlogged = (run: Run): readonly number[] => {
+  const { home } = run.workspace;
+  const board = readBoard(home, run.context.env.kanban);
+  return subIssues(home, run.root).filter((issue) => readStatus(home, board, issue) === "Backlog");
 };

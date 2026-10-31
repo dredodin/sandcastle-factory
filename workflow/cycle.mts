@@ -6,7 +6,8 @@ import { review } from "../phases/review/review.mjs";
 import { implement } from "../phases/implement/implement.mjs";
 import { merge, mergeDefaults } from "../phases/merge/merge.mjs";
 import { freshPlan, plan, type PlanSession } from "../phases/plan/plan.mjs";
-import { closeMerged, readyFiled } from "../phases/plan/kanban-items.mjs";
+import { closeMerged, readyFiled, settle } from "../phases/plan/kanban-items.mjs";
+import { outcomeEvent } from "../shared/outcome.mjs";
 import { pr } from "../phases/pr/pr.mjs";
 import type { Item } from "../shared/item.mjs";
 import { log, openRunLog } from "../shared/logger.mjs";
@@ -53,18 +54,24 @@ const cycle = async (
   await mergeDefaults(current, conflicting);
   await Promise.all([...new Set(items.map((item) => item.repo))].map((name) => current.integrations.get(repoNamed(run.workspace, name))));
 
-  // Each item in its own worktree of its repo, done by its one agent.
-  // Resolves to whether the item's branch carries commits to merge.
-  const committed = await inParallel(items, (item) => item.issue, (item) =>
+  // Each item in its own worktree of its repo, done by its one agent. Resolves to what each reported.
+  const outcomes = await inParallel(items, (item) => item.issue, (item) =>
     withSandbox(run.context, { repo: repoNamed(run.workspace, item.repo), name: item.issue, branch: item.branch, baseBranch: run.branch }, (sandbox) =>
       implement(current, sandbox, item),
     ),
   );
-  const done = items.filter((_, index) => committed[index]);
-  if (done.length === 0) log.info("No item produced commits. Nothing to merge.");
+  // Without code: the sub-issue is closed or sent to Backlog now. Committed: merged first.
+  settle(current, items.flatMap((item, index) => {
+    const { outcome, note } = outcomes[index]!;
+    const event = outcomeEvent(outcome);
+    return event === null ? [] : [{ item, event, note: note === "" ? `Implement reported: ${outcome}.` : note }];
+  }));
+  const done = items.filter((_, index) => outcomes[index]!.outcome === "committed");
+  if (done.length === 0) log.info("No item committed. Nothing to merge.");
   else {
-    await merge(current, done);
-    closeMerged(current, done);
+    const leftOut = await merge(current, done);
+    closeMerged(current, done.filter((item) => !leftOut.includes(item)));
+    settle(current, leftOut.map((item) => ({ item, event: "mergeConflict", note: `The merge of \`${item.branch}\` into \`${run.branch}\` left it out: resolve the conflict, then move this issue to Ready for agent.` })));
   }
   return { items, next };
 };
