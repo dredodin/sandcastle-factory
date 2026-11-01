@@ -4,6 +4,10 @@ An AFK orchestrator: it turns one issue tree into pull requests across several r
 
 ## Repos
 
+**Factory**:
+The program that turns one issue tree into pull requests, running each phase as an agent in a sandbox. Shared by every home repo, it knows none of them: what is particular to a repo lives in that home repo.
+_Avoid_: sandcastle (the library it runs agents with), pipeline, orchestrator
+
 **Home repo**:
 The repo the factory runs from. It holds the issues, the repo list and the per-machine settings.
 _Avoid_: hub, main repo, host repo
