@@ -24,6 +24,17 @@ _Avoid_: monorepo, project
 The `repo:<name>` label on an issue, naming the repo its work is done in. No repo label means the home repo.
 _Avoid_: routing tag
 
+## Issues
+
+**Issue**:
+A GitHub issue in the home repo: the base unit of work. Every issue of a run lives there ([ADR-0006](docs/adr/0006-issues-live-in-the-home-repo.md)).
+
+**Spec**:
+An issue `/to-spec` writes. Usually the root issue of a run.
+
+**Ticket**:
+An issue `/to-tickets` writes. Usually a sub-issue of a spec. Review findings and issues made from PR comments are issues, not tickets.
+
 ## Runs
 
 **Root issue**:
@@ -53,8 +64,8 @@ One step in a run: plan, implement, merge, review or PR. Each is an agent's, exc
 _Avoid_: stage, step
 
 **Item**:
-One unit of work a plan hands to one implement agent: an unblocked sub-issue in Ready for agent, or the root when it has none. Always in exactly one repo.
-_Avoid_: task, job, work unit
+One unit of work a plan hands to one implement agent: an unblocked sub-issue in Ready for agent, or the root issue when it has none. Always in exactly one repo.
+_Avoid_: task, job, work unit, ticket (when you mean any sub-issue)
 
 ## Branches and delivery
 

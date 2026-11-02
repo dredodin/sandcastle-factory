@@ -8,7 +8,12 @@ Hand it a GitHub issue, walk away, come back to a pull request. AI agents plan t
 - **Sandboxes**: docker or podman. Without them, see `SANDBOX=none` below.
 - **GitHub only**: GitLab, Bitbucket and others are not supported. The home repo needs issues enabled and a Kanban (below).
 - **Kanban**: a GitHub Project whose Status has exactly `Backlog`, `Ready for agent`, `Agent working`, `In review`, `Done`, and the built-in workflows Item added to project → Backlog, Item closed → Done and Item reopened → Ready for agent on. The factory refuses to start when the Status options differ; a switched-off workflow fails the run at the first move that needs it.
-- **Token**: one classic GitHub token (`repo`, `project`, `workflow`, `read:org`, `read:discussion`).
+- **Token** `GH_TOKEN`, one for every Workspace repo and the Kanban. Its kind follows the Kanban's owner:
+  - Kanban of a personal account: a classic token (`repo`, `project`, `workflow`, `read:org`, `read:discussion`). Fine-grained tokens cannot reach a user-owned Project.
+  - Kanban of an organisation: a fine-grained token for that organisation is enough. Repository access: every Workspace repo. Repository permissions: Contents, Issues, Pull requests, Workflows read/write; Metadata read. Organisation permissions: Projects read/write.
+
+  Agents get `GH_TOKEN` with all its rights: [ADR-0004](docs/adr/0004-who-writes-what.md) limits their writes through prompts and the harness, not the token. Use the smallest token that works.
+- **Copilot provider only**: a second, fine-grained token `COPILOT_GITHUB_TOKEN` with the Copilot Requests permission.
 - **At least one agent provider**, picked per phase ([details](docs/agents.md)):
 
   | Provider | You need |
@@ -120,3 +125,15 @@ A shell variable overrides its setting for one run: `PLAN_MODEL=sonnet npm run s
 - [Agents](docs/agents.md)
 - [Repo image](docs/repo-image.md)
 - [Contributing](CONTRIBUTING.md)
+
+Decisions:
+
+| ADR | Title | Status |
+| --- | --- | --- |
+| [0001](docs/adr/0001-the-harness-tests-its-pure-logic.md) | The harness tests its pure logic | accepted |
+| [0002](docs/adr/0002-review-the-whole-branch-once-per-repo.md) | Review the whole branch once per repo | superseded by 0003 |
+| [0003](docs/adr/0003-review-finds-implement-fixes.md) | Review finds, implement fixes | accepted |
+| [0004](docs/adr/0004-who-writes-what.md) | Who writes what | accepted |
+| [0005](docs/adr/0005-sandbox-git-is-read-through-the-git-cli.md) | Sandbox git is read through the `git` CLI | accepted |
+| [0006](docs/adr/0006-issues-live-in-the-home-repo.md) | Issues live in the home repo; a repo label routes them | accepted |
+| [0007](docs/adr/0007-the-kanban-status-is-the-run-state.md) | The Kanban Status is the state of a run | accepted |
