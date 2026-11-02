@@ -125,6 +125,7 @@ A shell variable overrides its setting for one run: `PLAN_MODEL=sonnet npm run s
 - [Agents](docs/agents.md)
 - [Repo image](docs/repo-image.md)
 - [Contributing](CONTRIBUTING.md)
+- [Solution architecture (SAD), v0.4.2](docs/releases/v0.4.2/sad.md)
 
 Decisions:
 
