@@ -116,7 +116,7 @@ export const openKanban = (workspace: Workspace, ref: KanbanRef, root: number): 
       if (field === undefined) throw new Error("it has no Status field");
       return { projectId: id, fieldId: field.id, options: Object.fromEntries(field.options.map((option) => [option.name, option.id])) };
     } catch (error) {
-      throw new Error(`The Kanban ${where} cannot be read: ${message(error)}. Check KANBAN_OWNER, KANBAN_NUMBER and that GH_TOKEN is the classic token the README names.`);
+      throw new Error(`The Kanban ${where} cannot be read: ${message(error)}. Check KANBAN_OWNER, KANBAN_NUMBER and GH_TOKEN: a classic token for a personal account's Kanban, a classic or fine-grained one for an organisation's, with the access the README names.`);
     }
   })();
   const problems = preflight(Object.keys(read.options));

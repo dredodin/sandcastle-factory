@@ -2,7 +2,7 @@
 status: accepted
 ---
 
-# ADR-0003: Sandbox git is read through the `git` CLI
+# ADR-0005: Sandbox git is read through the `git` CLI
 
 ## Context
 

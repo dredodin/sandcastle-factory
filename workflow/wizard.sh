@@ -516,9 +516,11 @@ token_page() {
 gh_token_stage() {
   if (( DONE )) && filled GH_TOKEN; then skip; return 0; fi
   stage "GitHub token"
-  say "One classic token for every repo of the Workspace and the Kanban."
-  token_page GH_TOKEN "https://github.com/settings/tokens/new"
-  step "Scopes: the ones README.md names under Requirements."
+  say "One token for every repo of the Workspace and the Kanban. Its kind follows the Kanban's owner:"
+  step "personal account: classic token (fine-grained ones cannot reach a user-owned Project): https://github.com/settings/tokens/new"
+  step "organisation: a fine-grained token for it is enough: https://github.com/settings/personal-access-tokens/new"
+  step "Scopes or permissions: the ones README.md names under Requirements."
+  note "Agents get this token with all its rights: make it the smallest that works."
   step "Generate token, copy it."
   ask_token GH_TOKEN "Paste the token:"
 }
@@ -577,7 +579,7 @@ copilot_stage() {
   if ! uses_provider copilot; then skip; return 0; fi
   if (( DONE )) && filled COPILOT_GITHUB_TOKEN; then skip; return 0; fi
   stage "Copilot token"
-  say "copilot phases log in with a fine-grained token; classic tokens (ghp_) do not work."
+  say "copilot phases log in with a second, fine-grained token; classic tokens (ghp_) do not work."
   token_page COPILOT_GITHUB_TOKEN "https://github.com/settings/personal-access-tokens/new"
   step "Resource owner: your account, the one with Copilot."
   step "Permissions: Copilot Requests."
