@@ -9,7 +9,7 @@ Rules for agents and humans: [AGENTS.md](AGENTS.md). Standards: [CODING_STANDARD
 
 ## Release
 
-Every PR raises `version` in `package.json`. While on `0.x`, a breaking change bumps the minor. CI ([release.yml](.github/workflows/release.yml)) does the rest:
+Every PR raises `version` in `package.json`. A release that changes the architecture adds its SAD snapshot, `docs/releases/v<version>/sad.md`; snapshots are never edited after merge. While on `0.x`, a breaking change bumps the minor. CI ([release.yml](.github/workflows/release.yml)) does the rest:
 
 - PR push: verify, then prerelease `v<version>-pr.<PR>.<n>`; the install command is commented on the PR.
 - PR closed: its prereleases and their tags are deleted.

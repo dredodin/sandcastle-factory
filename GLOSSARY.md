@@ -77,7 +77,7 @@ _Avoid_: feature branch, run branch
 The short-lived branch one item is implemented on before it is merged into its integration branch.
 
 **Own reply**:
-A comment the factory's agents post under the maintainer's account, marked as such. Never read as a request.
+A comment the factory's agents post under the account of the engineer who started the run, marked as such. Never read as a request.
 _Avoid_: bot comment
 
 ## Sandboxes
