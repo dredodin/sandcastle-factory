@@ -64,7 +64,7 @@ One step in a run: plan, implement, merge, review or PR. Each is an agent's, exc
 _Avoid_: stage, step
 
 **Item**:
-One unit of work a plan hands to one implement agent: an unblocked sub-issue in Ready for agent, or the root issue when it has none. Always in exactly one repo.
+One unit of work a plan hands to one implement agent: an unblocked sub-issue in Ready for agent, the root issue when it has none, or work the plan wrote as text from plan check output (no issue, no Kanban card). Always in exactly one repo.
 _Avoid_: task, job, work unit, ticket (when you mean any sub-issue)
 
 ## Branches and delivery
@@ -99,7 +99,7 @@ The repo's own slow check, optional, run once over a whole branch at each review
 _Avoid_: slow verify, nightly check
 
 **Plan check script**:
-The home repo's own check of what work is due, optional, run by the plan agent every cycle. Passing means no work; what a failing one prints becomes a sub-issue of the root.
+The home repo's own check of what work is due, optional, run by the plan agent every cycle. Passing means no work; what a failing one prints becomes a work item, every cycle until it passes.
 _Avoid_: pre-plan hook
 
 ## Kanban
