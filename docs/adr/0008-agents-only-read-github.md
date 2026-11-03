@@ -14,13 +14,15 @@ The review agent created an issue, linked it to the root and labelled it; the ha
 
 **Branch review prints a Review report; the plan turns it into work that exists only inside the run.**
 
+- Agents write nothing to GitHub. The PR phase's push and PR are the only agent writes; every other write (replies, resolves, Kanban, issues) is the harness's.
 - Review prints `<review>…</review>` per repo, empty when nothing is found. A missing or unreadable tag is a warning, treated as nothing found.
 - The harness hands the last pass's reports to the next cycle's plan agent. The plan groups findings into `work` items and lists the findings it rejects, each with a reason. Only the plan rejects.
 - The harness keeps an in-memory record of the run: rejected findings, handled comments and merged items. Nothing is persisted; a resume starts empty and re-reviews.
-- PR comments are handled the same way: the plan turns them into `work` items and lists each handled comment with its decision (planned, won't do, needs info). Comments stay open until the PR phase pushes; then the harness replies under each ("fixed in <commit>", the reason, or the question) and resolves it, needs info excepted. A retake ignores the old take's comments; a resume re-triages the open ones.
+- PR comments are handled the same way: the plan turns them into `work` items and lists each handled comment with its decision (planned, won't do, needs info). Comments stay open until the PR phase pushes; then the harness replies under each ("fixed in <merge commit>", the reason, or the question) and resolves it, needs info excepted. A top-level comment or review body gets a new PR comment that links it; a review body cannot be resolved, so that link marks it done. A retake ignores the old take's comments; a resume re-triages the open ones.
 - Caps stay: 10 cycles, 2 review passes.
 
 ## Consequences
 
 - A review cannot lose or misroute findings, and nothing from it outlives the run.
 - The review and plan exceptions in ADR-0004 are gone: the plan agent writes nothing to GitHub.
+- The factory adds no issue to the Kanban, so the built-in workflow Item added → Backlog is no longer needed.

@@ -14,7 +14,7 @@ An AFK run must show its progress, survive a crash and refuse to start twice on 
 
 - Only the harness moves cards ([ADR-0004](0004-who-writes-what.md)).
 - The factory refuses to start unless the Status options are exactly Backlog, Ready for agent, Agent working, In review, Done.
-- Built-in workflows on: Item added → Backlog, Item closed → Done, Item reopened → Ready for agent.
+- Built-in workflows on: Item closed → Done, Item reopened → Ready for agent.
 - Crash: sub-issues in Agent working go back to Ready for agent; the root issue stays in Agent working.
 
 ## Considered and rejected

@@ -2,6 +2,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { replyOf, type Reply } from "../../shared/comments.mjs";
+import { message } from "../../shared/cli.mjs";
 import { log } from "../../shared/logger.mjs";
 import type { Run } from "../../shared/run.mjs";
 import { sh } from "../../shared/shell.mjs";
@@ -23,18 +24,18 @@ const post = (cwd: string, { comment, body, resolve }: Reply, file: string): voi
 };
 
 // After the push: a reply under each handled comment, and the comment closed unless it needs info.
-// A comment whose item is not merged gets nothing and stays open. A failed post is logged, never stops the run.
+// A comment whose item has no merge commit gets nothing and stays open. A failed post is logged, never stops the run.
 export const postReplies = (run: Run): void => {
-  const commits = new Map(run.record.mergedItems().map(({ item, commit }) => [item.branch, commit]));
+  const commits = new Map(run.record.merged().flatMap(({ item, commit }) => (commit === "" ? [] : [[item.branch, commit] as const])));
   const dir = mkdtempSync(join(tmpdir(), "sandcastle-reply-"));
   const cwd = run.workspace.home.path;
   run.record.handled().forEach((comment, index) => {
     const reply = replyOf(comment, commits);
-    if (reply === null) return log.warn(`  Comment ${comment.id}: its item is not merged; left open.`);
+    if (reply === null) return log.warn(`  Comment ${comment.id}: its item has no merge commit; left open.`);
     try {
       post(cwd, reply, join(dir, `${index}.md`));
     } catch (error) {
-      log.warn(`  Comment ${comment.id}: reply failed: ${error instanceof Error ? error.message : String(error)}`);
+      log.warn(`  Comment ${comment.id}: reply failed: ${message(error)}`);
     }
   });
 };

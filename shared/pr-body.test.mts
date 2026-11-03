@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import type { Item } from "./item.mjs";
 import { blockersFromJson, mergeOrder, modelsLine, prRef, reposWithoutPr, reviewSection, runBlock, withRunBlock, type Pr } from "./pr-body.mjs";
 
 const hub: Pr = { repo: "hub", url: "https://github.com/acme/hub/pull/9", issues: [3] };
@@ -43,11 +44,11 @@ test("modelsLine: every phase's model, provider and effort, in phase order", () 
 });
 
 test("runBlock: only the models line for a single PR with nothing left out", () => {
-  assert.equal(runBlock("Models: m.", "acme/hub", 7, [hub], [], {}, []), "<!-- sandcastle-run -->\nModels: m.\n<!-- /sandcastle-run -->");
+  assert.equal(runBlock("Models: m.", "acme/hub", 7, [hub], [], {}, [], ""), "<!-- sandcastle-run -->\nModels: m.\n<!-- /sandcastle-run -->");
 });
 
 test("runBlock: PR list in merge order, and the repo without a PR with its open issues", () => {
-  const block = runBlock("Models: m.", "acme/hub", 7, [hub, app], [{ repo: "lib", open: [6, 8] }], { 3: [5] }, []);
+  const block = runBlock("Models: m.", "acme/hub", 7, [hub, app], [{ repo: "lib", open: [6, 8] }], { 3: [5] }, [], "");
   assert.equal(
     block,
     [
@@ -68,19 +69,19 @@ test("runBlock: PR list in merge order, and the repo without a PR with its open 
 });
 
 test("runBlock: one PR and a repo left without one still list the PR", () => {
-  assert.match(runBlock("Models: m.", "acme/hub", 7, [hub], [{ repo: "lib", open: [6] }], {}, []), /1\. acme\/hub#9 \(hub\)\n\nNo PR in `lib`/);
+  assert.match(runBlock("Models: m.", "acme/hub", 7, [hub], [{ repo: "lib", open: [6] }], {}, [], ""), /1\. acme\/hub#9 \(hub\)\n\nNo PR in `lib`/);
 });
 
 test("runBlock: several PRs with nothing left out still list the merge order", () => {
-  assert.match(runBlock("Models: m.", "acme/hub", 7, [hub, app], [], {}, []), /1\. acme\/hub#9 \(hub\)\n2\. acme\/app#12 \(app\)/);
+  assert.match(runBlock("Models: m.", "acme/hub", 7, [hub, app], [], {}, [], ""), /1\. acme\/hub#9 \(hub\)\n2\. acme\/app#12 \(app\)/);
 });
 
 test("runBlock: sub-issues left in Backlog are listed, even for a single PR", () => {
   assert.equal(
-    runBlock("Models: m.", "acme/hub", 7, [hub], [], {}, [4, 9]),
+    runBlock("Models: m.", "acme/hub", 7, [hub], [], {}, [4, 9], ""),
     "<!-- sandcastle-run -->\nModels: m.\n\n## Run\n\nLeft in Backlog, not delivered: #4, #9.\n<!-- /sandcastle-run -->",
   );
-  assert.match(runBlock("Models: m.", "acme/hub", 7, [hub, app], [], {}, [4]), /2\. acme\/app#12 \(app\)\n\nLeft in Backlog, not delivered: #4\.\n</);
+  assert.match(runBlock("Models: m.", "acme/hub", 7, [hub, app], [], {}, [4], ""), /2\. acme\/app#12 \(app\)\n\nLeft in Backlog, not delivered: #4\.\n</);
 });
 
 test("reposWithoutPr: repos with planned work and no PR, with their issues once each", () => {
@@ -109,20 +110,32 @@ test("withRunBlock: an old block amid the body is cut out, the new one goes last
   assert.equal(withRunBlock("Body\n\n<!-- sandcastle-run -->\nA\n<!-- /sandcastle-run -->\n\nTail", "B"), "Body\nTail\n\nB\n");
 });
 
-const work = (repo: string, title: string, branch: string) => ({ issue: "", work: "w", repo, title, branch });
+const work = (repo: string, title: string, branch: string): Item => ({ issue: "", work: "w", source: "review", repo, title, branch });
 
 test("reviewSection: fixed, rejected with reason, left over", () => {
   const fixed = work("app", "Guard nulls", "b-work-1");
   const left = work("app", "Rename x", "b-work-2");
   assert.equal(
-    reviewSection(true, "app", [fixed, work("lib", "Other repo", "b-work-3")], [{ finding: "Use any", reason: "ADR-0001" }], [fixed, left]),
+    reviewSection(true, "app", [fixed, work("lib", "Other repo", "b-work-3")], [{ repo: "app", finding: "Use any", reason: "ADR-0001" }, { repo: "lib", finding: "Other", reason: "r" }], [fixed, left]),
     "## Review\n\nFixed:\n- Guard nulls\n\nRejected:\n- Use any — ADR-0001\n\nLeft over:\n- Rename x",
   );
 });
 
-test("reviewSection: nothing found shows none; issue items are not review work", () => {
+test("reviewSection: an item left out is left over unless some fixed item has its branch", () => {
+  const one = work("app", "One", "b-work-1");
+  const two = work("app", "Two", "b-work-2");
+  const three = work("app", "Three", "b-work-3");
+  assert.equal(reviewSection(true, "app", [one, two], [], [one, three]), "## Review\n\nFixed:\n- One\n- Two\n\nLeft over:\n- Three");
+});
+
+test("reviewSection: nothing found shows none; issue, comment and plan check items are not review work", () => {
   assert.equal(reviewSection(false, "app", [work("app", "t", "b")], [], []), "");
-  assert.equal(reviewSection(true, "app", [{ ...work("app", "t", "b"), issue: "5", work: "" }], [], []), "## Review");
+  const others: readonly Item[] = [
+    { ...work("app", "t", "b"), issue: "5", work: "", source: "issue" },
+    { ...work("app", "c", "b2"), source: "comment" },
+    { ...work("app", "p", "b3"), source: "plan check" },
+  ];
+  assert.equal(reviewSection(true, "app", others, [], others), "## Review");
 });
 
 test("runBlock: the review section ends the block", () => {

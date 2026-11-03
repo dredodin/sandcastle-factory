@@ -1,10 +1,11 @@
-// The run's in-memory record: review reports, findings the plan rejected, PR comments it handled, items merged or left out, repos reviewed. Nothing is persisted; a resume starts empty.
+// The run's in-memory record: review reports, findings the plan rejected, PR comments it handled, items merged or left out, repos whose reviews found something. Nothing is persisted; a resume starts empty.
 import type { Handled } from "./comments.mjs";
 import type { Item } from "./item.mjs";
 
-export type Rejection = { readonly finding: string; readonly reason: string };
+// A review finding the plan rejected, with the repo whose report it came from.
+export type Rejection = { readonly repo: string; readonly finding: string; readonly reason: string };
 
-// An item merged into the integration branch, with the commit that carries it.
+// An item merged into the integration branch, with its merge commit ("" when git did not show one).
 export type Merged = { readonly item: Item; readonly commit: string };
 
 export type RunRecord = {
@@ -14,22 +15,22 @@ export type RunRecord = {
   readonly reject: (rejections: readonly Rejection[]) => void;
   // Every finding rejected so far in the run.
   readonly rejected: () => readonly Rejection[];
+  readonly addMerged: (items: readonly Merged[]) => void;
   // Items merged into the integration branch.
-  readonly merged: (items: readonly Merged[]) => void;
-  readonly mergedItems: () => readonly Merged[];
+  readonly merged: () => readonly Merged[];
+  readonly addLeftOut: (items: readonly Item[]) => void;
   // Items planned and not merged (conflict, ended without code).
-  readonly leftOut: (items: readonly Item[]) => void;
-  readonly leftOutItems: () => readonly Item[];
-  // Every pass's report, kept for the PR description.
-  readonly reviewed: (reports: ReadonlyMap<string, string>) => void;
-  readonly reviewedRepos: () => ReadonlySet<string>;
+  readonly leftOut: () => readonly Item[];
+  readonly noteFindings: (reports: ReadonlyMap<string, string>) => void;
+  // Repos whose report had findings in any pass, for the PR description.
+  readonly reposWithFindings: () => ReadonlySet<string>;
   // PR comments the plan handled, for the rest of the run.
   readonly handle: (comments: readonly Handled[]) => void;
   readonly handled: () => readonly Handled[];
 };
 
 export const openRecord = (): RunRecord => {
-  const state = { reports: new Map<string, string>() as ReadonlyMap<string, string>, rejected: [] as readonly Rejection[], merged: [] as readonly Merged[], left: [] as readonly Item[], reviewed: new Set<string>(), handled: [] as readonly Handled[] };
+  const state = { reports: new Map<string, string>() as ReadonlyMap<string, string>, rejected: [] as readonly Rejection[], merged: [] as readonly Merged[], left: [] as readonly Item[], withFindings: new Set<string>(), handled: [] as readonly Handled[] };
   return {
     setReports: (reports) => {
       state.reports = reports;
@@ -39,18 +40,18 @@ export const openRecord = (): RunRecord => {
       state.rejected = [...state.rejected, ...more];
     },
     rejected: () => state.rejected,
-    merged: (items) => {
+    addMerged: (items) => {
       state.merged = [...state.merged, ...items];
     },
-    mergedItems: () => state.merged,
-    leftOut: (items) => {
+    merged: () => state.merged,
+    addLeftOut: (items) => {
       state.left = [...state.left, ...items];
     },
-    leftOutItems: () => state.left,
-    reviewed: (reports) => {
-      for (const [repo, report] of reports) if (report !== "") state.reviewed.add(repo);
+    leftOut: () => state.left,
+    noteFindings: (reports) => {
+      for (const [repo, report] of reports) if (report !== "") state.withFindings.add(repo);
     },
-    reviewedRepos: () => state.reviewed,
+    reposWithFindings: () => state.withFindings,
     handle: (more) => {
       state.handled = [...state.handled, ...more];
     },
@@ -66,4 +67,4 @@ export const reportsText = (reports: ReadonlyMap<string, string>): string => {
 
 // Prompt text for rejected findings.
 export const rejectedText = (rejected: readonly Rejection[]): string =>
-  rejected.length === 0 ? "(none)" : rejected.map(({ finding, reason }) => `- ${finding} — rejected: ${reason}`).join("\n");
+  rejected.length === 0 ? "(none)" : rejected.map(({ repo, finding, reason }) => `- ${repo}: ${finding} — rejected: ${reason}`).join("\n");

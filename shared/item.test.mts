@@ -1,28 +1,38 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { hasIssue, implementRunOf, itemFits, itemId, planItemSchema, type Item } from "./item.mjs";
+import { hasIssue, implementRunOf, ITEM_SHAPE, itemFits, itemId, planItemSchema, WORK_SOURCE, type Item } from "./item.mjs";
 
 const home = { name: "hub", slug: "acme/hub" };
 const context = { home, otherBranches: "- app: sandcastle/hub/issue-7-take-1" };
-const full = (issue: string, repo = "hub"): Item => ({ issue, work: "", repo, title: "t", branch: "b" });
+const full = (issue: string, repo = "hub"): Item => ({ issue, work: "", source: "issue", repo, title: "t", branch: "b" });
 
 const planned = { repo: "app", title: "t" };
 
 test("planItemSchema: an issue item", () => {
-  assert.deepEqual(planItemSchema.parse({ ...planned, issue: "42" }), { ...planned, issue: "42", work: "" });
+  assert.deepEqual(planItemSchema.parse({ ...planned, issue: "42" }), { ...planned, issue: "42", work: "", source: "issue" });
 });
 
-test("planItemSchema: a work item", () => {
-  assert.deepEqual(planItemSchema.parse({ ...planned, work: "fix a.ts" }), { ...planned, issue: "", work: "fix a.ts" });
+test("planItemSchema: a work item with its source", () => {
+  assert.deepEqual(planItemSchema.parse({ ...planned, work: "fix a.ts", source: "review" }), { ...planned, issue: "", work: "fix a.ts", source: "review" });
 });
+
+const refusal = (input: object): string => {
+  const result = planItemSchema.safeParse(input);
+  return result.success ? "" : result.error.issues.map((issue) => issue.message).join("; ");
+};
 
 test("planItemSchema: both issue and work are rejected", () => {
-  assert.throws(() => planItemSchema.parse({ ...planned, issue: "42", work: "fix a.ts" }));
+  assert.match(refusal({ ...planned, issue: "42", work: "fix a.ts", source: "review" }), new RegExp(ITEM_SHAPE));
 });
 
 test("planItemSchema: neither issue nor work is rejected", () => {
-  assert.throws(() => planItemSchema.parse(planned));
-  assert.throws(() => planItemSchema.parse({ ...planned, issue: "", work: "" }));
+  assert.match(refusal(planned), new RegExp(ITEM_SHAPE));
+  assert.match(refusal({ ...planned, issue: "", work: "" }), new RegExp(ITEM_SHAPE));
+});
+
+test("planItemSchema: a work item names its source, an issue item none", () => {
+  assert.match(refusal({ ...planned, work: "fix a.ts" }), new RegExp(WORK_SOURCE));
+  assert.match(refusal({ ...planned, issue: "42", source: "review" }), new RegExp(WORK_SOURCE));
 });
 
 test("planItemSchema: a malformed issue number is rejected", () => {
@@ -57,15 +67,27 @@ test("implementRunOf: an app repo's issue is read from the home repo and its log
   assert.equal(inputs.logName, "1-42-implement-app");
 });
 
-const work: Item = { issue: "", work: "Fix a.ts:3", repo: "app", title: "Fix check", branch: "int-work-2-3" };
+const work: Item = { issue: "", work: "Fix a.ts:3", source: "plan check", repo: "app", title: "Fix check", branch: "int-work-2-3" };
 
 test("implementRunOf: a work item gets its text, the root as issue, and names from its branch", () => {
-  const inputs = implementRunOf(work, { number: 4, root: 7 }, context);
-  assert.equal(inputs.promptArgs["WORK"], "Fix a.ts:3");
-  assert.equal(inputs.promptArgs["ISSUE"], "7");
-  assert.equal(inputs.promptArgs["VERIFY"], "bash .sandcastle/repos/app/verify.sh");
-  assert.equal(inputs.name, "implement work-2-3");
-  assert.equal(inputs.logName, "4-work-2-3-implement-app");
+  assert.deepEqual(implementRunOf(work, { number: 4, root: 7 }, context), {
+    promptArgs: {
+      WORK: "Fix a.ts:3",
+      READ: "This task has no issue: the text above is the whole task. You work in the repo `app`, the one checked out here. Commits reference the root and say what they fix.",
+      ISSUE: "7",
+      REPORT: "logs the note",
+      TITLE: "Fix check",
+      ROOT: "7",
+      BRANCH: "int-work-2-3",
+      DISCLAIMER: "> *Sandcastle agent reply — not a request.*",
+      HOME_SLUG: "acme/hub",
+      REPO_NAME: "app",
+      VERIFY: "bash .sandcastle/repos/app/verify.sh",
+      OTHER_BRANCHES: "- app: sandcastle/hub/issue-7-take-1",
+    },
+    name: "implement work-2-3",
+    logName: "4-work-2-3-implement-app",
+  });
 });
 
 test("itemId: the issue number, else the work suffix of the branch", () => {

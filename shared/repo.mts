@@ -79,6 +79,10 @@ export const hasFileDiff = (repo: Repo, branch: string, into: string): boolean =
 export const mergeMessages = (repo: Repo, branch: string): readonly string[] =>
   sh(repo.path, "git", "log", "--merges", "--reverse", "--format=%B%x00", `${repo.base}..${branch}`).split("\0");
 
+// `<short hash> <subject>` of each merge commit the branch carries past the default branch.
+export const mergeSubjects = (repo: Repo, branch: string): readonly string[] =>
+  sh(repo.path, "git", "log", "--merges", "--format=%h %s", `${repo.base}..${branch}`).split("\n");
+
 export const branchExists = (repo: Repo, branch: string): boolean =>
   succeeds(repo.path, "git", "rev-parse", "--verify", "--quiet", `refs/heads/${branch}`);
 

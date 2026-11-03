@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import type { ResumeSandboxRunResultOptions, SandboxRunResult } from "@ai-hero/sandcastle";
-import { handledText } from "../../shared/comments.mjs";
+import { handledOf, handledText } from "../../shared/comments.mjs";
 import { extract } from "../../shared/extract.mjs";
 import { hasIssue, itemId } from "../../shared/item.mjs";
 import { log, timed } from "../../shared/logger.mjs";
@@ -55,13 +55,12 @@ export const plan = async (cycle: Cycle, openPrsText: string, session: PlanSessi
   // An item without an issue has no card to move.
   const started = await Promise.all(planned.items.map(async (item) => ({ item, taken: !hasIssue(item) || (await cycle.kanban.move(Number(item.issue), "planned", "")) })));
   const taken = started.flatMap(({ item, taken }, position) => (taken ? [{ item, position: position + 1 }] : []));
-  const items = taken.map(({ item }, index) => ({ ...item, branch: itemBranch(repoNamed(workspace, item.repo), branch, hasIssue(item) ? item.issue : `work-${index + 1}`) }));
-  // A comment is remembered with the branch of the item it went into; one whose item was not taken stays unhandled.
-  cycle.record.handle(planned.comments.flatMap(({ item: position, ...comment }) => {
-    if (position === undefined) return [{ ...comment, branch: "" }];
-    const index = taken.findIndex((entry) => entry.position === position);
-    return index < 0 ? [] : [{ ...comment, branch: items[index]!.branch }];
+  const branched = taken.map(({ item, position }, index) => ({
+    position,
+    item: { ...item, branch: itemBranch(repoNamed(workspace, item.repo), branch, hasIssue(item) ? item.issue : `work-${index + 1}`) },
   }));
+  const items = branched.map(({ item }) => item);
+  cycle.record.handle(handledOf(planned.comments, branched.map(({ position, item }) => ({ position, branch: item.branch }))));
   items.forEach((item) => log.info(`  ${itemId(item)}: ${item.title} → ${item.repo}: ${item.branch}`));
   return { items, next: result.resume ?? freshPlan(cycle) };
 };
