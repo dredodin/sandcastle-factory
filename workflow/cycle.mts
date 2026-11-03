@@ -83,7 +83,9 @@ const cycle = async (
   const done = items.filter((_, index) => outcomes[index]!.outcome === "committed");
   const leftOut = done.length === 0 ? [] : await merge(current, done);
   if (done.length === 0) log.info("No item committed. Nothing to merge.");
-  run.record.merged(done.filter((item) => !leftOut.includes(item)).map((item) => ({ item, commit: tipOf(repoNamed(run.workspace, item.repo), item.branch) })));
+  const merged = done.filter((item) => !leftOut.includes(item));
+  run.record.merged(merged.map((item) => ({ item, commit: tipOf(repoNamed(run.workspace, item.repo), item.branch) })));
+  run.record.leftOut(items.filter((item) => !merged.includes(item)));
   for (const item of done) {
     if (!hasIssue(item)) {
       if (leftOut.includes(item)) log.warn(`  ${itemId(item)}: the merge of \`${item.branch}\` left it out.`);
@@ -123,6 +125,7 @@ export const finish = async (run: Run, openPrsText: string, touched: () => reado
     const repos = touched();
     const passed = await inParallel(repos, (repo) => repo.name, async (repo) => [repo.name, await review(run, repo, pass)] as const);
     run.record.setReports(new Map(passed));
+    run.record.reviewed(new Map(passed));
     const found = await cycles(run, openPrsText);
     items = [...items, ...found];
     // Nothing planned ends the reviews unless a report had findings the plan rejected: pass 2 checks the rest.

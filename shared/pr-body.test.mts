@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { blockersFromJson, mergeOrder, modelsLine, prRef, reposWithoutPr, runBlock, withRunBlock, type Pr } from "./pr-body.mjs";
+import { blockersFromJson, mergeOrder, modelsLine, prRef, reposWithoutPr, reviewSection, runBlock, withRunBlock, type Pr } from "./pr-body.mjs";
 
 const hub: Pr = { repo: "hub", url: "https://github.com/acme/hub/pull/9", issues: [3] };
 const app: Pr = { repo: "app", url: "https://github.com/acme/app/pull/12", issues: [4, 5] };
@@ -107,4 +107,24 @@ test("withRunBlock: appends once, then replaces its own earlier block", () => {
 
 test("withRunBlock: an old block amid the body is cut out, the new one goes last", () => {
   assert.equal(withRunBlock("Body\n\n<!-- sandcastle-run -->\nA\n<!-- /sandcastle-run -->\n\nTail", "B"), "Body\nTail\n\nB\n");
+});
+
+const work = (repo: string, title: string, branch: string) => ({ issue: "", work: "w", repo, title, branch });
+
+test("reviewSection: fixed, rejected with reason, left over", () => {
+  const fixed = work("app", "Guard nulls", "b-work-1");
+  const left = work("app", "Rename x", "b-work-2");
+  assert.equal(
+    reviewSection(true, "app", [fixed, work("lib", "Other repo", "b-work-3")], [{ finding: "Use any", reason: "ADR-0001" }], [fixed, left]),
+    "## Review\n\nFixed:\n- Guard nulls\n\nRejected:\n- Use any — ADR-0001\n\nLeft over:\n- Rename x",
+  );
+});
+
+test("reviewSection: nothing found shows none; issue items are not review work", () => {
+  assert.equal(reviewSection(false, "app", [work("app", "t", "b")], [], []), "");
+  assert.equal(reviewSection(true, "app", [{ ...work("app", "t", "b"), issue: "5", work: "" }], [], []), "## Review");
+});
+
+test("runBlock: the review section ends the block", () => {
+  assert.equal(runBlock("Models: m.", "acme/hub", 7, [hub], [], {}, [], "## Review"), "<!-- sandcastle-run -->\nModels: m.\n\n## Review\n<!-- /sandcastle-run -->");
 });

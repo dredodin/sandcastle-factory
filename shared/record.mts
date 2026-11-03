@@ -1,4 +1,4 @@
-// The run's in-memory record: review reports, findings the plan rejected, PR comments it handled, items that were merged. Nothing is persisted; a resume starts empty.
+// The run's in-memory record: review reports, findings the plan rejected, PR comments it handled, items merged or left out, repos reviewed. Nothing is persisted; a resume starts empty.
 import type { Handled } from "./comments.mjs";
 import type { Item } from "./item.mjs";
 
@@ -17,13 +17,19 @@ export type RunRecord = {
   // Items merged into the integration branch.
   readonly merged: (items: readonly Merged[]) => void;
   readonly mergedItems: () => readonly Merged[];
+  // Items planned and not merged (conflict, ended without code).
+  readonly leftOut: (items: readonly Item[]) => void;
+  readonly leftOutItems: () => readonly Item[];
+  // Every pass's report, kept for the PR description.
+  readonly reviewed: (reports: ReadonlyMap<string, string>) => void;
+  readonly reviewedRepos: () => ReadonlySet<string>;
   // PR comments the plan handled, for the rest of the run.
   readonly handle: (comments: readonly Handled[]) => void;
   readonly handled: () => readonly Handled[];
 };
 
 export const openRecord = (): RunRecord => {
-  const state = { reports: new Map<string, string>() as ReadonlyMap<string, string>, rejected: [] as readonly Rejection[], merged: [] as readonly Merged[], handled: [] as readonly Handled[] };
+  const state = { reports: new Map<string, string>() as ReadonlyMap<string, string>, rejected: [] as readonly Rejection[], merged: [] as readonly Merged[], left: [] as readonly Item[], reviewed: new Set<string>(), handled: [] as readonly Handled[] };
   return {
     setReports: (reports) => {
       state.reports = reports;
@@ -37,6 +43,14 @@ export const openRecord = (): RunRecord => {
       state.merged = [...state.merged, ...items];
     },
     mergedItems: () => state.merged,
+    leftOut: (items) => {
+      state.left = [...state.left, ...items];
+    },
+    leftOutItems: () => state.left,
+    reviewed: (reports) => {
+      for (const [repo, report] of reports) if (report !== "") state.reviewed.add(repo);
+    },
+    reviewedRepos: () => state.reviewed,
     handle: (more) => {
       state.handled = [...state.handled, ...more];
     },

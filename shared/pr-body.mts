@@ -1,6 +1,7 @@
 // Pure assembly of what the run adds to every PR body: the models and the run's PR list.
 import { z } from "zod";
-import type { Item } from "./item.mjs";
+import { hasIssue, type Item } from "./item.mjs";
+import type { Rejection } from "./record.mjs";
 import { PHASES, type Phase, type PhaseSetting } from "./env.mjs";
 
 export type Pr = {
@@ -54,13 +55,35 @@ export const reposWithoutPr = (planned: readonly Pick<Item, "repo" | "issue">[],
 
 const issueList = (issues: readonly number[]): string => issues.map((id) => `#${id}`).join(", ");
 
+// The review outcome of one repo: work the plan made from findings and merged (fixed), findings it rejected, work left out.
+// "" when the repo's reviews found nothing. Rejections carry no repo: every reviewed repo lists them all.
+export const reviewSection = (
+  reviewed: boolean,
+  repo: string,
+  merged: readonly Item[],
+  rejected: readonly Rejection[],
+  leftOut: readonly Item[],
+): string => {
+  if (!reviewed) return "";
+  const own = (items: readonly Item[]) => items.filter((item) => item.repo === repo && !hasIssue(item));
+  const fixed = own(merged);
+  const left = own(leftOut).filter((item) => !fixed.some((done) => done.branch === item.branch));
+  const part = (title: string, lines: readonly string[]) => (lines.length === 0 ? [] : ["", `${title}:`, ...lines.map((line) => `- ${line}`)]);
+  return [
+    "## Review",
+    ...part("Fixed", fixed.map((item) => item.title)),
+    ...part("Rejected", rejected.map(({ finding, reason }) => `${finding} — ${reason}`)),
+    ...part("Left over", left.map((item) => item.title)),
+  ].join("\n");
+};
+
 // One line naming the model each phase ran with.
 export const modelsLine = (phases: Readonly<Record<Phase, PhaseSetting>>): string =>
   `Models: ${PHASES.map((phase) => `${phase} \`${phases[phase].model}\` (${phases[phase].provider}, ${phases[phase].effort})`).join(", ")}.`;
 
 // The block every PR of the run ends with: the models line, then the run's PR list when it has several PRs or a repo left out,
 // and the sub-issues left in Backlog, which this run did not deliver.
-export const runBlock = (models: string, homeSlug: string, root: number, prs: readonly Pr[], noPr: readonly NoPr[], blockedBy: BlockedBy, backlog: readonly number[]): string => {
+export const runBlock = (models: string, homeSlug: string, root: number, prs: readonly Pr[], noPr: readonly NoPr[], blockedBy: BlockedBy, backlog: readonly number[], review = ""): string => {
   const several = prs.length > 1 || noPr.length > 0;
   const run =
     !several && backlog.length === 0
@@ -79,7 +102,7 @@ export const runBlock = (models: string, homeSlug: string, root: number, prs: re
             : []),
           ...(backlog.length > 0 ? [`\nLeft in Backlog, not delivered: ${issueList(backlog)}.`] : []),
         ];
-  return [START, models, ...run, END].join("\n");
+  return [START, models, ...run, ...(review === "" ? [] : ["", review]), END].join("\n");
 };
 
 // The body with the run block replaced, or appended on a first pass.
