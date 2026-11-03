@@ -33,7 +33,7 @@ A GitHub issue in the home repo: the base unit of work. Every issue of a run liv
 An issue `/to-spec` writes. Usually the root issue of a run.
 
 **Ticket**:
-An issue `/to-tickets` writes. Usually a sub-issue of a spec. Issues made from PR comments are issues, not tickets.
+An issue `/to-tickets` writes. Usually a sub-issue of a spec.
 
 ## Runs
 
@@ -49,7 +49,7 @@ A run that starts fresh integration branches for a root issue. Takes of one root
 _Avoid_: attempt, try
 
 **Resume**:
-A run that continues the latest take of a root issue, found by its branch, from whatever state it stopped in: syncs its branches with GitHub, turns PR comments into issues, then reviews and opens or updates the PR of every repo ahead of its default branch.
+A run that continues the latest take of a root issue, found by its branch, from whatever state it stopped in: syncs its branches with GitHub, turns open PR comments into work, then reviews and opens or updates the PR of every repo ahead of its default branch.
 _Avoid_: retry, rerun
 
 **Open take**:

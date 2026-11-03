@@ -7,15 +7,26 @@ import { implement } from "../phases/implement/implement.mjs";
 import { merge, mergeDefaults } from "../phases/merge/merge.mjs";
 import { freshPlan, plan, type PlanSession } from "../phases/plan/plan.mjs";
 import { pr } from "../phases/pr/pr.mjs";
+import { postReplies } from "../phases/pr/replies.mjs";
 import { hasIssue, itemId, type Item } from "../shared/item.mjs";
 import { log, openRunLog } from "../shared/logger.mjs";
 import { inParallel } from "../shared/parallel.mjs";
 import { conflictsWithBase } from "../shared/repo.mjs";
 import type { Run } from "../shared/run.mjs";
 import { withSandbox } from "../shared/sandbox.mjs";
+import { sh } from "../shared/shell.mjs";
 import { repoNamed, type Repo, type Workspace } from "../shared/workspace.mjs";
 
 const MAX_CYCLES = 10;
+
+// The short commit an item branch ends at; the branch name when git cannot say.
+const tipOf = (repo: Repo, branch: string): string => {
+  try {
+    return sh(repo.path, "git", "rev-parse", "--short", branch);
+  } catch {
+    return branch;
+  }
+};
 
 // Opens the run's log folder and logs what the run is; returns the folder.
 export const startRun = (
@@ -72,7 +83,7 @@ const cycle = async (
   const done = items.filter((_, index) => outcomes[index]!.outcome === "committed");
   const leftOut = done.length === 0 ? [] : await merge(current, done);
   if (done.length === 0) log.info("No item committed. Nothing to merge.");
-  run.record.merged(done.filter((item) => !leftOut.includes(item)));
+  run.record.merged(done.filter((item) => !leftOut.includes(item)).map((item) => ({ item, commit: tipOf(repoNamed(run.workspace, item.repo), item.branch) })));
   for (const item of done) {
     if (!hasIssue(item)) {
       if (leftOut.includes(item)) log.warn(`  ${itemId(item)}: the merge of \`${item.branch}\` left it out.`);
@@ -117,5 +128,7 @@ export const finish = async (run: Run, openPrsText: string, touched: () => reado
     // Nothing planned ends the reviews unless a report had findings the plan rejected: pass 2 checks the rest.
     if (found.length === 0 && passed.map(([, report]) => report).every((report) => report === "")) break;
   }
-  return `PR:\n${await pr(run, touched(), items)}`;
+  const text = await pr(run, touched(), items);
+  postReplies(run);
+  return `PR:\n${text}`;
 };
