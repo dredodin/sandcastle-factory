@@ -1,7 +1,11 @@
-// The run's in-memory record: review reports, findings the plan rejected, items that were merged. Nothing is persisted; a resume starts empty.
+// The run's in-memory record: review reports, findings the plan rejected, PR comments it handled, items that were merged. Nothing is persisted; a resume starts empty.
+import type { Handled } from "./comments.mjs";
 import type { Item } from "./item.mjs";
 
 export type Rejection = { readonly finding: string; readonly reason: string };
+
+// An item merged into the integration branch, with the commit that carries it.
+export type Merged = { readonly item: Item; readonly commit: string };
 
 export type RunRecord = {
   // The reports of the last review pass: repo name → report ("" when it found nothing).
@@ -11,12 +15,15 @@ export type RunRecord = {
   // Every finding rejected so far in the run.
   readonly rejected: () => readonly Rejection[];
   // Items merged into the integration branch.
-  readonly merged: (items: readonly Item[]) => void;
-  readonly mergedItems: () => readonly Item[];
+  readonly merged: (items: readonly Merged[]) => void;
+  readonly mergedItems: () => readonly Merged[];
+  // PR comments the plan handled, for the rest of the run.
+  readonly handle: (comments: readonly Handled[]) => void;
+  readonly handled: () => readonly Handled[];
 };
 
 export const openRecord = (): RunRecord => {
-  const state = { reports: new Map<string, string>() as ReadonlyMap<string, string>, rejected: [] as readonly Rejection[], merged: [] as readonly Item[] };
+  const state = { reports: new Map<string, string>() as ReadonlyMap<string, string>, rejected: [] as readonly Rejection[], merged: [] as readonly Merged[], handled: [] as readonly Handled[] };
   return {
     setReports: (reports) => {
       state.reports = reports;
@@ -30,6 +37,10 @@ export const openRecord = (): RunRecord => {
       state.merged = [...state.merged, ...items];
     },
     mergedItems: () => state.merged,
+    handle: (more) => {
+      state.handled = [...state.handled, ...more];
+    },
+    handled: () => state.handled,
   };
 };
 
