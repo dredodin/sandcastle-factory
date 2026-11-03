@@ -75,12 +75,12 @@ flowchart LR
     impl --> merge[Merge]
     merge --> plan
     plan -- nothing left --> review[Review]
-    review -- findings become new work --> plan
+    review -- Review report --> plan
     review -- done --> pr([Pull request<br/>one per repo])
     pr --> you([You read and merge])
 ```
 
-Each agent checks its own work before committing. Review reads the whole branch and only files findings; the next cycles fix them. At most two review passes per run.
+Each agent checks its own work before committing. Review reads the whole branch and only prints a Review report; the plan turns it into work or rejects findings, and the next cycles fix what is planned. At most two review passes per run.
 
 ## Where things live
 
@@ -138,3 +138,4 @@ Decisions:
 | [0005](docs/adr/0005-sandbox-git-is-read-through-the-git-cli.md) | Sandbox git is read through the `git` CLI | accepted |
 | [0006](docs/adr/0006-issues-live-in-the-home-repo.md) | Issues live in the home repo; a repo label routes them | accepted |
 | [0007](docs/adr/0007-the-kanban-status-is-the-run-state.md) | The Kanban Status is the state of a run | accepted |
+| [0008](docs/adr/0008-agents-only-read-github.md) | Agents only read GitHub | accepted |

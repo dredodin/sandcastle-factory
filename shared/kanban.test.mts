@@ -20,7 +20,6 @@ const TRANSITIONS: readonly (readonly [string, Status, Event, Next])[] = [
   ["S4 merged", "Agent working", "merged", close("completed")],
   ["S4 done without code", "Agent working", "done without code", close("completed")],
   ["S4 already done", "Agent working", "already done", close("completed")],
-  ["S4 findings rejected", "Agent working", "findings rejected", close("not planned")],
   ["S5 cannot finish", "Agent working", "cannot finish", set("Backlog")],
   ["S5 merge conflict", "Agent working", "merge conflict", set("Backlog")],
   ["S6", "Agent working", "crashed", set("Ready for agent")],

@@ -18,6 +18,16 @@ An issue's `repo:<name>` label says which repo its work is done in; no `repo:` l
 
 The sub-issues you may plan: {{READY}}
 
+## Review reports
+
+Branch review prints one report per repo and creates no issue. The reports of the last pass, empty ones left out:
+
+{{REVIEW_REPORTS}}
+
+Findings rejected so far in this run:
+
+{{REJECTED}}
+
 ## Open PRs of this run
 
 {{OPEN_PRS}}
@@ -37,12 +47,13 @@ When `.sandcastle/repos/{{HOME_NAME}}/plan-check.sh` is in the worktree, run `{{
 
 ## Rules
 
+
 1. **Work items**: the root's direct sub-issues. No sub-issues: the root is the single work item. One level only: a sub-issue's own sub-issues are never items.
-2. **Candidates**: the open sub-issues listed above. A root without sub-issues is the single item while it is open. A failing plan check adds a `work` candidate.
+2. **Candidates**: the open sub-issues listed above. A root without sub-issues is the single item while it is open. A failing plan check or a review finding adds a `work` candidate.
 3. **Blocking**: an item is unblocked when all its `blockedBy` issues are closed; you take blocking only from `blockedBy`, blockers outside the tree and in other repos included.
 4. **Labels never decide eligibility**; they only route an item to a repo.
 5. **All unblocked candidates**, the issues you created this cycle included, go into the plan. None: empty plan.
-6. **One repo per item, every item an issue or `work`.** An item belongs to the repo its label names. Work that is not an issue yet becomes one: create it in `{{HOME_SLUG}}` (`gh issue create`), add it as a sub-issue of the root, label it `repo:<name>` unless it belongs in the home repo, wire `blockedBy` where order matters. The body says what to change and links the PR comments it came from, verbatim where a command is given. PR comments: their issue's label names the repo its work is done in, as the comment shows it (a path, a name, what it asks for); the comment does not show it: the repo of the PR it is on. A comment asking for changes in two repos becomes one issue per repo. As few issues as possible: group by meaning, ideally one, at most four across all repos. Plan check output is the exception: it is a `work` item, not an issue.
+6. **One repo per item, every item an issue or `work`.** An item belongs to the repo its label names. Work that is not an issue yet becomes one: create it in `{{HOME_SLUG}}` (`gh issue create`), add it as a sub-issue of the root, label it `repo:<name>` unless it belongs in the home repo, wire `blockedBy` where order matters. The body says what to change and links the PR comments it came from, verbatim where a command is given. PR comments: their issue's label names the repo its work is done in, as the comment shows it (a path, a name, what it asks for); the comment does not show it: the repo of the PR it is on. A comment asking for changes in two repos becomes one issue per repo. As few issues as possible: group by meaning, ideally one, at most four across all repos. Plan check output and review findings are the exception: they are `work` items, not issues.
 7. **PR comments**: every comment is a request to the maintainer's agent.
    - **Own**: a comment whose body starts with the line `{{DISCLAIMER}}` is the agent's own reply, posted under the maintainer's account. Never a request, never work. Every reply you post starts with that line.
    - **Bot**: a comment whose author's `__typename` is `Bot` (CI and the like). Never a request, never work; post nothing under it.
@@ -52,13 +63,14 @@ When `.sandcastle/repos/{{HOME_NAME}}/plan-check.sh` is in the worktree, run `{{
      - **Won't do**: the reply gives the reason. Close it.
      - **Needs info**: the reply is a question. Leave it open. Not planned. Question and maintainer silent since: leave it; maintainer wrote since: triage again, whole thread.
      - **Already done by a phase**: a request a phase does every run, such as the PR description. Close it silently: no reply, no issue.
+8. **Review reports**: each finding is work or is rejected. Group findings into `work` items as you see fit, as few as possible; the item's `work` carries the findings it covers, verbatim with file and fix. Reject a finding that contradicts the root, a sub-issue or an ADR: list it in `rejected` with a reason. Never plan a finding already rejected above. Nothing is created in GitHub for it.
 
 ## Output
 
-Print the plan as JSON inside `<plan>` tags. An item has either `issue`, the issue number as a string, or `work`, the task text (failing plan check output, verbatim with file and fix); never both. `repo` is a repo name from the list above:
+Print the plan as JSON inside `<plan>` tags. An item has either `issue`, the issue number as a string, or `work`, the task text (failing plan check output or review findings, verbatim with file and fix); never both. `repo` is a repo name from the list above:
 
 <plan>
-{"items": [{"issue": "42", "repo": "app", "title": "Fix auth bug"}, {"issue": "43", "repo": "{{HOME_NAME}}", "title": "Rename the flag"}, {"work": "plan-check.sh failed: src/a.ts:3 unused import `x`; remove it.", "repo": "{{HOME_NAME}}", "title": "Fix the plan check"}], "created": ["43"]}
+{"items": [{"issue": "42", "repo": "app", "title": "Fix auth bug"}, {"issue": "43", "repo": "{{HOME_NAME}}", "title": "Rename the flag"}, {"work": "plan-check.sh failed: src/a.ts:3 unused import `x`; remove it.", "repo": "{{HOME_NAME}}", "title": "Fix the plan check"}], "created": ["43"], "rejected": [{"finding": "a.ts: rename x to y", "reason": "contradicts ADR-0004"}]}
 </plan>
 
-`created` lists every issue you created this cycle, as strings, whether or not it is in `items`; omit it or leave it empty when you created none. Always print the tags. Nothing to do: `<plan>{"items": []}</plan>`.
+`created` lists every issue you created this cycle, as strings, whether or not it is in `items`; omit it or leave it empty when you created none. `rejected` lists the review findings you reject, each with `finding` and `reason`; omit it when you reject none. Always print the tags. Nothing to do: `<plan>{"items": []}</plan>`.

@@ -37,7 +37,6 @@ const MOVES = {
   merged: { from: ["Agent working"], to: close("completed") },
   "done without code": { from: ["Agent working"], to: close("completed") },
   "already done": { from: ["Agent working"], to: close("completed") },
-  "findings rejected": { from: ["Agent working"], to: close("not planned") },
   "cannot finish": { from: ["Agent working"], to: set("Backlog") },
   "merge conflict": { from: ["Agent working"], to: set("Backlog") },
   crashed: { from: ["Agent working"], to: set("Ready for agent") },
@@ -47,7 +46,7 @@ const MOVES = {
 export type Event = keyof typeof MOVES;
 
 // What implement reports; `committed` is merged first, the rest are events.
-export const OUTCOMES = ["committed", "done without code", "already done", "findings rejected", "cannot finish"] as const;
+export const OUTCOMES = ["committed", "done without code", "already done", "cannot finish"] as const;
 export type Outcome = (typeof OUTCOMES)[number];
 
 // What the factory does with an issue in `status` (null: not on the Kanban) on `event`.
@@ -70,8 +69,7 @@ export type Kanban = {
   readonly move: (issue: number, event: Event, note: string) => Promise<boolean>;
   // Adds new issues to the Kanban in Ready for agent (S1).
   readonly ready: (issues: readonly number[]) => Promise<void>;
-  // The root's sub-issues, and those in the Status.
-  readonly subIssues: () => readonly number[];
+  // The root's sub-issues in the Status.
   readonly inStatus: (status: Status) => readonly number[];
 };
 
@@ -193,7 +191,7 @@ export const openKanban = (workspace: Workspace, ref: KanbanRef, root: number): 
         await move(issue, "created", "");
       }
     };
-    return { move, ready, subIssues, inStatus };
+    return { move, ready, inStatus };
   };
 
   const rootTarget = (event: Event): Status => {

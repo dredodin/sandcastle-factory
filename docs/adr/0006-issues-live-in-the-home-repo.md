@@ -10,7 +10,7 @@ One change can touch several repos. Issues in app repos spread the work across s
 
 ## Decision
 
-**Every issue of a run lives in the home repo: spec, tickets, review findings, issues from PR comments. The repo label names the repo of the work.**
+**Every issue of a run lives in the home repo: spec, tickets, issues from PR comments. The repo label names the repo of the work.**
 
 - No repo label: home repo. Two repo labels, or an unknown name: home repo too.
 - Setup creates one `repo:<name>` label per app repo of the Workspace.
