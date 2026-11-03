@@ -16,7 +16,7 @@ export const DEFAULT_PORTS = "29170-29179";
 // The pool from a setting: comma-separated ports and `a-b` ranges.
 export const parsePorts = (setting: string): readonly number[] => {
   const ports = setting.split(",").flatMap((part) => {
-    const ends = part.trim().split("-").map((text) => (/^[0-9]+$/.test(text.trim()) ? Number(text) : NaN));
+    const ends = part.split("-").map((text) => (/^[0-9]+$/.test(text.trim()) ? Number(text) : NaN));
     const [from = NaN, to = from] = ends;
     if (ends.length > 2 || Number.isNaN(from) || Number.isNaN(to) || to < from) throw new Error(`"${part.trim()}" is no port or port range`);
     return Array.from({ length: to - from + 1 }, (_, index) => from + index);
@@ -40,7 +40,7 @@ export const decideStart = (probes: readonly Probe[], own: Identity): Claim => {
 
 // After taking `port`: the same root claimed by a run on a lower port wins; this run releases and refuses.
 export const decideTie = (probes: readonly Probe[], own: Identity, port: number): Claim => {
-  const rival = probes.find((probe) => probe.port !== port && sameRoot(probe, own));
-  if (rival === undefined || rival.port > port) return { type: "start", port };
+  const rival = probes.find((probe) => probe.port < port && sameRoot(probe, own));
+  if (rival === undefined) return { type: "start", port };
   return { type: "refuse", reason: `another run started on ${own.repo}#${own.root} at the same time: ${describe(rival)}.` };
 };
