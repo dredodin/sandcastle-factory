@@ -13,10 +13,16 @@ export type RunRecord = {
   // Items merged into the integration branch.
   readonly merged: (items: readonly Item[]) => void;
   readonly mergedItems: () => readonly Item[];
+  // Items planned and not merged (conflict, ended without code).
+  readonly leftOut: (items: readonly Item[]) => void;
+  readonly leftOutItems: () => readonly Item[];
+  // Every pass's report, kept for the PR description.
+  readonly reviewed: (reports: ReadonlyMap<string, string>) => void;
+  readonly reviewedRepos: () => ReadonlySet<string>;
 };
 
 export const openRecord = (): RunRecord => {
-  const state = { reports: new Map<string, string>() as ReadonlyMap<string, string>, rejected: [] as readonly Rejection[], merged: [] as readonly Item[] };
+  const state = { reports: new Map<string, string>() as ReadonlyMap<string, string>, rejected: [] as readonly Rejection[], merged: [] as readonly Item[], left: [] as readonly Item[], reviewed: new Set<string>() };
   return {
     setReports: (reports) => {
       state.reports = reports;
@@ -30,6 +36,14 @@ export const openRecord = (): RunRecord => {
       state.merged = [...state.merged, ...items];
     },
     mergedItems: () => state.merged,
+    leftOut: (items) => {
+      state.left = [...state.left, ...items];
+    },
+    leftOutItems: () => state.left,
+    reviewed: (reports) => {
+      for (const [repo, report] of reports) if (report !== "") state.reviewed.add(repo);
+    },
+    reviewedRepos: () => state.reviewed,
   };
 };
 
