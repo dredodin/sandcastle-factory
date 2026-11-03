@@ -1,6 +1,6 @@
 // The thin socket shell around `claim.mts`: probes the pool on 127.0.0.1 and holds one port for the run's life.
 
-import { createServer, type Server } from "node:http";
+import { Worker } from "node:worker_threads";
 import { decideStart, decideTie, identitySchema, type Identity, type Probe } from "./claim.mjs";
 
 const HOST = "127.0.0.1";
@@ -10,47 +10,59 @@ const refused = (error: unknown): boolean => error instanceof Error && (error.ca
 
 // A refused connection means free; a timeout or a non-factory answer means foreign.
 const probe = async (port: number): Promise<Probe> => {
-  const response = await fetch(`http://${HOST}:${port}/`, { signal: AbortSignal.timeout(PROBE_MS) }).catch((error: unknown) => (refused(error) ? null : undefined));
-  if (response === null) return { kind: "free", port };
-  if (response === undefined) return { kind: "foreign", port };
-  const identity = identitySchema.safeParse(await response.json().catch(() => null));
-  return identity.success ? { kind: "run", port, identity: identity.data } : { kind: "foreign", port };
+  const answer = await fetch(`http://${HOST}:${port}/`, { signal: AbortSignal.timeout(PROBE_MS) }).then(
+    async (response) => identitySchema.safeParse(await response.json().catch(() => null)),
+    (error: unknown): Probe => ({ kind: refused(error) ? "free" : "foreign", port }),
+  );
+  if ("kind" in answer) return answer;
+  return answer.success ? { kind: "run", port, identity: answer.data } : { kind: "foreign", port };
 };
 
 const probeAll = (ports: readonly number[]): Promise<readonly Probe[]> => Promise.all(ports.map(probe));
 
-const listen = (port: number, identity: Identity): Promise<Server | null> =>
+// The server lives in a worker thread: the run shells out with blocking calls, and its own loop would not answer probes meanwhile.
+const SERVER = `
+const { workerData, parentPort } = require("node:worker_threads");
+const { createServer } = require("node:http");
+const server = createServer((_request, response) => response.setHeader("Connection", "close").end(JSON.stringify(workerData.identity)));
+server.once("error", (error) => parentPort.postMessage(error.code === "EADDRINUSE" ? "busy" : "error:" + error.message));
+server.listen(workerData.port, workerData.host, () => parentPort.postMessage("listening"));
+`;
+
+// Resolves the holder, or null when the port was taken first; any other error is real.
+const listen = (port: number, identity: Identity): Promise<Worker | null> =>
   new Promise((resolve, reject) => {
-    const server = createServer((_request, response) => response.setHeader("Connection", "close").end(JSON.stringify(identity)));
-    // Only a taken port is a lost race; any other error is real.
-    server.once("error", (error: NodeJS.ErrnoException) => (error.code === "EADDRINUSE" ? resolve(null) : reject(error)));
-    server.listen(port, HOST, () => {
-      server.unref();
-      resolve(server);
+    const worker = new Worker(SERVER, { eval: true, workerData: { port, host: HOST, identity } });
+    worker.once("error", reject);
+    worker.once("message", (message: string) => {
+      if (message === "listening") {
+        worker.unref();
+        resolve(worker);
+      } else if (message === "busy") void worker.terminate().then(() => resolve(null));
+      else void worker.terminate().then(() => reject(new Error(message)));
     });
   });
 
-const close = (server: Server): Promise<void> => new Promise((resolve) => {
-    server.close(() => resolve());
-    server.closeAllConnections();
-  });
+const close = async (worker: Worker): Promise<void> => {
+  await worker.terminate();
+};
 
 // Claims the root or throws naming why; runs `work` holding the port, releases it after.
 export const withClaim = async <T,>(ports: readonly number[], identity: Identity, work: () => Promise<T>): Promise<T> => {
-  for (let attempt = 0; attempt < ports.length; attempt++) {
+  for (const _ of ports) {
     const start = decideStart(await probeAll(ports), identity);
     if (start.type === "refuse") throw new Error(start.reason);
-    const server = await listen(start.port, identity);
-    if (server === null) continue;
+    const holder = await listen(start.port, identity);
+    if (holder === null) continue;
     const tie = decideTie(await probeAll(ports), identity, start.port);
     if (tie.type === "refuse") {
-      await close(server);
+      await close(holder);
       throw new Error(tie.reason);
     }
     try {
       return await work();
     } finally {
-      await close(server);
+      await close(holder);
     }
   }
   throw new Error("the factory ports kept changing hands while claiming one; start again.");
