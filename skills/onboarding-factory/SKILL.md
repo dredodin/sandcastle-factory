@@ -112,7 +112,7 @@ The Kanban is the home repo's GitHub Project; every issue's Status is the factor
 
 - Create or link: `gh project list --owner <owner>` shows the owner's projects; ask the human to pick one or make one (`gh project create --owner <owner> --title <title>`), and link it to the home repo (`gh project link <number> --owner <owner> --repo <home>`). Needs the token access in the factory's `README.md`.
 - Status options, exactly these five, in order: `Backlog`, `Ready for agent`, `Agent working`, `In review`, `Done`. No others.
-- Built-in workflows, the human switches them on in the project's Workflows page: `Item added to project` → Status `Backlog`, `Item closed` → Status `Done`, `Item reopened` → Status `Ready for agent`. The factory checks only the Status options; a run fails at the first move that needs one, so the human confirms all three.
+- Built-in workflows, the human switches them on in the project's Workflows page: `Item closed` → Status `Done`, `Item reopened` → Status `Ready for agent`. The factory checks only the Status options; a run fails at the first move that needs one, so the human confirms both.
 - Token `GH_TOKEN`: classic for a personal account's Kanban (fine-grained ones cannot reach it); fine-grained is enough for an organisation's. Scopes and permissions: the factory's `README.md`; pick the smallest that works, agents get all its rights. Setup asks for it, with the Kanban's owner and number. A copilot phase needs a second, fine-grained `COPILOT_GITHUB_TOKEN`.
 - Tracker rule: add to `docs/agents/issue-tracker.md` that applying `ready-for-agent` also sets Status = Ready for agent.
 

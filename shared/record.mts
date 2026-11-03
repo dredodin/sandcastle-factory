@@ -1,0 +1,98 @@
+// The run's in-memory record: review reports, findings the plan rejected, PR comments it handled, how each item ended. Nothing is persisted; a resume starts empty.
+import type { Handled } from "./comments.mjs";
+import type { Item } from "./item.mjs";
+import type { Outcome } from "./kanban.mjs";
+
+// A review finding the plan rejected, with the repo whose report it came from.
+export type Rejection = { readonly repo: string; readonly finding: string; readonly reason: string };
+
+// An item merged into the integration branch, with its merge commit ("" when git did not show one).
+export type Merged = { readonly item: Item; readonly commit: string };
+
+export type Ended = { readonly item: Item; readonly end: Exclude<Outcome, "committed"> | "merge conflict" };
+
+// `pass`: the review pass whose reports the plan worked from when the entry was recorded; 0 before the first pass.
+type Stamped<T> = T & { readonly pass: number };
+
+// What the PR description's review section is read from. `passes`: each pass's reports, repo name → report ("" when it found nothing).
+export type ReviewRecord = {
+  readonly passes: readonly ReadonlyMap<string, string>[];
+  readonly rejected: readonly Stamped<Rejection>[];
+  readonly merged: readonly Stamped<Merged>[];
+  readonly ended: readonly Stamped<Ended>[];
+};
+
+export type RunRecord = {
+  // A review pass's reports; the plan reads them until `clearReports`.
+  readonly addPass: (reports: ReadonlyMap<string, string>) => void;
+  readonly clearReports: () => void;
+  readonly reports: () => ReadonlyMap<string, string>;
+  readonly reject: (rejections: readonly Rejection[]) => void;
+  readonly rejected: () => readonly Rejection[];
+  readonly addMerged: (items: readonly Merged[]) => void;
+  readonly merged: () => readonly Merged[];
+  readonly addEnded: (items: readonly Ended[]) => void;
+  // A comment handled again replaces its earlier entry: one reply per comment.
+  readonly handle: (comments: readonly Handled[]) => void;
+  readonly handled: () => readonly Handled[];
+  readonly review: () => ReviewRecord;
+};
+
+export const openRecord = (): RunRecord => {
+  const state = {
+    reports: new Map<string, string>() as ReadonlyMap<string, string>,
+    passes: [] as ReviewRecord["passes"],
+    rejected: [] as ReviewRecord["rejected"],
+    merged: [] as ReviewRecord["merged"],
+    ended: [] as ReviewRecord["ended"],
+    handled: [] as readonly Handled[],
+  };
+  const stamp = <T,>(entries: readonly T[]): readonly Stamped<T>[] => entries.map((entry) => ({ ...entry, pass: state.passes.length }));
+  return {
+    addPass: (reports) => {
+      state.reports = reports;
+      state.passes = [...state.passes, reports];
+    },
+    clearReports: () => {
+      state.reports = new Map();
+    },
+    reports: () => state.reports,
+    reject: (more) => {
+      state.rejected = [...state.rejected, ...stamp(more)];
+    },
+    rejected: () => state.rejected,
+    addMerged: (items) => {
+      state.merged = [...state.merged, ...stamp(items)];
+    },
+    merged: () => state.merged,
+    addEnded: (items) => {
+      state.ended = [...state.ended, ...stamp(items)];
+    },
+    handle: (more) => {
+      state.handled = [...state.handled.filter(({ id }) => !more.some((comment) => comment.id === id)), ...more];
+    },
+    handled: () => state.handled,
+    review: () => ({ passes: state.passes, rejected: state.rejected, merged: state.merged, ended: state.ended }),
+  };
+};
+
+// How the cycle's items ended, from each one's implement outcome and the items the merge left out.
+export const cycleEnds = (
+  outcomes: readonly { readonly item: Item; readonly outcome: Outcome }[],
+  leftOut: readonly Item[],
+): { readonly merged: readonly Item[]; readonly ended: readonly Ended[] } => ({
+  merged: outcomes.filter(({ item, outcome }) => outcome === "committed" && !leftOut.includes(item)).map(({ item }) => item),
+  ended: outcomes.flatMap(({ item, outcome }): readonly Ended[] => {
+    if (outcome !== "committed") return [{ item, end: outcome }];
+    return leftOut.includes(item) ? [{ item, end: "merge conflict" }] : [];
+  }),
+});
+
+// Prompt text for the reports of a pass: one block per repo with findings.
+export const reportsText = (reports: ReadonlyMap<string, string>): string => {
+  const found = [...reports].filter(([, report]) => report !== "");
+  return found.length === 0 ? "(none)" : found.map(([repo, report]) => `### ${repo}\n\n${report}`).join("\n\n");
+};
+
+export const rejectedText = (rejected: readonly Rejection[]): string =>
+  rejected.length === 0 ? "(none)" : rejected.map(({ repo, finding, reason }) => `- ${repo}: ${finding} — rejected: ${reason}`).join("\n");

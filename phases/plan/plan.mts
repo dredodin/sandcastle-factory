@@ -1,12 +1,14 @@
 import { readFileSync } from "node:fs";
 import type { ResumeSandboxRunResultOptions, SandboxRunResult } from "@ai-hero/sandcastle";
-import { z } from "zod";
+import { handledOf, handledText } from "../../shared/comments.mjs";
 import { extract } from "../../shared/extract.mjs";
-import { itemFits, itemSchema } from "../../shared/item.mjs";
+import { hasIssue, itemId, takenItems } from "../../shared/item.mjs";
 import { log, timed } from "../../shared/logger.mjs";
 import { planCheckCommand } from "../../shared/names.mjs";
+import { planOutputSchema } from "../../shared/plan-output.mjs";
 import { promptPath } from "../../shared/paths.mjs";
 import { fillPrompt } from "../../shared/prompt.mjs";
+import { rejectedText, reportsText } from "../../shared/record.mjs";
 import { itemBranch } from "../../shared/repo.mjs";
 import { DISCLAIMER, IDLE_TIMEOUT_SECONDS, phaseAgent, type Cycle, type Plan, type Run } from "../../shared/run.mjs";
 import { reposText } from "../../shared/text.mjs";
@@ -37,6 +39,9 @@ export const plan = async (cycle: Cycle, openPrsText: string, session: PlanSessi
     READY: ready.length === 0 ? "(none)" : ready.map((issue) => `#${issue}`).join(", "),
     OPEN_PRS: openPrsText,
     PLAN_CHECK: planCheckCommand(home.name),
+    REVIEW_REPORTS: reportsText(cycle.record.reports()),
+    REJECTED: rejectedText(cycle.record.rejected()),
+    HANDLED: handledText(cycle.record.handled()),
   });
   const result = await timed(`plan ${cycle.number}`, () => session(prompt, {
     completionSignal: "</plan>",
@@ -45,16 +50,13 @@ export const plan = async (cycle: Cycle, openPrsText: string, session: PlanSessi
     logging: phaseAgent(cycle, "PLAN", `${cycle.number}-plan`).logging,
   }));
 
-  const planSchema = z.object({
-    items: z.array(
-      itemSchema.omit({ branch: true }).refine((item) => itemFits(item, repos), "item outside the Workspace"),
-    ),
-    created: z.array(z.string().regex(/^[1-9][0-9]*$/)).default([]),
-  });
-  const planned = extract(result.stdout, "plan", planSchema);
-  await cycle.kanban.ready(planned.created.map(Number));
-  const started = await Promise.all(planned.items.map(async (item) => ({ item, taken: await cycle.kanban.move(Number(item.issue), "planned", "") })));
-  const items = started.filter(({ taken }) => taken).map(({ item }) => ({ ...item, branch: itemBranch(repoNamed(workspace, item.repo), branch, item.issue) }));
-  items.forEach((item) => log.info(`  ${item.issue}: ${item.title} → ${item.repo}: ${item.branch}`));
+  const planned = extract(result.stdout, "plan", planOutputSchema(repos));
+  cycle.record.reject(planned.rejected);
+  // An item without an issue has no card to move.
+  const started = await Promise.all(planned.items.map(async (item) => !hasIssue(item) || (await cycle.kanban.move(Number(item.issue), "planned", ""))));
+  const branched = takenItems(planned.items, started).map(({ item, position, slug }) => ({ position, item: { ...item, branch: itemBranch(repoNamed(workspace, item.repo), branch, slug) } }));
+  const items = branched.map(({ item }) => item);
+  cycle.record.handle(handledOf(planned.comments, branched.map(({ position, item }) => ({ position, branch: item.branch }))));
+  items.forEach((item) => log.info(`  ${itemId(item)}: ${item.title} → ${item.repo}: ${item.branch}`));
   return { items, next: result.resume ?? freshPlan(cycle) };
 };

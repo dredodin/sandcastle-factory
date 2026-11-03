@@ -15,12 +15,10 @@ const TRANSITIONS: readonly (readonly [string, Status, Event, Next])[] = [
   ["R6 from Ready for agent", "Ready for agent", "resume", set("Agent working")],
   ["R6 from Agent working", "Agent working", "resume", set("Agent working")],
   ["R6 from In review", "In review", "resume", set("Agent working")],
-  ["S1 created", "Backlog", "created", set("Ready for agent")],
   ["S3", "Ready for agent", "planned", set("Agent working")],
   ["S4 merged", "Agent working", "merged", close("completed")],
   ["S4 done without code", "Agent working", "done without code", close("completed")],
   ["S4 already done", "Agent working", "already done", close("completed")],
-  ["S4 findings rejected", "Agent working", "findings rejected", close("not planned")],
   ["S5 cannot finish", "Agent working", "cannot finish", set("Backlog")],
   ["S5 merge conflict", "Agent working", "merge conflict", set("Backlog")],
   ["S6", "Agent working", "crashed", set("Ready for agent")],
@@ -45,8 +43,6 @@ const REFUSALS: readonly (readonly [Status | null, Event, RegExp])[] = [
   ["Done", "cannot finish", /Done/],
   ["In review", "crashed", /In review/],
   ["Backlog", "retake", /Backlog/],
-  ["Ready for agent", "created", /Ready for agent/],
-  [null, "created", /not on the Kanban/],
 ];
 
 for (const [from, event, reason] of REFUSALS) {

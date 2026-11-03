@@ -1,6 +1,7 @@
 // Pure assembly of what the run adds to every PR body: the models and the run's PR list.
 import { z } from "zod";
 import type { Item } from "./item.mjs";
+import type { ReviewRecord } from "./record.mjs";
 import { PHASES, type Phase, type PhaseSetting } from "./env.mjs";
 
 export type Pr = {
@@ -54,13 +55,42 @@ export const reposWithoutPr = (planned: readonly Pick<Item, "repo" | "issue">[],
 
 const issueList = (issues: readonly number[]): string => issues.map((id) => `#${id}`).join(", ");
 
+// Already done and done without code count as fixed: the finding needs no more work.
+export const reviewSection = (repo: string, review: ReviewRecord): string => {
+  const part = (title: string, lines: readonly string[]): readonly string[] =>
+    lines.length === 0 ? [] : ["", `${title}:`, ...lines.map((line) => `- ${line.replaceAll("\n", "\n  ")}`)];
+  const passes = review.passes.flatMap((reports, index) => {
+    const pass = index + 1;
+    const report = reports.get(repo) ?? "";
+    if (report === "") return [];
+    const own = <T extends { readonly item: Item; readonly pass: number }>(entries: readonly T[]): readonly T[] =>
+      entries.filter((entry) => entry.pass === pass && entry.item.repo === repo && entry.item.source === "review");
+    const ended = own(review.ended);
+    const noted = (ends: readonly string[]) => ended.filter(({ end }) => ends.includes(end)).map(({ item, end }) => `${item.work} (${end})`);
+    return [
+      "",
+      `### Pass ${pass}`,
+      "",
+      "<details><summary>Report</summary>",
+      "",
+      report,
+      "",
+      "</details>",
+      ...part("Fixed", [...own(review.merged).map(({ item }) => item.work), ...noted(["already done", "done without code"])]),
+      ...part("Rejected", review.rejected.filter((rejection) => rejection.pass === pass && rejection.repo === repo).map(({ finding, reason }) => `${finding} — ${reason}`)),
+      ...part("Left over", noted(["cannot finish", "merge conflict"])),
+    ];
+  });
+  return passes.length === 0 ? "" : ["## Review", ...passes].join("\n");
+};
+
 // One line naming the model each phase ran with.
 export const modelsLine = (phases: Readonly<Record<Phase, PhaseSetting>>): string =>
   `Models: ${PHASES.map((phase) => `${phase} \`${phases[phase].model}\` (${phases[phase].provider}, ${phases[phase].effort})`).join(", ")}.`;
 
 // The block every PR of the run ends with: the models line, then the run's PR list when it has several PRs or a repo left out,
 // and the sub-issues left in Backlog, which this run did not deliver.
-export const runBlock = (models: string, homeSlug: string, root: number, prs: readonly Pr[], noPr: readonly NoPr[], blockedBy: BlockedBy, backlog: readonly number[]): string => {
+export const runBlock = (models: string, homeSlug: string, root: number, prs: readonly Pr[], noPr: readonly NoPr[], blockedBy: BlockedBy, backlog: readonly number[], review: string): string => {
   const several = prs.length > 1 || noPr.length > 0;
   const run =
     !several && backlog.length === 0
@@ -79,7 +109,7 @@ export const runBlock = (models: string, homeSlug: string, root: number, prs: re
             : []),
           ...(backlog.length > 0 ? [`\nLeft in Backlog, not delivered: ${issueList(backlog)}.`] : []),
         ];
-  return [START, models, ...run, END].join("\n");
+  return [START, models, ...run, ...(review === "" ? [] : ["", review]), END].join("\n");
 };
 
 // The body with the run block replaced, or appended on a first pass.

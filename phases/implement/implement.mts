@@ -1,7 +1,7 @@
 import type { Sandbox } from "@ai-hero/sandcastle";
 import { z } from "zod";
 import { extract } from "../../shared/extract.mjs";
-import { implementRunOf, type Item } from "../../shared/item.mjs";
+import { implementRunOf, itemId, type Item } from "../../shared/item.mjs";
 import { message } from "../../shared/cli.mjs";
 import { OUTCOMES, type Outcome } from "../../shared/kanban.mjs";
 import { log, timed } from "../../shared/logger.mjs";
@@ -24,7 +24,7 @@ export const implement = async (cycle: Cycle, sandbox: Sandbox, item: Item): Pro
   const { home } = cycle.workspace;
   const otherBranches = otherBranchesText(cycle.integrations.opened(), item.repo, cycle.branch);
   const inputs = implementRunOf(item, cycle, { home, otherBranches });
-  const result = await timed(`implement ${item.issue}`, () => sandbox.run({
+  const result = await timed(`implement ${itemId(item)}`, () => sandbox.run({
     promptFile: promptPath("implement"),
     promptArgs: inputs.promptArgs,
     maxIterations: IMPLEMENT_ITERATIONS,
@@ -35,7 +35,7 @@ export const implement = async (cycle: Cycle, sandbox: Sandbox, item: Item): Pro
   try {
     return extract(result.stdout, "outcome", outcomeSchema);
   } catch (error) {
-    log.warn(`  #${item.issue} outcome unreadable: ${message(error)}`);
+    log.warn(`  ${itemId(item)} outcome unreadable: ${message(error)}`);
     return result.commits.length > 0 ? { outcome: "committed", note: "" } : { outcome: "cannot finish", note: "The implement run ended with no commits and reported no outcome." };
   }
 };

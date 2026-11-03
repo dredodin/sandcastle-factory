@@ -7,10 +7,13 @@ import { implement } from "../phases/implement/implement.mjs";
 import { merge, mergeDefaults } from "../phases/merge/merge.mjs";
 import { freshPlan, plan, type PlanSession } from "../phases/plan/plan.mjs";
 import { pr } from "../phases/pr/pr.mjs";
-import type { Item } from "../shared/item.mjs";
+import { postReplies } from "../phases/pr/replies.mjs";
+import { hasIssue, itemId, type Item } from "../shared/item.mjs";
 import { log, openRunLog } from "../shared/logger.mjs";
 import { inParallel } from "../shared/parallel.mjs";
-import { conflictsWithBase } from "../shared/repo.mjs";
+import { mergeCommitOf } from "../shared/merge-record.mjs";
+import { cycleEnds } from "../shared/record.mjs";
+import { conflictsWithBase, mergeSubjects } from "../shared/repo.mjs";
 import type { Run } from "../shared/run.mjs";
 import { withSandbox } from "../shared/sandbox.mjs";
 import { repoNamed, type Repo, type Workspace } from "../shared/workspace.mjs";
@@ -45,6 +48,8 @@ const cycle = async (
   const conflicting = run.workspace.repos.filter((repo) => conflictsWithBase(repo, run.branch));
   conflicting.forEach((repo) => log.info(`  ${run.branch} conflicts with ${repo.base} in ${repo.name}`));
   const { items, next } = await plan(current, openPrsText, session);
+  // The reports reach the plan agent once, in the cycle after their pass.
+  run.record.clearReports();
   if (conflicting.length === 0 && items.length === 0) {
     log.info("Nothing to do: plan is empty.");
     return { items: [], next, stop: false };
@@ -53,26 +58,41 @@ const cycle = async (
   await Promise.all([...new Set(items.map((item) => item.repo))].map((name) => current.integrations.get(repoNamed(run.workspace, name))));
 
   // Each item in its own worktree of its repo, done by its one agent. Resolves to what each reported.
-  const outcomes = await inParallel(items, (item) => item.issue, (item) =>
-    withSandbox(run.context, { repo: repoNamed(run.workspace, item.repo), name: item.issue, branch: item.branch, baseBranch: run.branch }, (sandbox) =>
+  const outcomes = await inParallel(items, itemId, (item) =>
+    withSandbox(run.context, { repo: repoNamed(run.workspace, item.repo), name: itemId(item), branch: item.branch, baseBranch: run.branch }, (sandbox) =>
       implement(current, sandbox, item),
     ),
   );
-  // Without code: the sub-issue is closed or sent to Backlog now. Committed: merged first.
+  // Without code: the sub-issue is closed or sent to Backlog now; an item without an issue only logs it. Committed: merged first.
   const ended = items.flatMap((item, index) => {
     const { outcome, note } = outcomes[index]!;
     return outcome === "committed" ? [] : [{ item, outcome, note: note === "" ? `Implement reported: ${outcome}.` : note }];
   });
-  for (const { item, outcome, note } of ended) await run.kanban.move(Number(item.issue), outcome, note);
+  for (const { item, outcome, note } of ended) {
+    if (hasIssue(item)) await run.kanban.move(Number(item.issue), outcome, note);
+    else log.info(`  ${itemId(item)}: ${outcome}: ${note}`);
+  }
   const done = items.filter((_, index) => outcomes[index]!.outcome === "committed");
   const leftOut = done.length === 0 ? [] : await merge(current, done);
   if (done.length === 0) log.info("No item committed. Nothing to merge.");
+  const ends = cycleEnds(items.map((item, index) => ({ item, outcome: outcomes[index]!.outcome })), leftOut);
+  const subjects = new Map([...new Set(ends.merged.map((item) => item.repo))].map((name) => [name, mergeSubjects(repoNamed(run.workspace, name), run.branch)]));
+  run.record.addMerged(ends.merged.map((item) => {
+    const commit = mergeCommitOf(subjects.get(item.repo) ?? [], item, run.root);
+    if (commit === "") log.warn(`  ${itemId(item)}: no merge commit found on \`${run.branch}\`; its comments get no reply.`);
+    return { item, commit };
+  }));
+  run.record.addEnded(ends.ended);
   for (const item of done) {
+    if (!hasIssue(item)) {
+      if (leftOut.includes(item)) log.warn(`  ${itemId(item)}: the merge of \`${item.branch}\` left it out.`);
+      continue;
+    }
     if (leftOut.includes(item)) await run.kanban.move(Number(item.issue), "merge conflict", `The merge of \`${item.branch}\` into \`${run.branch}\` left it out: resolve the conflict, then move this issue to Ready for agent.`);
     else await run.kanban.move(Number(item.issue), "merged", `Done: merged into \`${run.branch}\`.`);
   }
   // The root as item is worked once, merged, left out or ended without code: planning it again would repeat the same end.
-  return { items, next, stop: items.some((item) => Number(item.issue) === run.root) };
+  return { items, next, stop: items.some((item) => hasIssue(item) && Number(item.issue) === run.root) };
 };
 
 // Cycles until the plan is empty or the cap is reached; one after another, each plans on the last one's merge.
@@ -94,17 +114,20 @@ export const cycles = (run: Run, openPrsText: string): Promise<readonly Item[]> 
 
 const REVIEW_PASSES = 2;
 
-// Up to two review passes per touched repo over its whole branch, cycles on what each filed (none filed: stop), then the one PR phase.
+// Up to two review passes per touched repo over its whole branch, cycles on what the plan makes of each pass's reports (none planned: stop), then the one PR phase.
 // `touched` is read anew after each cycles stretch.
 export const finish = async (run: Run, openPrsText: string, touched: () => readonly Repo[], planned: readonly Item[]): Promise<string> => {
   let items = planned;
   for (let pass = 1; pass <= REVIEW_PASSES; pass++) {
-    const before = run.kanban.subIssues();
-    await inParallel(touched(), (repo) => repo.name, (repo) => review(run, repo, pass));
-    await run.kanban.ready(run.kanban.subIssues().filter((issue) => !before.includes(issue)));
-    const filed = await cycles(run, openPrsText);
-    items = [...items, ...filed];
-    if (filed.length === 0) break;
+    const repos = touched();
+    const passed = await inParallel(repos, (repo) => repo.name, async (repo) => [repo.name, await review(run, repo, pass)] as const);
+    run.record.addPass(new Map(passed));
+    const found = await cycles(run, openPrsText);
+    items = [...items, ...found];
+    // Nothing planned ends the reviews unless a report had findings the plan rejected: pass 2 checks the rest.
+    if (found.length === 0 && passed.map(([, report]) => report).every((report) => report === "")) break;
   }
-  return `PR:\n${await pr(run, touched(), items)}`;
+  const text = await pr(run, touched(), items);
+  postReplies(run);
+  return `PR:\n${text}`;
 };

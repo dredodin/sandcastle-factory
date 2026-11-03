@@ -1,10 +1,17 @@
-import type { Item } from "./item.mjs";
+import { hasIssue, itemId, type Item } from "./item.mjs";
 
 const SUBJECT = "SANDCASTLE: merge ";
 const TRAILER = "Issue: #";
 
-// The `-m` messages of an item's merge commit.
-export const messagesFor = (item: Item): readonly string[] => [`${SUBJECT}#${item.issue}`, `${TRAILER}${item.issue}`];
+// The `-m` messages of an item's merge commit. An item without an issue records the root.
+export const messagesFor = (item: Item, root: number): readonly string[] =>
+  hasIssue(item) ? [`${SUBJECT}#${item.issue}`, `${TRAILER}${item.issue}`] : [`${SUBJECT}${itemId(item)}`, `${TRAILER}${root}`];
+
+// The short hash of the item's merge commit among `<hash> <subject>` lines of merge commits; "" when no line carries its subject.
+export const mergeCommitOf = (lines: readonly string[], item: Item, root: number): string => {
+  const subject = messagesFor(item, root)[0];
+  return lines.find((line) => line.slice(line.indexOf(" ") + 1) === subject)?.split(" ")[0] ?? "";
+};
 
 // The merge command the merge script runs and the merge prompt lists, verbatim.
 export const mergeCommand = (branch: string, messages: readonly string[]): string =>

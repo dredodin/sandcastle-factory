@@ -16,8 +16,8 @@ ADR-0002's review agent fixed code itself, so its fixes went unreviewed and left
 
 - Implement: Standards subagent if the diff has code, Docs if code or Markdown, Spec always; then fixes.
 - Branch review runs per touched repo on its whole branch against the default branch, at most two passes per run. It commits nothing.
-- Its findings, with the deep verify script's output, become one sub-issue of the root per repo, in the home repo, labelled `repo:<name>` unless home. Nothing found: no issue. The next cycles implement it like any item.
-- Run: cycles → review 1 → cycles → review 2 → cycles → PR. Cycles that plan nothing after a pass end the reviews: one PR phase follows. `resume` restarts the count.
+- Its findings, with the deep verify script's output, become a Review report per repo ([ADR-0008](0008-agents-only-read-github.md) supersedes the sub-issue per repo). The next cycles implement what the plan makes of it.
+- Run: cycles → review 1 → cycles → review 2 → cycles → PR. A pass whose reports are all empty and whose cycles plan nothing ends the reviews: one PR phase follows. `resume` restarts the count.
 
 ## Considered and rejected
 
@@ -26,6 +26,6 @@ ADR-0002's review agent fixed code itself, so its fixes went unreviewed and left
 
 ## Consequences
 
-- Reviews leave issues as artifacts; every code change is reviewed at item level.
+- Reviews leave no issues ([ADR-0008](0008-agents-only-read-github.md)); every code change is reviewed at item level.
 - A run ends after at most two review passes.
 - A proposal for review to fix code again re-proposes what this drops.

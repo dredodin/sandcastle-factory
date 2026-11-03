@@ -4,6 +4,7 @@
 import { loadAgents } from "../shared/agents.mjs";
 import type { Env } from "../shared/env.mjs";
 import { branchExists, checkNotCheckedOut, checkRoot, hasFileDiff, latestTake, openPrsText, syncWithOrigin } from "../shared/repo.mjs";
+import { openRecord } from "../shared/record.mjs";
 import type { Run } from "../shared/run.mjs";
 import { withIntegrations, type SandboxSpec } from "../shared/sandbox.mjs";
 import { repoNamed, type Repo, type Workspace } from "../shared/workspace.mjs";
@@ -24,7 +25,7 @@ export const resume = async (workspace: Workspace, env: Env, root: number): Prom
   return gate.run("resume", () => branch, (kanban) => {
     const logDir = startRun("resume", { workspace, env, settings }, root, title, branch);
     return withIntegrations(context, specFor, async (integrations) => {
-      const run: Run = { agents, context, workspace, kanban, root, title, branch, integrations, logDir };
+      const run: Run = { agents, context, workspace, kanban, root, title, branch, integrations, logDir, record: openRecord() };
       const prsText = openPrsText(workspace, branch);
       const planned = await cycles(run, prsText);
       const touched = (): readonly Repo[] => workspace.repos.filter((repo) => branchExists(repo, branch) && hasFileDiff(repo, branch, repo.base));

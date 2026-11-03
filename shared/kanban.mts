@@ -24,7 +24,7 @@ export type Next =
 const set = (status: Status): Next => ({ type: "set", status });
 const close = (reason: "completed" | "not planned"): Next => ({ type: "close", reason });
 
-// The machine: each event, the Statuses it may start from, and what it does. Root: take .. run ended without PR. Sub-issue: the rest. `created` is S1 for issues the factory adds.
+// The machine: each event, the Statuses it may start from, and what it does. Root: take .. run ended without PR. Sub-issue: the rest.
 type Move = { readonly from: readonly Status[]; readonly to: Next };
 
 const MOVES = {
@@ -33,11 +33,9 @@ const MOVES = {
   "pr opened": { from: ["Agent working"], to: set("In review") },
   "run ended without pr": { from: ["Agent working"], to: set("Backlog") },
   planned: { from: ["Ready for agent"], to: set("Agent working") },
-  created: { from: ["Backlog"], to: set("Ready for agent") },
   merged: { from: ["Agent working"], to: close("completed") },
   "done without code": { from: ["Agent working"], to: close("completed") },
   "already done": { from: ["Agent working"], to: close("completed") },
-  "findings rejected": { from: ["Agent working"], to: close("not planned") },
   "cannot finish": { from: ["Agent working"], to: set("Backlog") },
   "merge conflict": { from: ["Agent working"], to: set("Backlog") },
   crashed: { from: ["Agent working"], to: set("Ready for agent") },
@@ -47,7 +45,7 @@ const MOVES = {
 export type Event = keyof typeof MOVES;
 
 // What implement reports; `committed` is merged first, the rest are events.
-export const OUTCOMES = ["committed", "done without code", "already done", "findings rejected", "cannot finish"] as const;
+export const OUTCOMES = ["committed", "done without code", "already done", "cannot finish"] as const;
 export type Outcome = (typeof OUTCOMES)[number];
 
 // What the factory does with an issue in `status` (null: not on the Kanban) on `event`.
@@ -68,10 +66,7 @@ export type Kanban = {
   // Applies `event` to the issue: reads its Status, asks the machine, writes. A refusal is logged. Resolves to whether it was not refused.
   // The root's card moves only by `run`; here it only gets the note of an implement outcome or a merge conflict.
   readonly move: (issue: number, event: Event, note: string) => Promise<boolean>;
-  // Adds new issues to the Kanban in Ready for agent (S1).
-  readonly ready: (issues: readonly number[]) => Promise<void>;
-  // The root's sub-issues, and those in the Status.
-  readonly subIssues: () => readonly number[];
+  // The root's sub-issues in the Status.
   readonly inStatus: (status: Status) => readonly number[];
 };
 
@@ -146,11 +141,11 @@ export const openKanban = (workspace: Workspace, ref: KanbanRef, root: number): 
   const comment = (issue: number, body: string): void => {
     shIn(home.path, `${DISCLAIMER}\n\n${body}`, "gh", "issue", "comment", `${issue}`, "--repo", home.slug, "--body-file", "-");
   };
-  // Waits until a built-in workflow shows the issue's `wanted` Status (or any); throws naming `fix` when it never does.
-  const waitFor = async (issue: number, wanted: Status | "any", fix: string): Promise<void> => {
+  // Waits until a built-in workflow shows the issue's `wanted` Status; throws naming `fix` when it never does.
+  const waitFor = async (issue: number, wanted: Status, fix: string): Promise<void> => {
     const deadline = Date.now() + WAIT_MS;
-    while (!(wanted === "any" ? status(issue) !== null : status(issue) === wanted)) {
-      if (Date.now() > deadline) throw new Error(`#${issue} did not show ${wanted === "any" ? "a Status" : wanted} on the Kanban: ${fix}.`);
+    while (status(issue) !== wanted) {
+      if (Date.now() > deadline) throw new Error(`#${issue} did not show ${wanted} on the Kanban: ${fix}.`);
       await new Promise((resolve) => setTimeout(resolve, POLL_MS));
     }
   };
@@ -184,16 +179,7 @@ export const openKanban = (workspace: Workspace, ref: KanbanRef, root: number): 
           return true;
       }
     };
-    // The built-in Item added workflow sets Backlog on add, asynchronously: wait until the item shows a Status, so this write lands last.
-    // An issue already past Backlog is a retry: the machine refuses `created`, which skips it.
-    const ready = async (issues: readonly number[]): Promise<void> => {
-      for (const issue of issues) {
-        add(issue);
-        await waitFor(issue, "any", `switch on its built-in workflow "Item added to project" (Status Backlog)`);
-        await move(issue, "created", "");
-      }
-    };
-    return { move, ready, subIssues, inStatus };
+    return { move, inStatus };
   };
 
   const rootTarget = (event: Event): Status => {

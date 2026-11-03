@@ -3,13 +3,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
 import { extract } from "../../shared/extract.mjs";
-import type { Item } from "../../shared/item.mjs";
+import { hasIssue, type Item } from "../../shared/item.mjs";
 import { log, timed } from "../../shared/logger.mjs";
 import { logFileName, verifyCommand } from "../../shared/names.mjs";
 import { inParallel } from "../../shared/parallel.mjs";
 import { mergedIssues } from "../../shared/repo.mjs";
 import { promptPath } from "../../shared/paths.mjs";
-import { blockersFromJson, modelsLine, reposWithoutPr, runBlock, withRunBlock, type BlockedBy, type Pr } from "../../shared/pr-body.mjs";
+import { blockersFromJson, modelsLine, reposWithoutPr, reviewSection, runBlock, withRunBlock, type BlockedBy, type Pr } from "../../shared/pr-body.mjs";
 import { IDLE_TIMEOUT_SECONDS, phaseAgent, type Run } from "../../shared/run.mjs";
 import { sh } from "../../shared/shell.mjs";
 import { repoNamed, type Repo } from "../../shared/workspace.mjs";
@@ -67,13 +67,23 @@ export const pr = async (run: Run, touched: readonly Repo[], planned: readonly I
   const prs = await inParallel(touched, (repo) => repo.name, (repo) => prOfRepo(run, repo));
 
   const blockedBy = blockedByOf(home, [...new Set(prs.flatMap((pr) => pr.issues))]);
-  const block = runBlock(modelsLine(run.context.env.phases), home.slug, run.root, prs, reposWithoutPr(planned, prs.map((pr) => pr.repo)), blockedBy, run.kanban.inStatus("Backlog"));
+  const blockOf = (repo: string): string =>
+    runBlock(
+      modelsLine(run.context.env.phases),
+      home.slug,
+      run.root,
+      prs,
+      reposWithoutPr(planned.filter(hasIssue), prs.map((pr) => pr.repo)),
+      blockedBy,
+      run.kanban.inStatus("Backlog"),
+      reviewSection(repo, run.record.review()),
+    );
   const dir = mkdtempSync(join(tmpdir(), "sandcastle-pr-"));
   for (const pr of prs) {
     const repo = repoNamed(run.workspace, pr.repo);
     const { body } = bodySchema.parse(JSON.parse(sh(repo.path, "gh", "pr", "view", pr.url, "--json", "body")));
     const file = join(dir, `${pr.repo}.md`);
-    writeFileSync(file, withRunBlock(body, block));
+    writeFileSync(file, withRunBlock(body, blockOf(pr.repo)));
     sh(repo.path, "gh", "pr", "edit", pr.url, "--body-file", file);
   }
   return prs.map((pr) => `${pr.repo}: ${pr.url}`).join("\n");

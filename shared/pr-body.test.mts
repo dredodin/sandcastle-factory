@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { blockersFromJson, mergeOrder, modelsLine, prRef, reposWithoutPr, runBlock, withRunBlock, type Pr } from "./pr-body.mjs";
+import type { Item } from "./item.mjs";
+import type { ReviewRecord } from "./record.mjs";
+import { blockersFromJson, mergeOrder, modelsLine, prRef, reposWithoutPr, reviewSection, runBlock, withRunBlock, type Pr } from "./pr-body.mjs";
 
 const hub: Pr = { repo: "hub", url: "https://github.com/acme/hub/pull/9", issues: [3] };
 const app: Pr = { repo: "app", url: "https://github.com/acme/app/pull/12", issues: [4, 5] };
@@ -43,11 +45,11 @@ test("modelsLine: every phase's model, provider and effort, in phase order", () 
 });
 
 test("runBlock: only the models line for a single PR with nothing left out", () => {
-  assert.equal(runBlock("Models: m.", "acme/hub", 7, [hub], [], {}, []), "<!-- sandcastle-run -->\nModels: m.\n<!-- /sandcastle-run -->");
+  assert.equal(runBlock("Models: m.", "acme/hub", 7, [hub], [], {}, [], ""), "<!-- sandcastle-run -->\nModels: m.\n<!-- /sandcastle-run -->");
 });
 
 test("runBlock: PR list in merge order, and the repo without a PR with its open issues", () => {
-  const block = runBlock("Models: m.", "acme/hub", 7, [hub, app], [{ repo: "lib", open: [6, 8] }], { 3: [5] }, []);
+  const block = runBlock("Models: m.", "acme/hub", 7, [hub, app], [{ repo: "lib", open: [6, 8] }], { 3: [5] }, [], "");
   assert.equal(
     block,
     [
@@ -68,19 +70,19 @@ test("runBlock: PR list in merge order, and the repo without a PR with its open 
 });
 
 test("runBlock: one PR and a repo left without one still list the PR", () => {
-  assert.match(runBlock("Models: m.", "acme/hub", 7, [hub], [{ repo: "lib", open: [6] }], {}, []), /1\. acme\/hub#9 \(hub\)\n\nNo PR in `lib`/);
+  assert.match(runBlock("Models: m.", "acme/hub", 7, [hub], [{ repo: "lib", open: [6] }], {}, [], ""), /1\. acme\/hub#9 \(hub\)\n\nNo PR in `lib`/);
 });
 
 test("runBlock: several PRs with nothing left out still list the merge order", () => {
-  assert.match(runBlock("Models: m.", "acme/hub", 7, [hub, app], [], {}, []), /1\. acme\/hub#9 \(hub\)\n2\. acme\/app#12 \(app\)/);
+  assert.match(runBlock("Models: m.", "acme/hub", 7, [hub, app], [], {}, [], ""), /1\. acme\/hub#9 \(hub\)\n2\. acme\/app#12 \(app\)/);
 });
 
 test("runBlock: sub-issues left in Backlog are listed, even for a single PR", () => {
   assert.equal(
-    runBlock("Models: m.", "acme/hub", 7, [hub], [], {}, [4, 9]),
+    runBlock("Models: m.", "acme/hub", 7, [hub], [], {}, [4, 9], ""),
     "<!-- sandcastle-run -->\nModels: m.\n\n## Run\n\nLeft in Backlog, not delivered: #4, #9.\n<!-- /sandcastle-run -->",
   );
-  assert.match(runBlock("Models: m.", "acme/hub", 7, [hub, app], [], {}, [4]), /2\. acme\/app#12 \(app\)\n\nLeft in Backlog, not delivered: #4\.\n</);
+  assert.match(runBlock("Models: m.", "acme/hub", 7, [hub, app], [], {}, [4], ""), /2\. acme\/app#12 \(app\)\n\nLeft in Backlog, not delivered: #4\.\n</);
 });
 
 test("reposWithoutPr: repos with planned work and no PR, with their issues once each", () => {
@@ -107,4 +109,64 @@ test("withRunBlock: appends once, then replaces its own earlier block", () => {
 
 test("withRunBlock: an old block amid the body is cut out, the new one goes last", () => {
   assert.equal(withRunBlock("Body\n\n<!-- sandcastle-run -->\nA\n<!-- /sandcastle-run -->\n\nTail", "B"), "Body\nTail\n\nB\n");
+});
+
+const work = (repo: string, text: string, source: Item["source"] = "review"): Item => ({ issue: "", work: text, source, repo, title: "t", branch: `b-${text}` });
+const none: ReviewRecord = { passes: [], rejected: [], merged: [], ended: [] };
+
+test("reviewSection: per pass, the report, then findings fixed, rejected with reason, left over", () => {
+  const review: ReviewRecord = {
+    passes: [new Map([["app", "- a.ts: guard nulls\n- b.ts: use any"], ["lib", "- x"]]), new Map([["app", ""]])],
+    merged: [{ item: work("app", "a.ts: guard nulls"), commit: "c1", pass: 1 }, { item: work("lib", "x"), commit: "c2", pass: 1 }],
+    ended: [{ item: work("app", "c.ts: rename\nand d.ts"), end: "merge conflict", pass: 1 }, { item: work("app", "e.ts"), end: "already done", pass: 1 }],
+    rejected: [{ repo: "app", finding: "b.ts: use any", reason: "ADR-0001", pass: 1 }, { repo: "lib", finding: "y", reason: "r", pass: 1 }],
+  };
+  assert.equal(
+    reviewSection("app", review),
+    [
+      "## Review",
+      "",
+      "### Pass 1",
+      "",
+      "<details><summary>Report</summary>",
+      "",
+      "- a.ts: guard nulls\n- b.ts: use any",
+      "",
+      "</details>",
+      "",
+      "Fixed:",
+      "- a.ts: guard nulls",
+      "- e.ts (already done)",
+      "",
+      "Rejected:",
+      "- b.ts: use any — ADR-0001",
+      "",
+      "Left over:",
+      "- c.ts: rename\n  and d.ts (merge conflict)",
+    ].join("\n"),
+  );
+});
+
+test("reviewSection: a pass's outcomes stay with that pass; a pass with no findings is left out", () => {
+  const review: ReviewRecord = {
+    ...none,
+    passes: [new Map([["app", "- one"]]), new Map([["app", ""]]), new Map([["app", "- three"]])],
+    merged: [{ item: work("app", "one"), commit: "c", pass: 1 }, { item: work("app", "three"), commit: "c", pass: 3 }],
+  };
+  assert.match(reviewSection("app", review), /### Pass 1[\s\S]*Fixed:\n- one\n\n### Pass 3[\s\S]*Fixed:\n- three$/);
+  assert.doesNotMatch(reviewSection("app", review), /Pass 2/);
+});
+
+test("reviewSection: nothing found is no section; only review work counts as a finding's outcome", () => {
+  assert.equal(reviewSection("app", { ...none, passes: [new Map([["app", ""]])] }), "");
+  const review: ReviewRecord = {
+    ...none,
+    passes: [new Map([["app", "- f"]])],
+    merged: [{ item: work("app", "c", "comment"), commit: "c", pass: 1 }, { item: work("app", "p", "plan check"), commit: "c", pass: 1 }],
+  };
+  assert.doesNotMatch(reviewSection("app", review), /Fixed/);
+});
+
+test("runBlock: the review section ends the block", () => {
+  assert.equal(runBlock("Models: m.", "acme/hub", 7, [hub], [], {}, [], "## Review"), "<!-- sandcastle-run -->\nModels: m.\n\n## Review\n<!-- /sandcastle-run -->");
 });

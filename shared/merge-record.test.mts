@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { Item } from "./item.mjs";
-import { issuesIn, mergeCommand, messagesFor } from "./merge-record.mjs";
+import { issuesIn, mergeCommand, mergeCommitOf, messagesFor } from "./merge-record.mjs";
 
-const item = (issue: string): Item => ({ issue, repo: "app", title: "t", branch: "b" });
-const commit = (i: Item): string => messagesFor(i).join("\n\n");
+const item = (issue: string): Item => ({ issue, work: "", source: "issue", repo: "app", title: "t", branch: "b" });
+const commit = (i: Item): string => messagesFor(i, 1).join("\n\n");
 
 test("issuesIn: reads back what messagesFor writes, deduplicated, first-merged order", () => {
   const messages = [
@@ -25,7 +25,13 @@ test("issuesIn: reads a message as already stored in git", () => {
 });
 
 test("messagesFor: subject then Issue trailer", () => {
-  assert.deepEqual(messagesFor(item("7")), ["SANDCASTLE: merge #7", "Issue: #7"]);
+  assert.deepEqual(messagesFor(item("7"), 1), ["SANDCASTLE: merge #7", "Issue: #7"]);
+});
+
+test("messagesFor: an item without an issue records the root, and issuesIn reads it back", () => {
+  const work: Item = { issue: "", work: "fix", source: "review", repo: "app", title: "t", branch: "x-work-1" };
+  assert.deepEqual(messagesFor(work, 9), ["SANDCASTLE: merge work-1", "Issue: #9"]);
+  assert.deepEqual(issuesIn([messagesFor(work, 9).join("\n\n")]), [9]);
 });
 
 test("issuesIn: a subject line alone counts, and wins over a trailer after it", () => {
@@ -41,4 +47,12 @@ test("issuesIn: a subject line alone, or a trailer alone, names the issue, where
 
 test("mergeCommand: one -m per message, in order", () => {
   assert.equal(mergeCommand("b", ["SANDCASTLE: merge #7", "Issue: #7"]), 'git merge --no-ff b -m "SANDCASTLE: merge #7" -m "Issue: #7"');
+});
+
+test("mergeCommitOf: the hash of the merge commit carrying the item's subject, else none", () => {
+  const work: Item = { issue: "", work: "w", source: "review", repo: "app", title: "t", branch: "int-work-1" };
+  const lines = ["aaa1111 SANDCASTLE: merge #7", "bbb2222 SANDCASTLE: merge work-1", "ccc3333 SANDCASTLE: merge origin/main"];
+  assert.equal(mergeCommitOf(lines, item("7"), 1), "aaa1111");
+  assert.equal(mergeCommitOf(lines, work, 1), "bbb2222");
+  assert.equal(mergeCommitOf(lines, item("70"), 1), "");
 });

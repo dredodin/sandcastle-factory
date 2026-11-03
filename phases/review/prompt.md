@@ -12,15 +12,18 @@ The spec is the root issue, its sub-issues, and the open PR's comments of this b
 # Rules for this run
 
 - Nobody is there to answer: never ask a question, decide and go on.
-- Read the root's earlier review issues (sub-issues whose body says it comes from branch review); do not repeat what they fixed or what was rejected.
+- You only read GitHub: create, link and label no issue, post no comment.
+- The plan agent rejected these findings earlier in this run; do not repeat them:
+
+{{REJECTED}}
 
 # Task
 
-Review the whole branch and file what you find.
+Review the whole branch and print what you find.
 
 1. Read the diff: `git diff {{BASE_BRANCH}}...HEAD` and the commit list `git log {{BASE_BRANCH}}..HEAD --oneline`. Code in it (source, scripts, config, tests) → the **code review** below. Markdown in it → the **doc review** below. Both → code first.
 2. Deep verify script, when its file is in the worktree: `{{DEEP_VERIFY}}`, once, now. It is slow. What it reports are findings too.
-3. Findings → one issue: create it in `{{HOME_SLUG}}` (`gh issue create`, body file outside the worktree), add it as a sub-issue of root #{{ROOT}}, label it `repo:{{REPO_NAME}}` unless `{{REPO_NAME}}` is the home repo `{{HOME_NAME}}`. No other label. The body says it comes from branch review of repo `{{REPO_NAME}}`, then lists the findings, each with file, axis, what is wrong and how to fix it. A finding that contradicts the issue or an ADR is not listed. Nothing found: no issue.
+3. Print the Review report of repo `{{REPO_NAME}}` inside `<review>` tags: the findings, each with file, axis, what is wrong and how to fix it. List every finding: only the plan rejects. Nothing found: `<review></review>`. Always print the tags.
 
 ## Code review
 

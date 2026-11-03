@@ -7,7 +7,7 @@ Hand it a GitHub issue, walk away, come back to a pull request. AI agents plan t
 - **Tools**: Node 22+, git, [`gh`](https://cli.github.com) (logged in). Windows: git bash.
 - **Sandboxes**: docker or podman. Without them, see `SANDBOX=none` below.
 - **GitHub only**: GitLab, Bitbucket and others are not supported. The home repo needs issues enabled and a Kanban (below).
-- **Kanban**: a GitHub Project whose Status has exactly `Backlog`, `Ready for agent`, `Agent working`, `In review`, `Done`, and the built-in workflows Item added to project → Backlog, Item closed → Done and Item reopened → Ready for agent on. The factory refuses to start when the Status options differ; a switched-off workflow fails the run at the first move that needs it.
+- **Kanban**: a GitHub Project whose Status has exactly `Backlog`, `Ready for agent`, `Agent working`, `In review`, `Done`, and the built-in workflows Item closed → Done and Item reopened → Ready for agent on. The factory refuses to start when the Status options differ; a switched-off workflow fails the run at the first move that needs it.
 - **Token** `GH_TOKEN`, one for every Workspace repo and the Kanban. Its kind follows the Kanban's owner:
   - Kanban of a personal account: a classic token (`repo`, `project`, `workflow`, `read:org`, `read:discussion`). Fine-grained tokens cannot reach a user-owned Project.
   - Kanban of an organisation: a fine-grained token for that organisation is enough. Repository access: every Workspace repo. Repository permissions: Contents, Issues, Pull requests, Workflows read/write; Metadata read. Organisation permissions: Projects read/write.
@@ -75,12 +75,12 @@ flowchart LR
     impl --> merge[Merge]
     merge --> plan
     plan -- nothing left --> review[Review]
-    review -- findings become new work --> plan
+    review -- Review report --> plan
     review -- done --> pr([Pull request<br/>one per repo])
     pr --> you([You read and merge])
 ```
 
-Each agent checks its own work before committing. Review reads the whole branch and only files findings; the next cycles fix them. At most two review passes per run.
+Each agent checks its own work before committing. Review reads the whole branch and only prints a Review report; the plan turns it into work or rejects findings, and the next cycles fix what is planned. At most two review passes per run.
 
 ## Where things live
 
@@ -138,3 +138,4 @@ Decisions:
 | [0005](docs/adr/0005-sandbox-git-is-read-through-the-git-cli.md) | Sandbox git is read through the `git` CLI | accepted |
 | [0006](docs/adr/0006-issues-live-in-the-home-repo.md) | Issues live in the home repo; a repo label routes them | accepted |
 | [0007](docs/adr/0007-the-kanban-status-is-the-run-state.md) | The Kanban Status is the state of a run | accepted |
+| [0008](docs/adr/0008-agents-only-read-github.md) | Agents only read GitHub | accepted |
