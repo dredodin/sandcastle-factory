@@ -6,7 +6,7 @@ status: accepted
 
 ## Context
 
-An AFK run must show its progress, survive a crash and refuse to start twice on one root issue.
+An AFK run must show its progress, survive a crash and refuse to start twice on one root issue ([ADR-0009](0009-a-run-claims-its-root-through-a-local-port-pool.md)).
 
 ## Decision
 

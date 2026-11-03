@@ -116,6 +116,10 @@ _Avoid_: board, project
 An issue's column on the Kanban: Backlog, Ready for agent, Agent working, In review or Done.
 _Avoid_: state, stage
 
+**Port pool**:
+The local ports (`FACTORY_PORTS`) a run claims one of, answering with its repo, root and start time, so a second run on the same root is refused.
+_Avoid_: lock
+
 ## Setup
 
 **Setup wizard**:
