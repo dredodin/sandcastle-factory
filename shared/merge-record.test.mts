@@ -3,8 +3,8 @@ import { test } from "node:test";
 import type { Item } from "./item.mjs";
 import { issuesIn, mergeCommand, messagesFor } from "./merge-record.mjs";
 
-const item = (issue: string): Item => ({ issue, repo: "app", title: "t", branch: "b" });
-const commit = (i: Item): string => messagesFor(i).join("\n\n");
+const item = (issue: string): Item => ({ issue, work: "", repo: "app", title: "t", branch: "b" });
+const commit = (i: Item): string => messagesFor(i, 1).join("\n\n");
 
 test("issuesIn: reads back what messagesFor writes, deduplicated, first-merged order", () => {
   const messages = [
@@ -25,7 +25,13 @@ test("issuesIn: reads a message as already stored in git", () => {
 });
 
 test("messagesFor: subject then Issue trailer", () => {
-  assert.deepEqual(messagesFor(item("7")), ["SANDCASTLE: merge #7", "Issue: #7"]);
+  assert.deepEqual(messagesFor(item("7"), 1), ["SANDCASTLE: merge #7", "Issue: #7"]);
+});
+
+test("messagesFor: an item without an issue records the root, and issuesIn reads it back", () => {
+  const work: Item = { issue: "", work: "fix", repo: "app", title: "t", branch: "x-work-1" };
+  assert.deepEqual(messagesFor(work, 9), ["SANDCASTLE: merge work-1", "Issue: #9"]);
+  assert.deepEqual(issuesIn([messagesFor(work, 9).join("\n\n")]), [9]);
 });
 
 test("issuesIn: a subject line alone counts, and wins over a trailer after it", () => {

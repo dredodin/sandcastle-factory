@@ -1,5 +1,5 @@
 import { writeFileSync } from "node:fs";
-import type { Item } from "../../shared/item.mjs";
+import { itemId, type Item } from "../../shared/item.mjs";
 import { log, timed } from "../../shared/logger.mjs";
 import { mergeCommand, messagesFor } from "../../shared/merge-record.mjs";
 import { logFileName, verifyCommand } from "../../shared/names.mjs";
@@ -56,7 +56,7 @@ export const merge = async (cycle: Cycle, items: readonly Item[]): Promise<reado
       "merge",
       items
         .filter((item) => item.repo === repo.name)
-        .map((item) => ({ of: item, branch: item.branch, command: mergeCommand(item.branch, messagesFor(item)), brings: `${item.issue}: ${item.title}` })),
+        .map((item) => ({ of: item, branch: item.branch, command: mergeCommand(item.branch, messagesFor(item, cycle.root)), brings: `${itemId(item)}: ${item.title}` })),
     ),
   );
   return unmerged.flat();

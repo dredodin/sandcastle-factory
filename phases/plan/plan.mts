@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import type { ResumeSandboxRunResultOptions, SandboxRunResult } from "@ai-hero/sandcastle";
 import { z } from "zod";
 import { extract } from "../../shared/extract.mjs";
-import { itemFits, itemSchema } from "../../shared/item.mjs";
+import { hasIssue, itemFits, itemId, planItemSchema } from "../../shared/item.mjs";
 import { log, timed } from "../../shared/logger.mjs";
 import { planCheckCommand } from "../../shared/names.mjs";
 import { promptPath } from "../../shared/paths.mjs";
@@ -47,14 +47,15 @@ export const plan = async (cycle: Cycle, openPrsText: string, session: PlanSessi
 
   const planSchema = z.object({
     items: z.array(
-      itemSchema.omit({ branch: true }).refine((item) => itemFits(item, repos), "item outside the Workspace"),
+      planItemSchema.refine((item) => itemFits(item, repos), "item outside the Workspace"),
     ),
     created: z.array(z.string().regex(/^[1-9][0-9]*$/)).default([]),
   });
   const planned = extract(result.stdout, "plan", planSchema);
   await cycle.kanban.ready(planned.created.map(Number));
-  const started = await Promise.all(planned.items.map(async (item) => ({ item, taken: await cycle.kanban.move(Number(item.issue), "planned", "") })));
-  const items = started.filter(({ taken }) => taken).map(({ item }) => ({ ...item, branch: itemBranch(repoNamed(workspace, item.repo), branch, item.issue) }));
-  items.forEach((item) => log.info(`  ${item.issue}: ${item.title} → ${item.repo}: ${item.branch}`));
+  // An item without an issue has no card to move.
+  const started = await Promise.all(planned.items.map(async (item) => ({ item, taken: !hasIssue(item) || (await cycle.kanban.move(Number(item.issue), "planned", "")) })));
+  const items = started.filter(({ taken }) => taken).map(({ item }) => item).map((item, index) => ({ ...item, branch: itemBranch(repoNamed(workspace, item.repo), branch, hasIssue(item) ? item.issue : `work-${index + 1}`) }));
+  items.forEach((item) => log.info(`  ${itemId(item)}: ${item.title} → ${item.repo}: ${item.branch}`));
   return { items, next: result.resume ?? freshPlan(cycle) };
 };

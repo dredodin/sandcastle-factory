@@ -33,16 +33,16 @@ For each open PR listed above, read every kind of comment on it with one GraphQL
 
 ## Plan check script
 
-When `.sandcastle/repos/{{HOME_NAME}}/plan-check.sh` is in the worktree, run `{{PLAN_CHECK}}` once. Exit 0: no work. Any other exit: what it printed is work, turned into a sub-issue as Rule 6 says. No file: skip this section.
+When `.sandcastle/repos/{{HOME_NAME}}/plan-check.sh` is in the worktree, run `{{PLAN_CHECK}}` once. Exit 0: no work. Any other exit: what it printed is work, planned as one `work` item (Rule 6) in the repo its output names, else the home repo, every cycle until the check passes. It creates no issue. No file: skip this section.
 
 ## Rules
 
 1. **Work items**: the root's direct sub-issues. No sub-issues: the root is the single work item. One level only: a sub-issue's own sub-issues are never items.
-2. **Candidates**: the open sub-issues listed above. A root without sub-issues is the single item while it is open.
+2. **Candidates**: the open sub-issues listed above. A root without sub-issues is the single item while it is open. A failing plan check adds a `work` candidate.
 3. **Blocking**: an item is unblocked when all its `blockedBy` issues are closed; you take blocking only from `blockedBy`, blockers outside the tree and in other repos included.
 4. **Labels never decide eligibility**; they only route an item to a repo.
 5. **All unblocked candidates**, the issues you created this cycle included, go into the plan. None: empty plan.
-6. **One repo per item, every item an issue.** An item belongs to the repo its label names. Work that is not an issue yet becomes one: create it in `{{HOME_SLUG}}` (`gh issue create`), add it as a sub-issue of the root, label it `repo:<name>` unless it belongs in the home repo, wire `blockedBy` where order matters. The body says what to change and links the PR comments it came from, verbatim where a command is given. PR comments: their issue's label names the repo its work is done in, as the comment shows it (a path, a name, what it asks for); the comment does not show it: the repo of the PR it is on. A comment asking for changes in two repos becomes one issue per repo. As few issues as possible: group by meaning, ideally one, at most four across all repos. Plan check output that fails: one such issue, in the repo its output names, else the home repo, its body saying it comes from the plan check; none while an open sub-issue from the check exists.
+6. **One repo per item, every item an issue or `work`.** An item belongs to the repo its label names. Work that is not an issue yet becomes one: create it in `{{HOME_SLUG}}` (`gh issue create`), add it as a sub-issue of the root, label it `repo:<name>` unless it belongs in the home repo, wire `blockedBy` where order matters. The body says what to change and links the PR comments it came from, verbatim where a command is given. PR comments: their issue's label names the repo its work is done in, as the comment shows it (a path, a name, what it asks for); the comment does not show it: the repo of the PR it is on. A comment asking for changes in two repos becomes one issue per repo. As few issues as possible: group by meaning, ideally one, at most four across all repos. Plan check output is the exception: it is a `work` item, not an issue.
 7. **PR comments**: every comment is a request to the maintainer's agent.
    - **Own**: a comment whose body starts with the line `{{DISCLAIMER}}` is the agent's own reply, posted under the maintainer's account. Never a request, never work. Every reply you post starts with that line.
    - **Bot**: a comment whose author's `__typename` is `Bot` (CI and the like). Never a request, never work; post nothing under it.
@@ -55,10 +55,10 @@ When `.sandcastle/repos/{{HOME_NAME}}/plan-check.sh` is in the worktree, run `{{
 
 ## Output
 
-Print the plan as JSON inside `<plan>` tags. `issue` is the issue number as a string, `repo` a repo name from the list above:
+Print the plan as JSON inside `<plan>` tags. An item has either `issue`, the issue number as a string, or `work`, the task text (failing plan check output, verbatim with file and fix); never both. `repo` is a repo name from the list above:
 
 <plan>
-{"items": [{"issue": "42", "repo": "app", "title": "Fix auth bug"}, {"issue": "43", "repo": "{{HOME_NAME}}", "title": "Rename the flag"}], "created": ["43"]}
+{"items": [{"issue": "42", "repo": "app", "title": "Fix auth bug"}, {"issue": "43", "repo": "{{HOME_NAME}}", "title": "Rename the flag"}, {"work": "plan-check.sh failed: src/a.ts:3 unused import `x`; remove it.", "repo": "{{HOME_NAME}}", "title": "Fix the plan check"}], "created": ["43"]}
 </plan>
 
 `created` lists every issue you created this cycle, as strings, whether or not it is in `items`; omit it or leave it empty when you created none. Always print the tags. Nothing to do: `<plan>{"items": []}</plan>`.

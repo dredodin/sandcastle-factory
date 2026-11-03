@@ -7,7 +7,7 @@ import { implement } from "../phases/implement/implement.mjs";
 import { merge, mergeDefaults } from "../phases/merge/merge.mjs";
 import { freshPlan, plan, type PlanSession } from "../phases/plan/plan.mjs";
 import { pr } from "../phases/pr/pr.mjs";
-import type { Item } from "../shared/item.mjs";
+import { hasIssue, itemId, type Item } from "../shared/item.mjs";
 import { log, openRunLog } from "../shared/logger.mjs";
 import { inParallel } from "../shared/parallel.mjs";
 import { conflictsWithBase } from "../shared/repo.mjs";
@@ -53,26 +53,33 @@ const cycle = async (
   await Promise.all([...new Set(items.map((item) => item.repo))].map((name) => current.integrations.get(repoNamed(run.workspace, name))));
 
   // Each item in its own worktree of its repo, done by its one agent. Resolves to what each reported.
-  const outcomes = await inParallel(items, (item) => item.issue, (item) =>
-    withSandbox(run.context, { repo: repoNamed(run.workspace, item.repo), name: item.issue, branch: item.branch, baseBranch: run.branch }, (sandbox) =>
+  const outcomes = await inParallel(items, itemId, (item) =>
+    withSandbox(run.context, { repo: repoNamed(run.workspace, item.repo), name: itemId(item), branch: item.branch, baseBranch: run.branch }, (sandbox) =>
       implement(current, sandbox, item),
     ),
   );
-  // Without code: the sub-issue is closed or sent to Backlog now. Committed: merged first.
+  // Without code: the sub-issue is closed or sent to Backlog now; an item without an issue only logs it. Committed: merged first.
   const ended = items.flatMap((item, index) => {
     const { outcome, note } = outcomes[index]!;
     return outcome === "committed" ? [] : [{ item, outcome, note: note === "" ? `Implement reported: ${outcome}.` : note }];
   });
-  for (const { item, outcome, note } of ended) await run.kanban.move(Number(item.issue), outcome, note);
+  for (const { item, outcome, note } of ended) {
+    if (hasIssue(item)) await run.kanban.move(Number(item.issue), outcome, note);
+    else log.info(`  ${itemId(item)}: ${outcome}: ${note}`);
+  }
   const done = items.filter((_, index) => outcomes[index]!.outcome === "committed");
   const leftOut = done.length === 0 ? [] : await merge(current, done);
   if (done.length === 0) log.info("No item committed. Nothing to merge.");
   for (const item of done) {
+    if (!hasIssue(item)) {
+      if (leftOut.includes(item)) log.warn(`  ${itemId(item)}: the merge of \`${item.branch}\` left it out.`);
+      continue;
+    }
     if (leftOut.includes(item)) await run.kanban.move(Number(item.issue), "merge conflict", `The merge of \`${item.branch}\` into \`${run.branch}\` left it out: resolve the conflict, then move this issue to Ready for agent.`);
     else await run.kanban.move(Number(item.issue), "merged", `Done: merged into \`${run.branch}\`.`);
   }
   // The root as item is worked once, merged, left out or ended without code: planning it again would repeat the same end.
-  return { items, next, stop: items.some((item) => Number(item.issue) === run.root) };
+  return { items, next, stop: items.some((item) => hasIssue(item) && Number(item.issue) === run.root) };
 };
 
 // Cycles until the plan is empty or the cap is reached; one after another, each plans on the last one's merge.

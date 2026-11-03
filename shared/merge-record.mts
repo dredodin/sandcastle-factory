@@ -1,10 +1,11 @@
-import type { Item } from "./item.mjs";
+import { hasIssue, itemId, type Item } from "./item.mjs";
 
 const SUBJECT = "SANDCASTLE: merge ";
 const TRAILER = "Issue: #";
 
-// The `-m` messages of an item's merge commit.
-export const messagesFor = (item: Item): readonly string[] => [`${SUBJECT}#${item.issue}`, `${TRAILER}${item.issue}`];
+// The `-m` messages of an item's merge commit. An item without an issue records the root.
+export const messagesFor = (item: Item, root: number): readonly string[] =>
+  hasIssue(item) ? [`${SUBJECT}#${item.issue}`, `${TRAILER}${item.issue}`] : [`${SUBJECT}${itemId(item)}`, `${TRAILER}${root}`];
 
 // The merge command the merge script runs and the merge prompt lists, verbatim.
 export const mergeCommand = (branch: string, messages: readonly string[]): string =>

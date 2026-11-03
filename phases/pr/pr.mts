@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
 import { extract } from "../../shared/extract.mjs";
-import type { Item } from "../../shared/item.mjs";
+import { hasIssue, type Item } from "../../shared/item.mjs";
 import { log, timed } from "../../shared/logger.mjs";
 import { logFileName, verifyCommand } from "../../shared/names.mjs";
 import { inParallel } from "../../shared/parallel.mjs";
@@ -67,7 +67,7 @@ export const pr = async (run: Run, touched: readonly Repo[], planned: readonly I
   const prs = await inParallel(touched, (repo) => repo.name, (repo) => prOfRepo(run, repo));
 
   const blockedBy = blockedByOf(home, [...new Set(prs.flatMap((pr) => pr.issues))]);
-  const block = runBlock(modelsLine(run.context.env.phases), home.slug, run.root, prs, reposWithoutPr(planned, prs.map((pr) => pr.repo)), blockedBy, run.kanban.inStatus("Backlog"));
+  const block = runBlock(modelsLine(run.context.env.phases), home.slug, run.root, prs, reposWithoutPr(planned.filter(hasIssue), prs.map((pr) => pr.repo)), blockedBy, run.kanban.inStatus("Backlog"));
   const dir = mkdtempSync(join(tmpdir(), "sandcastle-pr-"));
   for (const pr of prs) {
     const repo = repoNamed(run.workspace, pr.repo);
