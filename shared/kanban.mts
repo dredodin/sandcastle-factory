@@ -4,6 +4,7 @@
 import { z } from "zod";
 import { message } from "./cli.mjs";
 import { log } from "./logger.mjs";
+import { githubUrl, slugFromRemote } from "./names.mjs";
 import { latestTake } from "./repo.mjs";
 import { DISCLAIMER } from "./run.mjs";
 import { sh, shIn } from "./shell.mjs";
@@ -61,6 +62,28 @@ export const preflight = (options: readonly string[]): readonly string[] => [
   ...options.filter((option) => !STATUSES.some((status) => status === option)).map((option) => `Status option "${option}" is extra: remove it or rename it to one of ${STATUSES.join(", ")}`),
 ];
 
+// The root and its sub-issues, each with its Status on the Kanban (null: no card there, no Status set, or one the machine does not know).
+export type Tree = { readonly subIssues: readonly number[]; readonly statuses: ReadonlyMap<number, Status | null> };
+
+const nodeSchema = z.object({
+  number: z.number(),
+  projectItems: z.object({ nodes: z.array(z.object({ project: z.object({ id: z.string() }), fieldValueByName: z.object({ name: z.string() }).nullable() })) }),
+});
+const treeSchema = z.object({ data: z.object({ repository: z.object({ issue: nodeSchema.extend({ subIssues: z.object({ nodes: z.array(nodeSchema) }) }) }) }) });
+
+// `gh api graphql` output of the tree query → the Tree, reading only the item of the project `projectId`.
+export const treeOf = (json: string, projectId: string): Tree => {
+  const { issue } = treeSchema.parse(JSON.parse(json)).data.repository;
+  const statusOf = (node: z.infer<typeof nodeSchema>): Status | null => {
+    const name = node.projectItems.nodes.find((item) => item.project.id === projectId)?.fieldValueByName?.name;
+    return STATUSES.find((status) => status === name) ?? null;
+  };
+  return {
+    subIssues: issue.subIssues.nodes.map((sub) => sub.number),
+    statuses: new Map([issue, ...issue.subIssues.nodes].map((node) => [node.number, statusOf(node)])),
+  };
+};
+
 // Stryker disable all: from here the code is `gh` calls, beside the pure machine above.
 export type Kanban = {
   // Applies `event` to the issue: reads its Status, asks the machine, writes. A refusal is logged. Resolves to whether it was not refused.
@@ -79,22 +102,18 @@ export type KanbanRun = {
 };
 
 const WAIT_MS = 120_000;
-const POLL_MS = 2_000;
-const LIMIT = 1000;
+const POLL_MS = 5_000;
+
+// Sub-issues: GitHub caps a parent at 100. Items: the projects one issue is on.
+const ITEMS = `projectItems(first: 10, includeArchived: false) { nodes { project { id } fieldValueByName(name: "Status") { ... on ProjectV2ItemFieldSingleSelectValue { name } } } }`;
+const TREE = `query($owner: String!, $name: String!, $root: Int!) { repository(owner: $owner, name: $name) { issue(number: $root) { number ${ITEMS} subIssues(first: 100) { nodes { number ${ITEMS} } } } } }`;
 
 const fieldsSchema = z.object({
   fields: z.array(z.object({ id: z.string(), name: z.string(), options: z.array(z.object({ id: z.string(), name: z.string() })).default([]) })),
 });
-const itemsSchema = z.object({
-  items: z.array(z.object({ status: z.string().optional(), content: z.object({ number: z.number().optional(), repository: z.string().optional() }) })),
-});
 const idSchema = z.object({ id: z.string() });
-const subIssuesSchema = z.object({ subIssues: z.object({ nodes: z.array(z.object({ number: z.number() })) }) });
 const prsSchema = z.array(z.object({ url: z.string() }));
 const viewSchema = z.object({ state: z.string(), comments: z.array(z.object({ body: z.string() })) });
-
-// `gh issue view --json subIssues` output → the sub-issue numbers.
-export const subIssueNumbers = (json: string): readonly number[] => subIssuesSchema.parse(JSON.parse(json)).subIssues.nodes.map((sub) => sub.number);
 
 // Reads the Kanban and refuses (throws, naming what to fix) when it cannot run the machine.
 export const openKanban = (workspace: Workspace, ref: KanbanRef, root: number): KanbanRun => {
@@ -117,20 +136,14 @@ export const openKanban = (workspace: Workspace, ref: KanbanRef, root: number): 
   const problems = preflight(Object.keys(read.options));
   if (problems.length > 0) throw new Error(`The Kanban ${where} cannot run the factory:\n${problems.map((problem) => `- ${problem}`).join("\n")}`);
 
-  const statuses = (): ReadonlyMap<number, Status | null> => {
-    const { items } = itemsSchema.parse(JSON.parse(project("item-list", number, "--format", "json", "--limit", `${LIMIT}`)));
-    if (items.length >= LIMIT) throw new Error(`The Kanban ${where} has ${LIMIT} items or more: the factory cannot read it whole.`);
-    return new Map(
-      items.flatMap(({ status, content }) =>
-        content.repository === home.slug && content.number !== undefined ? [[content.number, STATUSES.find((entry) => entry === status) ?? null] as const] : [],
-      ),
-    );
-  };
-  const status = (issue: number): Status | null => statuses().get(issue) ?? null;
-  const subIssues = (): readonly number[] => subIssueNumbers(gh("issue", "view", `${root}`, "--repo", home.slug, "--json", "subIssues"));
+  const slug = slugFromRemote(githubUrl(home.slug));
+  // Fresh on every call: built-in workflows and humans move cards under the run.
+  const tree = (): Tree => treeOf(gh("api", "graphql", "-f", `query=${TREE}`, "-f", `owner=${slug.owner}`, "-f", `name=${slug.name}`, "-F", `root=${root}`), read.projectId);
+  const status = (issue: number): Status | null => tree().statuses.get(issue) ?? null;
+  const subIssues = (): readonly number[] => tree().subIssues;
   const inStatus = (wanted: Status): readonly number[] => {
-    const all = statuses();
-    return subIssues().filter((issue) => all.get(issue) === wanted);
+    const { subIssues: subs, statuses } = tree();
+    return subs.filter((issue) => statuses.get(issue) === wanted);
   };
 
   // Adds the issue to the Kanban (an upsert); returns its item id.
