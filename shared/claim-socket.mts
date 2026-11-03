@@ -4,7 +4,7 @@ import { Worker } from "node:worker_threads";
 import { decideStart, decideTie, identitySchema, type Identity, type Probe } from "./claim.mjs";
 
 const HOST = "127.0.0.1";
-const PROBE_MS = 1_000;
+const PROBE_MS = 3_000; // Windows takes ~2 s to refuse a connection to a free loopback port.
 
 const refused = (error: unknown): boolean => error instanceof Error && (error.cause as { code?: string } | undefined)?.code === "ECONNREFUSED";
 
@@ -43,10 +43,6 @@ const listen = (port: number, identity: Identity): Promise<Worker | null> =>
     });
   });
 
-const close = async (worker: Worker): Promise<void> => {
-  await worker.terminate();
-};
-
 // Claims the root or throws naming why; runs `work` holding the port, releases it after.
 export const withClaim = async <T,>(ports: readonly number[], identity: Identity, work: () => Promise<T>): Promise<T> => {
   for (const _ of ports) {
@@ -56,13 +52,13 @@ export const withClaim = async <T,>(ports: readonly number[], identity: Identity
     if (holder === null) continue;
     const tie = decideTie(await probeAll(ports), identity, start.port);
     if (tie.type === "refuse") {
-      await close(holder);
+      await holder.terminate();
       throw new Error(tie.reason);
     }
     try {
       return await work();
     } finally {
-      await close(holder);
+      await holder.terminate();
     }
   }
   throw new Error("the factory ports kept changing hands while claiming one; start again.");

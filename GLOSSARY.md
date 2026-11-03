@@ -71,6 +71,13 @@ _Avoid_: review issue
 One unit of work a plan hands to one implement agent: an unblocked sub-issue in Ready for agent, the root issue when it has none, or work the plan wrote as text from a Review report, PR comments or plan check output (no issue, no Kanban card). Always in exactly one repo.
 _Avoid_: task, job, work unit, ticket (when you mean any sub-issue)
 
+**Claim**:
+A run's hold on its root issue: one port of the port pool, kept for the run's life and freed by the OS when the process dies.
+
+**Port pool**:
+The local ports (`FACTORY_PORTS`) a run claims one of, answering with its repo, root and start time, so a second run on the same root is refused.
+_Avoid_: lock
+
 ## Branches and delivery
 
 **Integration branch**:
@@ -115,10 +122,6 @@ _Avoid_: board, project
 **Status**:
 An issue's column on the Kanban: Backlog, Ready for agent, Agent working, In review or Done.
 _Avoid_: state, stage
-
-**Port pool**:
-The local ports (`FACTORY_PORTS`) a run claims one of, answering with its repo, root and start time, so a second run on the same root is refused.
-_Avoid_: lock
 
 ## Setup
 
