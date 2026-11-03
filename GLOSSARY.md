@@ -68,7 +68,7 @@ What branch review prints for one repo inside `<review>` tags: its findings, emp
 _Avoid_: review issue
 
 **Item**:
-One unit of work a plan hands to one implement agent: an unblocked sub-issue in Ready for agent, the root issue when it has none, or work the plan wrote as text from a Review report or plan check output (no issue, no Kanban card). Always in exactly one repo.
+One unit of work a plan hands to one implement agent: an unblocked sub-issue in Ready for agent, the root issue when it has none, or work the plan wrote as text from a Review report, PR comments or plan check output (no issue, no Kanban card). Always in exactly one repo.
 _Avoid_: task, job, work unit, ticket (when you mean any sub-issue)
 
 ## Branches and delivery

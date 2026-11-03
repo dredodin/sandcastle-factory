@@ -26,6 +26,6 @@ ADR-0002's review agent fixed code itself, so its fixes went unreviewed and left
 
 ## Consequences
 
-- Reviews leave issues as artifacts; every code change is reviewed at item level.
+- Reviews leave no issues ([ADR-0008](0008-agents-only-read-github.md)); every code change is reviewed at item level.
 - A run ends after at most two review passes.
 - A proposal for review to fix code again re-proposes what this drops.
