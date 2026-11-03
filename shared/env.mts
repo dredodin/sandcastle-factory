@@ -3,6 +3,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { parseEnv as parseDotenv } from "node:util";
 import { z } from "zod";
+import { message } from "./cli.mjs";
 import type { KanbanRef } from "./kanban.mjs";
 import { DEFAULT_PORTS, parsePorts } from "./claim.mjs";
 import { repoKey } from "./names.mjs";
@@ -105,7 +106,14 @@ const schemaFor = (repoNames: readonly string[], hostLogin: boolean): z.ZodType<
       SANDBOX: z.enum(SANDBOXES),
       KANBAN_OWNER: nonEmpty,
       KANBAN_NUMBER: z.string().regex(/^[1-9][0-9]*$/, "a project number"),
-      FACTORY_PORTS: z.string().refine((text) => { try { return parsePorts(text).length > 0; } catch { return false; } }, "ports and ranges like 29170-29179").optional(),
+      FACTORY_PORTS: z.string().transform((text, ctx): readonly number[] => {
+        try {
+          return parsePorts(text);
+        } catch (error) {
+          ctx.addIssue({ code: "custom", message: message(error) });
+          return z.NEVER;
+        }
+      }).optional(),
       CLAUDE_CODE_OAUTH_TOKEN: nonEmpty.optional(),
       ANTHROPIC_API_KEY: nonEmpty.optional(),
       COPILOT_GITHUB_TOKEN: nonEmpty.optional(),
@@ -143,6 +151,6 @@ export const checkEnv = (values: Values, repoNames: readonly string[], hostLogin
   const repoPaths = Object.fromEntries(repoNames.map((name) => [name, value(repoKey(name))]));
   const mountCodexLogin = hostLogin && value(CODEX_KEY) === "" && PHASES.some((phase) => phases[phase].provider === "codex");
   const kanban = { owner: value("KANBAN_OWNER"), number: Number(value("KANBAN_NUMBER")) };
-  const ports = parsePorts(value("FACTORY_PORTS") || DEFAULT_PORTS);
+  const ports = (parsed.data.FACTORY_PORTS as unknown as readonly number[] | undefined) ?? parsePorts(DEFAULT_PORTS);
   return { sandbox: value("SANDBOX") as Env["sandbox"], phases, secrets, mountCodexLogin, repoPaths, kanban, ports };
 };

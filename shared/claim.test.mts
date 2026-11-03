@@ -31,10 +31,13 @@ test("decideStart: all busy is refused, listing every holder", () => {
   const reason = claim.type === "refuse" ? claim.reason : "";
   assert.match(reason, /acme\/home#6/);
   assert.match(reason, /port 2 is held by another program/);
+  assert.match(reason, /all 2 factory ports are busy: .*; port 2/);
 });
 
 test("decideTie: the run on the lower port keeps running, the higher releases", () => {
-  assert.deepEqual(decideTie([run(1, 5), run(2, 5)], own, 2).type, "refuse");
+  const tie = decideTie([run(1, 5), run(2, 5)], own, 2);
+  assert.equal(tie.type, "refuse");
+  assert.match(tie.type === "refuse" ? tie.reason : "", /at the same time: acme\/home#5 since t1 on port 1/);
   assert.deepEqual(decideTie([run(1, 5), run(2, 5)], own, 1), { type: "start", port: 1 });
 });
 
@@ -50,4 +53,16 @@ test("parsePorts: lists and ranges", () => {
 
 test("parsePorts: bad input throws", () => {
   for (const bad of ["", "a", "5-3", "0", "70000", "1-", "1-2-3"]) assert.throws(() => parsePorts(bad));
+});
+
+test("parsePorts: spaces around parts and range ends are fine; the edges 1 and 65535 are ports", () => {
+  assert.deepEqual(parsePorts(" 7 - 8 "), [7, 8]);
+  assert.deepEqual(parsePorts("1,65535"), [1, 65535]);
+});
+
+test("parsePorts: errors name the offender", () => {
+  assert.throws(() => parsePorts("5, x "), { message: '"x" is no port or port range' });
+  assert.throws(() => parsePorts("5,70000"), { message: "a port is outside 1-65535" });
+  assert.throws(() => parsePorts("0,5"), { message: "a port is outside 1-65535" });
+  assert.throws(() => parsePorts("65536"), { message: "a port is outside 1-65535" });
 });

@@ -11,13 +11,9 @@ const command = parseArgs(process.argv.slice(2));
 const ready = await setup(command.mode).catch((error: unknown) => fail(`Setup failed: ${message(error)}`));
 // Before anything reads or moves a card.
 const claimed = <T,>(root: number, work: () => Promise<T>): Promise<T> => withClaim(ready.env.ports, { repo: ready.workspace.home.slug, root, startedAt: new Date().toISOString() }, work);
-switch (command.mode) {
-  case "take":
-    await timed("take total", async () => log.info(await claimed(command.root, () => take(ready.workspace, ready.env, command.root)))).catch((error: unknown) => fail(`Take failed: ${message(error)}`));
-    break;
-  case "resume":
-    await timed("resume total", async () => log.info(await claimed(command.root, () => resume(ready.workspace, ready.env, command.root)))).catch((error: unknown) => fail(`Resume failed: ${message(error)}`));
-    break;
-  case "setup":
-    break;
+if (command.mode !== "setup") {
+  const run = { take, resume }[command.mode];
+  const { root } = command;
+  const label = command.mode;
+  await timed(`${label} total`, async () => log.info(await claimed(root, () => run(ready.workspace, ready.env, root)))).catch((error: unknown) => fail(`${label[0]?.toUpperCase()}${label.slice(1)} failed: ${message(error)}`));
 }
