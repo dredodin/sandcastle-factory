@@ -76,7 +76,7 @@ export const pr = async (run: Run, touched: readonly Repo[], planned: readonly I
       reposWithoutPr(planned.filter(hasIssue), prs.map((pr) => pr.repo)),
       blockedBy,
       run.kanban.inStatus("Backlog"),
-      reviewSection(run.record.reposWithFindings().has(repo), repo, run.record.merged().map(({ item }) => item), run.record.rejected(), run.record.leftOut()),
+      reviewSection(repo, run.record.review()),
     );
   const dir = mkdtempSync(join(tmpdir(), "sandcastle-pr-"));
   for (const pr of prs) {

@@ -12,6 +12,7 @@ import { hasIssue, itemId, type Item } from "../shared/item.mjs";
 import { log, openRunLog } from "../shared/logger.mjs";
 import { inParallel } from "../shared/parallel.mjs";
 import { mergeCommitOf } from "../shared/merge-record.mjs";
+import { cycleEnds } from "../shared/record.mjs";
 import { conflictsWithBase, mergeSubjects } from "../shared/repo.mjs";
 import type { Run } from "../shared/run.mjs";
 import { withSandbox } from "../shared/sandbox.mjs";
@@ -48,7 +49,7 @@ const cycle = async (
   conflicting.forEach((repo) => log.info(`  ${run.branch} conflicts with ${repo.base} in ${repo.name}`));
   const { items, next } = await plan(current, openPrsText, session);
   // The reports reach the plan agent once, in the cycle after their pass.
-  run.record.setReports(new Map());
+  run.record.clearReports();
   if (conflicting.length === 0 && items.length === 0) {
     log.info("Nothing to do: plan is empty.");
     return { items: [], next, stop: false };
@@ -74,15 +75,14 @@ const cycle = async (
   const done = items.filter((_, index) => outcomes[index]!.outcome === "committed");
   const leftOut = done.length === 0 ? [] : await merge(current, done);
   if (done.length === 0) log.info("No item committed. Nothing to merge.");
-  const merged = done.filter((item) => !leftOut.includes(item));
+  const { merged, ended: notMerged } = cycleEnds(items.map((item, index) => ({ item, outcome: outcomes[index]!.outcome })), leftOut);
   const subjects = new Map([...new Set(merged.map((item) => item.repo))].map((name) => [name, mergeSubjects(repoNamed(run.workspace, name), run.branch)]));
   run.record.addMerged(merged.map((item) => {
     const commit = mergeCommitOf(subjects.get(item.repo) ?? [], item, run.root);
     if (commit === "") log.warn(`  ${itemId(item)}: no merge commit found on \`${run.branch}\`; its comments get no reply.`);
     return { item, commit };
   }));
-  // Left over: what neither merged nor ended done (already done, done without code).
-  run.record.addLeftOut([...ended.filter(({ outcome }) => outcome === "cannot finish").map(({ item }) => item), ...leftOut]);
+  run.record.addEnded(notMerged);
   for (const item of done) {
     if (!hasIssue(item)) {
       if (leftOut.includes(item)) log.warn(`  ${itemId(item)}: the merge of \`${item.branch}\` left it out.`);
@@ -121,8 +121,7 @@ export const finish = async (run: Run, openPrsText: string, touched: () => reado
   for (let pass = 1; pass <= REVIEW_PASSES; pass++) {
     const repos = touched();
     const passed = await inParallel(repos, (repo) => repo.name, async (repo) => [repo.name, await review(run, repo, pass)] as const);
-    run.record.setReports(new Map(passed));
-    run.record.noteFindings(new Map(passed));
+    run.record.addPass(new Map(passed));
     const found = await cycles(run, openPrsText);
     items = [...items, ...found];
     // Nothing planned ends the reviews unless a report had findings the plan rejected: pass 2 checks the rest.

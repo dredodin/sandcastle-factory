@@ -1,9 +1,12 @@
 import { z } from "zod";
-import { commentSchema } from "./comments.mjs";
-import { itemFits, planItemSchema, type RepoRef } from "./item.mjs";
+import { commentSchema, type PlanComment } from "./comments.mjs";
+import { itemFits, planItemSchema, type PlanItem, type RepoRef } from "./item.mjs";
+import type { Rejection } from "./record.mjs";
+
+export type PlanOutput = { readonly items: readonly PlanItem[]; readonly rejected: readonly Rejection[]; readonly comments: readonly PlanComment[] };
 
 // What the plan agent prints in `<plan>`: its items, the review findings it rejected (each with its repo and a reason), the PR comments it handled.
-export const planOutputSchema = (repos: readonly RepoRef[]) =>
+export const planOutputSchema = (repos: readonly RepoRef[]): z.ZodType<PlanOutput> =>
   z.object({
     items: z.array(planItemSchema.refine((item) => itemFits(item, repos), "item outside the Workspace")),
     rejected: z

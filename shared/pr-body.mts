@@ -1,7 +1,7 @@
 // Pure assembly of what the run adds to every PR body: the models and the run's PR list.
 import { z } from "zod";
 import type { Item } from "./item.mjs";
-import type { Rejection } from "./record.mjs";
+import type { ReviewRecord } from "./record.mjs";
 import { PHASES, type Phase, type PhaseSetting } from "./env.mjs";
 
 export type Pr = {
@@ -55,26 +55,35 @@ export const reposWithoutPr = (planned: readonly Pick<Item, "repo" | "issue">[],
 
 const issueList = (issues: readonly number[]): string => issues.map((id) => `#${id}`).join(", ");
 
-// The review outcome of one repo: work the plan made from its findings and merged (fixed), its findings it rejected, such work left out.
-// "" when the repo's reviews found nothing.
-export const reviewSection = (
-  reviewed: boolean,
-  repo: string,
-  merged: readonly Item[],
-  rejected: readonly Rejection[],
-  leftOut: readonly Item[],
-): string => {
-  if (!reviewed) return "";
-  const own = (items: readonly Item[]) => items.filter((item) => item.repo === repo && item.source === "review");
-  const fixed = own(merged);
-  const left = own(leftOut).filter((item) => !fixed.some((done) => done.branch === item.branch));
-  const part = (title: string, lines: readonly string[]) => (lines.length === 0 ? [] : ["", `${title}:`, ...lines.map((line) => `- ${line}`)]);
-  return [
-    "## Review",
-    ...part("Fixed", fixed.map((item) => item.title)),
-    ...part("Rejected", rejected.filter((rejection) => rejection.repo === repo).map(({ finding, reason }) => `${finding} — ${reason}`)),
-    ...part("Left over", left.map((item) => item.title)),
-  ].join("\n");
+// What each review pass found in one repo and what became of it: its report, then the findings of its review work fixed
+// (merged, or ended already done or done without code), rejected with a reason, and left over (cannot finish, merge conflict).
+// A pass that found nothing in the repo is left out; "" when none found anything.
+export const reviewSection = (repo: string, review: ReviewRecord): string => {
+  const part = (title: string, lines: readonly string[]): readonly string[] =>
+    lines.length === 0 ? [] : ["", `${title}:`, ...lines.map((line) => `- ${line.replaceAll("\n", "\n  ")}`)];
+  const passes = review.passes.flatMap((reports, index) => {
+    const pass = index + 1;
+    const report = reports.get(repo) ?? "";
+    if (report === "") return [];
+    const own = <T extends { readonly item: Item; readonly pass: number }>(entries: readonly T[]): readonly T[] =>
+      entries.filter((entry) => entry.pass === pass && entry.item.repo === repo && entry.item.source === "review");
+    const ended = own(review.ended);
+    const noted = (ends: readonly string[]) => ended.filter(({ end }) => ends.includes(end)).map(({ item, end }) => `${item.work} (${end})`);
+    return [
+      "",
+      `### Pass ${pass}`,
+      "",
+      "<details><summary>Report</summary>",
+      "",
+      report,
+      "",
+      "</details>",
+      ...part("Fixed", [...own(review.merged).map(({ item }) => item.work), ...noted(["already done", "done without code"])]),
+      ...part("Rejected", review.rejected.filter((rejection) => rejection.pass === pass && rejection.repo === repo).map(({ finding, reason }) => `${finding} — ${reason}`)),
+      ...part("Left over", noted(["cannot finish", "merge conflict"])),
+    ];
+  });
+  return passes.length === 0 ? "" : ["## Review", ...passes].join("\n");
 };
 
 // One line naming the model each phase ran with.

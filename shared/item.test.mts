@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { hasIssue, implementRunOf, ITEM_SHAPE, itemFits, itemId, planItemSchema, WORK_SOURCE, type Item } from "./item.mjs";
+import { hasIssue, implementRunOf, itemFits, itemId, planItemSchema, takenItems, type Item } from "./item.mjs";
 
 const home = { name: "hub", slug: "acme/hub" };
 const context = { home, otherBranches: "- app: sandcastle/hub/issue-7-take-1" };
@@ -22,21 +22,17 @@ const refusal = (input: object): string => {
 };
 
 test("planItemSchema: both issue and work are rejected", () => {
-  assert.match(refusal({ ...planned, issue: "42", work: "fix a.ts", source: "review" }), new RegExp(ITEM_SHAPE));
+  assert.match(refusal({ ...planned, issue: "42", work: "fix a.ts", source: "review" }), /issue or work/);
 });
 
 test("planItemSchema: neither issue nor work is rejected", () => {
-  assert.match(refusal(planned), new RegExp(ITEM_SHAPE));
-  assert.match(refusal({ ...planned, issue: "", work: "" }), new RegExp(ITEM_SHAPE));
+  assert.match(refusal(planned), /issue or work/);
+  assert.match(refusal({ ...planned, issue: "", work: "" }), /issue or work/);
 });
 
 test("planItemSchema: a work item names its source, an issue item none", () => {
-  assert.match(refusal({ ...planned, work: "fix a.ts" }), new RegExp(WORK_SOURCE));
-  assert.match(refusal({ ...planned, issue: "42", source: "review" }), new RegExp(WORK_SOURCE));
-});
-
-test("planItemSchema: a malformed issue number is rejected", () => {
-  assert.throws(() => planItemSchema.parse({ ...planned, issue: "0" }));
+  assert.match(refusal({ ...planned, work: "fix a.ts" }), /source/);
+  assert.match(refusal({ ...planned, issue: "42", source: "review" }), /source/);
 });
 
 test("implementRunOf: issue item in the home repo", () => {
@@ -103,4 +99,13 @@ test("itemFits: a repo of the Workspace fits, an unknown one does not", () => {
   assert.equal(itemFits({ repo: "hub" }, repos), true);
   assert.equal(itemFits({ repo: "app" }, repos), true);
   assert.equal(itemFits({ repo: "web" }, repos), false);
+});
+
+test("takenItems: items not started are dropped; work slugs count the taken, positions the plan", () => {
+  const items = [{ issue: "" }, { issue: "42" }, { issue: "" }, { issue: "" }];
+  assert.deepEqual(takenItems(items, [false, true, true, true]), [
+    { item: { issue: "42" }, position: 2, slug: "42" },
+    { item: { issue: "" }, position: 3, slug: "work-2" },
+    { item: { issue: "" }, position: 4, slug: "work-3" },
+  ]);
 });

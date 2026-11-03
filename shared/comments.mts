@@ -52,6 +52,5 @@ export const replyOf = (comment: Handled, commits: ReadonlyMap<string, string>):
   return { comment, body: [DISCLAIMER, ...answers, text].join("\n\n"), resolve: comment.decision !== "needs info" };
 };
 
-// Prompt text for the comments handled so far.
 export const handledText = (handled: readonly Handled[]): string =>
   handled.length === 0 ? "(none)" : handled.map((c) => `- ${c.url} (${c.kind} ${c.id}): ${c.decision}${c.text === "" ? "" : ` — ${c.text}`}`).join("\n");

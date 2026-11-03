@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { Item } from "./item.mjs";
+import type { ReviewRecord } from "./record.mjs";
 import { blockersFromJson, mergeOrder, modelsLine, prRef, reposWithoutPr, reviewSection, runBlock, withRunBlock, type Pr } from "./pr-body.mjs";
 
 const hub: Pr = { repo: "hub", url: "https://github.com/acme/hub/pull/9", issues: [3] };
@@ -110,32 +111,60 @@ test("withRunBlock: an old block amid the body is cut out, the new one goes last
   assert.equal(withRunBlock("Body\n\n<!-- sandcastle-run -->\nA\n<!-- /sandcastle-run -->\n\nTail", "B"), "Body\nTail\n\nB\n");
 });
 
-const work = (repo: string, title: string, branch: string): Item => ({ issue: "", work: "w", source: "review", repo, title, branch });
+const work = (repo: string, text: string, source: Item["source"] = "review"): Item => ({ issue: "", work: text, source, repo, title: "t", branch: `b-${text}` });
+const none: ReviewRecord = { passes: [], rejected: [], merged: [], ended: [] };
 
-test("reviewSection: fixed, rejected with reason, left over", () => {
-  const fixed = work("app", "Guard nulls", "b-work-1");
-  const left = work("app", "Rename x", "b-work-2");
+test("reviewSection: per pass, the report, then findings fixed, rejected with reason, left over", () => {
+  const review: ReviewRecord = {
+    passes: [new Map([["app", "- a.ts: guard nulls\n- b.ts: use any"], ["lib", "- x"]]), new Map([["app", ""]])],
+    merged: [{ item: work("app", "a.ts: guard nulls"), commit: "c1", pass: 1 }, { item: work("lib", "x"), commit: "c2", pass: 1 }],
+    ended: [{ item: work("app", "c.ts: rename\nand d.ts"), end: "merge conflict", pass: 1 }, { item: work("app", "e.ts"), end: "already done", pass: 1 }],
+    rejected: [{ repo: "app", finding: "b.ts: use any", reason: "ADR-0001", pass: 1 }, { repo: "lib", finding: "y", reason: "r", pass: 1 }],
+  };
   assert.equal(
-    reviewSection(true, "app", [fixed, work("lib", "Other repo", "b-work-3")], [{ repo: "app", finding: "Use any", reason: "ADR-0001" }, { repo: "lib", finding: "Other", reason: "r" }], [fixed, left]),
-    "## Review\n\nFixed:\n- Guard nulls\n\nRejected:\n- Use any — ADR-0001\n\nLeft over:\n- Rename x",
+    reviewSection("app", review),
+    [
+      "## Review",
+      "",
+      "### Pass 1",
+      "",
+      "<details><summary>Report</summary>",
+      "",
+      "- a.ts: guard nulls\n- b.ts: use any",
+      "",
+      "</details>",
+      "",
+      "Fixed:",
+      "- a.ts: guard nulls",
+      "- e.ts (already done)",
+      "",
+      "Rejected:",
+      "- b.ts: use any — ADR-0001",
+      "",
+      "Left over:",
+      "- c.ts: rename\n  and d.ts (merge conflict)",
+    ].join("\n"),
   );
 });
 
-test("reviewSection: an item left out is left over unless some fixed item has its branch", () => {
-  const one = work("app", "One", "b-work-1");
-  const two = work("app", "Two", "b-work-2");
-  const three = work("app", "Three", "b-work-3");
-  assert.equal(reviewSection(true, "app", [one, two], [], [one, three]), "## Review\n\nFixed:\n- One\n- Two\n\nLeft over:\n- Three");
+test("reviewSection: a pass's outcomes stay with that pass; a pass with no findings is left out", () => {
+  const review: ReviewRecord = {
+    ...none,
+    passes: [new Map([["app", "- one"]]), new Map([["app", ""]]), new Map([["app", "- three"]])],
+    merged: [{ item: work("app", "one"), commit: "c", pass: 1 }, { item: work("app", "three"), commit: "c", pass: 3 }],
+  };
+  assert.match(reviewSection("app", review), /### Pass 1[\s\S]*Fixed:\n- one\n\n### Pass 3[\s\S]*Fixed:\n- three$/);
+  assert.doesNotMatch(reviewSection("app", review), /Pass 2/);
 });
 
-test("reviewSection: nothing found shows none; issue, comment and plan check items are not review work", () => {
-  assert.equal(reviewSection(false, "app", [work("app", "t", "b")], [], []), "");
-  const others: readonly Item[] = [
-    { ...work("app", "t", "b"), issue: "5", work: "", source: "issue" },
-    { ...work("app", "c", "b2"), source: "comment" },
-    { ...work("app", "p", "b3"), source: "plan check" },
-  ];
-  assert.equal(reviewSection(true, "app", others, [], others), "## Review");
+test("reviewSection: nothing found is no section; only review work counts as a finding's outcome", () => {
+  assert.equal(reviewSection("app", { ...none, passes: [new Map([["app", ""]])] }), "");
+  const review: ReviewRecord = {
+    ...none,
+    passes: [new Map([["app", "- f"]])],
+    merged: [{ item: work("app", "c", "comment"), commit: "c", pass: 1 }, { item: work("app", "p", "plan check"), commit: "c", pass: 1 }],
+  };
+  assert.doesNotMatch(reviewSection("app", review), /Fixed/);
 });
 
 test("runBlock: the review section ends the block", () => {

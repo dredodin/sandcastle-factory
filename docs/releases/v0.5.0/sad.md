@@ -252,7 +252,7 @@ flowchart TD
 - **Implement** writes the item test-first where there is a seam. Then it starts fresh-context subagents: Standards (when the diff has code), Docs (when the diff has code or Markdown) and Spec (always). It fixes their findings, runs the verify script and commits. It reports one outcome: `committed`, `done without code`, `already done` or `cannot finish`. A work item moves no card: its outcome is only logged.
 - **Merge** first tries one script chain: merge each item branch in order, then run the verify script. When the chain fails, it resets, and the merge agent resolves the conflicts. The default branch is merged in first when the integration branch conflicts with it.
 - **Review** reads the whole integration branch of one repo against its default branch. It applies a code review (Standards and Spec) and a doc review (Convention and Spec). It commits nothing and writes nothing to GitHub. It prints one review report; the second pass gets the findings the plan rejected after the first (ADR-0003, ADR-0008).
-- **PR** pushes the integration branch and opens or rewrites the PR. The PR closes no issue. The harness then adds a run block: the models, the merge order across repos, the repos without a PR, the sub-issues left in Backlog, and the review outcome of the repo (fixed, rejected with reasons, left over). Then it posts one reply under each handled PR comment ("fixed in <merge commit>", the reason, or the question) and resolves it, needs info excepted.
+- **PR** pushes the integration branch and opens or rewrites the PR. The PR closes no issue. The harness then adds a run block: the models, the merge order across repos, the repos without a PR, the sub-issues left in Backlog, and the review outcome of the repo per pass (its report, then findings fixed, rejected with reasons, left over). Then it posts one reply under each handled PR comment ("fixed in <merge commit>", the reason, or the question) and resolves it, needs info excepted.
 
 #### 7.2.3 Kanban state machine
 
@@ -284,7 +284,7 @@ stateDiagram-v2
 | --- | --- | --- |
 | Root issue, sub-issues | GitHub Issues of the home repo | The repo label routes. `blockedBy` orders. Only direct sub-issues are items. |
 | Status | Kanban (GitHub Project of the home repo) | Five options. Built-in workflows: closed → Done, reopened → Ready for agent. |
-| Review reports, rejected findings, handled PR comments, merged items | Harness memory, for one run | Never persisted. A resume starts empty and re-reviews. |
+| Review reports, rejected findings, handled PR comments, how each item ended | Harness memory, for one run | Never persisted. A resume starts empty and re-reviews. |
 | Code changes | Integration branch `sandcastle/<home>/issue-<N>-take-<K>` and item branches in each repo | The same integration branch name in each repo. An item branch name is never used again. |
 | Commits | Each repo | Subject starts with `SANDCASTLE:`. Body has `Issue: #<N>`. |
 | PR | Each touched repo | One for each take. The run block is between `<!-- sandcastle-run -->` markers. |

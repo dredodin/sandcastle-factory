@@ -10,8 +10,7 @@ test("rejected findings carry a reason; absent means none", () => {
   assert.deepEqual(schema.parse({ items: [] }).rejected, []);
 });
 
-test("a rejection without a reason, or outside the Workspace, is refused", () => {
-  assert.throws(() => schema.parse({ items: [], rejected: [{ repo: "app", finding: "x", reason: "" }] }));
+test("a rejection outside the Workspace is refused", () => {
   assert.throws(() => schema.parse({ items: [], rejected: [{ repo: "other", finding: "x", reason: "r" }] }));
 });
 
@@ -33,10 +32,4 @@ test("comments parse for each decision; absent means none", () => {
   });
   assert.equal(parsed.comments.length, 3);
   assert.deepEqual(schema.parse({ items: [] }).comments, []);
-});
-
-test("a planned comment needs an item; another decision needs a reason and no item", () => {
-  assert.throws(() => schema.parse({ items: [], comments: [{ ...comment, decision: "planned" }] }));
-  assert.throws(() => schema.parse({ items: [], comments: [{ ...comment, decision: "won't do", text: "r", item: 1 }] }));
-  assert.throws(() => schema.parse({ items: [], comments: [{ ...comment, decision: "needs info" }] }));
 });

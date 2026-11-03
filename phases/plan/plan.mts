@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import type { ResumeSandboxRunResultOptions, SandboxRunResult } from "@ai-hero/sandcastle";
 import { handledOf, handledText } from "../../shared/comments.mjs";
 import { extract } from "../../shared/extract.mjs";
-import { hasIssue, itemId } from "../../shared/item.mjs";
+import { hasIssue, itemId, takenItems } from "../../shared/item.mjs";
 import { log, timed } from "../../shared/logger.mjs";
 import { planCheckCommand } from "../../shared/names.mjs";
 import { planOutputSchema } from "../../shared/plan-output.mjs";
@@ -53,12 +53,8 @@ export const plan = async (cycle: Cycle, openPrsText: string, session: PlanSessi
   const planned = extract(result.stdout, "plan", planOutputSchema(repos));
   cycle.record.reject(planned.rejected);
   // An item without an issue has no card to move.
-  const started = await Promise.all(planned.items.map(async (item) => ({ item, taken: !hasIssue(item) || (await cycle.kanban.move(Number(item.issue), "planned", "")) })));
-  const taken = started.flatMap(({ item, taken }, position) => (taken ? [{ item, position: position + 1 }] : []));
-  const branched = taken.map(({ item, position }, index) => ({
-    position,
-    item: { ...item, branch: itemBranch(repoNamed(workspace, item.repo), branch, hasIssue(item) ? item.issue : `work-${index + 1}`) },
-  }));
+  const started = await Promise.all(planned.items.map(async (item) => !hasIssue(item) || (await cycle.kanban.move(Number(item.issue), "planned", ""))));
+  const branched = takenItems(planned.items, started).map(({ item, position, slug }) => ({ position, item: { ...item, branch: itemBranch(repoNamed(workspace, item.repo), branch, slug) } }));
   const items = branched.map(({ item }) => item);
   cycle.record.handle(handledOf(planned.comments, branched.map(({ position, item }) => ({ position, branch: item.branch }))));
   items.forEach((item) => log.info(`  ${itemId(item)}: ${item.title} → ${item.repo}: ${item.branch}`));

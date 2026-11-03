@@ -18,19 +18,29 @@ const itemFields = z.object({
 });
 export type Item = z.infer<typeof itemFields>;
 
-export const ITEM_SHAPE = "an item has either an issue or work, not both, not neither";
-export const WORK_SOURCE = "a work item names its source, an issue item none";
-
 export const planItemSchema = itemFields
   .omit({ branch: true })
-  .refine((item) => (item.issue !== "") !== (item.work !== ""), ITEM_SHAPE)
-  .refine((item) => (item.issue !== "") === (item.source === "issue"), WORK_SOURCE);
+  .refine((item) => (item.issue !== "") !== (item.work !== ""), "an item has either an issue or work, not both, not neither")
+  .refine((item) => (item.issue !== "") === (item.source === "issue"), "a work item names its source, an issue item none");
+export type PlanItem = z.infer<typeof planItemSchema>;
 
 export const hasIssue = (item: Pick<Item, "issue">): boolean => item.issue !== "";
 
+const WORK = "work-";
+
 // What names an item in runs, logs and sandboxes: its issue number, else `work-<n>` from its branch.
 export const itemId = (item: Pick<Item, "issue" | "branch">): string =>
-  hasIssue(item) ? item.issue : item.branch.slice(item.branch.lastIndexOf("-work-") + 1);
+  hasIssue(item) ? item.issue : item.branch.slice(item.branch.lastIndexOf(`-${WORK}`) + 1);
+
+// The plan's items the Kanban let start (`started`, same order), each with its 1-based plan position and the slug its branch is named by:
+// its issue, else `work-<n>` counted over the taken items.
+export const takenItems = <T extends Pick<Item, "issue">>(
+  items: readonly T[],
+  started: readonly boolean[],
+): readonly { readonly item: T; readonly position: number; readonly slug: string }[] =>
+  items
+    .flatMap((item, index) => (started[index] ? [{ item, position: index + 1 }] : []))
+    .map(({ item, position }, index) => ({ item, position, slug: hasIssue(item) ? item.issue : `${WORK}${index + 1}` }));
 
 export type RepoRef = { readonly name: string; readonly slug: string };
 
