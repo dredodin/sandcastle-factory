@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { next, preflight, subIssueNumbers, type Event, type Next } from "./kanban.mjs";
+import { next, preflight, treeOf, type Event, type Next } from "./kanban.mjs";
 import type { Status } from "./status.mjs";
 
 const set = (status: Status): Next => ({ type: "set", status });
@@ -63,8 +63,39 @@ test("preflight: a missing, an extra and a renamed option are named", () => {
   assert.equal(preflight(OPTIONS.map((option) => (option === "Done" ? "Finished" : option))).length, 2);
 });
 
-// The shape `gh issue view --json subIssues` prints.
-test("subIssueNumbers: reads gh's sub-issue nodes", () => {
-  assert.deepEqual(subIssueNumbers('{"subIssues":{"nodes":[{"number":12},{"number":7}],"totalCount":2}}'), [12, 7]);
-  assert.deepEqual(subIssueNumbers('{"subIssues":{"nodes":[],"totalCount":0}}'), []);
+const KANBAN = "PVT_kanban";
+const item = (project: string, status: string | null): object => ({ project: { id: project }, fieldValueByName: status === null ? null : { name: status } });
+const node = (number: number, ...items: readonly object[]): object => ({ number, projectItems: { nodes: items } });
+// The shape `gh api graphql` prints for the tree query.
+const response = (root: object, subs: readonly object[]): string => JSON.stringify({ data: { repository: { issue: { ...root, subIssues: { nodes: subs } } } } });
+
+test("treeOf: reads each issue's Status on the Kanban only", () => {
+  const tree = treeOf(
+    response(node(1, item("PVT_other", "Done"), item(KANBAN, "In review")), [
+      node(12, item(KANBAN, "Agent working")),
+      node(7, item(KANBAN, null)),
+      node(9),
+      node(4, item("PVT_other", "Ready for agent")),
+      node(5, item(KANBAN, "Blocked")),
+    ]),
+    KANBAN,
+  );
+  assert.deepEqual(tree.subIssues, [12, 7, 9, 4, 5]);
+  assert.deepEqual(
+    tree.statuses,
+    new Map([
+      [1, "In review"],
+      [12, "Agent working"],
+      [7, null],
+      [9, null],
+      [4, null],
+      [5, null],
+    ]),
+  );
+});
+
+test("treeOf: a root without sub-issues", () => {
+  const tree = treeOf(response(node(1, item(KANBAN, "Ready for agent")), []), KANBAN);
+  assert.deepEqual(tree.subIssues, []);
+  assert.deepEqual(tree.statuses, new Map([[1, "Ready for agent"]]));
 });

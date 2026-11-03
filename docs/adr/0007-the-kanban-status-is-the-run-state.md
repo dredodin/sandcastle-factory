@@ -26,4 +26,3 @@ An AFK run must show its progress, survive a crash and refuse to start twice on 
 
 - Humans and the factory see one state; `resume` reads it after a crash.
 - Each home repo needs a Kanban with the fixed Status field and three workflows; `GH_TOKEN` needs Project access.
-- The factory reads at most 1 000 Kanban items.
