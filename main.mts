@@ -14,6 +14,5 @@ const claimed = <T,>(root: number, work: () => Promise<T>): Promise<T> => withCl
 if (command.mode !== "setup") {
   const run = { take, resume }[command.mode];
   const { root } = command;
-  const label = command.mode;
-  await timed(`${label} total`, async () => log.info(await claimed(root, () => run(ready.workspace, ready.env, root)))).catch((error: unknown) => fail(`${label[0]?.toUpperCase()}${label.slice(1)} failed: ${message(error)}`));
+  await timed(`${command.mode} total`, async () => log.info(await claimed(root, () => run(ready.workspace, ready.env, root)))).catch((error: unknown) => fail(`${command.mode} failed: ${message(error)}`));
 }

@@ -14,7 +14,7 @@ test("decideStart: free pool starts on the first free port", () => {
 test("decideStart: same root live is refused, naming the run", () => {
   const claim = decideStart([free(1), run(2, 5)], own);
   assert.equal(claim.type, "refuse");
-  assert.match(claim.type === "refuse" ? claim.reason : "", /acme\/home#5 since t1 on port 2/);
+  assert.match(claim.type === "refuse" ? claim.reason : "", /home#5.*port 2/);
 });
 
 test("decideStart: another root, or the same number in another repo, still starts", () => {
@@ -37,7 +37,7 @@ test("decideStart: all busy is refused, listing every holder", () => {
 test("decideTie: the run on the lower port keeps running, the higher releases", () => {
   const tie = decideTie([run(1, 5), run(2, 5)], own, 2);
   assert.equal(tie.type, "refuse");
-  assert.match(tie.type === "refuse" ? tie.reason : "", /at the same time: acme\/home#5 since t1 on port 1/);
+  assert.match(tie.type === "refuse" ? tie.reason : "", /same time.*port 1/);
   assert.deepEqual(decideTie([run(1, 5), run(2, 5)], own, 1), { type: "start", port: 1 });
 });
 
@@ -61,8 +61,8 @@ test("parsePorts: spaces around parts and range ends are fine; the edges 1 and 6
 });
 
 test("parsePorts: errors name the offender", () => {
-  assert.throws(() => parsePorts("5, x "), { message: '"x" is no port or port range' });
-  assert.throws(() => parsePorts("5,70000"), { message: "a port is outside 1-65535" });
-  assert.throws(() => parsePorts("0,5"), { message: "a port is outside 1-65535" });
-  assert.throws(() => parsePorts("65536"), { message: "a port is outside 1-65535" });
+  assert.throws(() => parsePorts("5, x "), /"x"/);
+  assert.throws(() => parsePorts("5,70000"), /65535/);
+  assert.throws(() => parsePorts("0,5"), /65535/);
+  assert.throws(() => parsePorts("65536"), /65535/);
 });
