@@ -45,6 +45,8 @@ const cycle = async (
   const conflicting = run.workspace.repos.filter((repo) => conflictsWithBase(repo, run.branch));
   conflicting.forEach((repo) => log.info(`  ${run.branch} conflicts with ${repo.base} in ${repo.name}`));
   const { items, next } = await plan(current, openPrsText, session);
+  // The reports reach the plan agent once, in the cycle after their pass.
+  run.record.setReports(new Map());
   if (conflicting.length === 0 && items.length === 0) {
     log.info("Nothing to do: plan is empty.");
     return { items: [], next, stop: false };
@@ -70,6 +72,7 @@ const cycle = async (
   const done = items.filter((_, index) => outcomes[index]!.outcome === "committed");
   const leftOut = done.length === 0 ? [] : await merge(current, done);
   if (done.length === 0) log.info("No item committed. Nothing to merge.");
+  run.record.merged(done.filter((item) => !leftOut.includes(item)));
   for (const item of done) {
     if (!hasIssue(item)) {
       if (leftOut.includes(item)) log.warn(`  ${itemId(item)}: the merge of \`${item.branch}\` left it out.`);
@@ -101,17 +104,18 @@ export const cycles = (run: Run, openPrsText: string): Promise<readonly Item[]> 
 
 const REVIEW_PASSES = 2;
 
-// Up to two review passes per touched repo over its whole branch, cycles on what each filed (none filed: stop), then the one PR phase.
+// Up to two review passes per touched repo over its whole branch, cycles on what the plan makes of each pass's reports (none planned: stop), then the one PR phase.
 // `touched` is read anew after each cycles stretch.
 export const finish = async (run: Run, openPrsText: string, touched: () => readonly Repo[], planned: readonly Item[]): Promise<string> => {
   let items = planned;
   for (let pass = 1; pass <= REVIEW_PASSES; pass++) {
-    const before = run.kanban.subIssues();
-    await inParallel(touched(), (repo) => repo.name, (repo) => review(run, repo, pass));
-    await run.kanban.ready(run.kanban.subIssues().filter((issue) => !before.includes(issue)));
-    const filed = await cycles(run, openPrsText);
-    items = [...items, ...filed];
-    if (filed.length === 0) break;
+    const repos = touched();
+    const passed = await inParallel(repos, (repo) => repo.name, async (repo) => [repo.name, await review(run, repo, pass)] as const);
+    run.record.setReports(new Map(passed));
+    const found = await cycles(run, openPrsText);
+    items = [...items, ...found];
+    // Nothing planned ends the reviews unless a report had findings the plan rejected: pass 2 checks the rest.
+    if (found.length === 0 && passed.map(([, report]) => report).every((report) => report === "")) break;
   }
   return `PR:\n${await pr(run, touched(), items)}`;
 };

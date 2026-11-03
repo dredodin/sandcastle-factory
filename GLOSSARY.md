@@ -33,7 +33,7 @@ A GitHub issue in the home repo: the base unit of work. Every issue of a run liv
 An issue `/to-spec` writes. Usually the root issue of a run.
 
 **Ticket**:
-An issue `/to-tickets` writes. Usually a sub-issue of a spec. Review findings and issues made from PR comments are issues, not tickets.
+An issue `/to-tickets` writes. Usually a sub-issue of a spec. Issues made from PR comments are issues, not tickets.
 
 ## Runs
 
@@ -63,8 +63,12 @@ _Avoid_: round, iteration
 One step in a run: plan, implement, merge, review or PR. Each is an agent's, except a merge without conflicts and with a green verify script: a script does it.
 _Avoid_: stage, step
 
+**Review report**:
+What branch review prints for one repo inside `<review>` tags: its findings, empty when it found nothing. It creates no issue; the harness hands it to the next cycle's plan, which turns findings into work or rejects them. It lives only in the run.
+_Avoid_: review issue
+
 **Item**:
-One unit of work a plan hands to one implement agent: an unblocked sub-issue in Ready for agent, the root issue when it has none, or work the plan wrote as text from plan check output (no issue, no Kanban card). Always in exactly one repo.
+One unit of work a plan hands to one implement agent: an unblocked sub-issue in Ready for agent, the root issue when it has none, or work the plan wrote as text from a Review report or plan check output (no issue, no Kanban card). Always in exactly one repo.
 _Avoid_: task, job, work unit, ticket (when you mean any sub-issue)
 
 ## Branches and delivery
@@ -95,7 +99,7 @@ The repo's own check every agent runs before each commit. A red verify script me
 _Avoid_: CI, pre-commit hook
 
 **Deep verify script**:
-The repo's own slow check, optional, run once over a whole branch at each review pass. What it reports goes into the review issue like any review finding.
+The repo's own slow check, optional, run once over a whole branch at each review pass. What it reports goes into the Review report like any review finding.
 _Avoid_: slow verify, nightly check
 
 **Plan check script**:

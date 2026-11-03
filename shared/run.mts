@@ -4,6 +4,7 @@ import type { Agents } from "./agents.mjs";
 import type { Phase } from "./env.mjs";
 import type { Item } from "./item.mjs";
 import type { Kanban } from "./kanban.mjs";
+import type { RunRecord } from "./record.mjs";
 import type { Integrations, SandboxContext } from "./sandbox.mjs";
 import type { Repo, Workspace } from "./workspace.mjs";
 
@@ -19,6 +20,8 @@ export type Run = {
   // One integration worktree per repo, opened the first time the repo is needed.
   readonly integrations: Integrations;
   readonly logDir: string;
+  // What the run remembers in memory: review reports, rejected findings, merged items.
+  readonly record: RunRecord;
 };
 
 // A run at one planning cycle.

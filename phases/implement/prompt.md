@@ -47,7 +47,6 @@ End by printing one outcome as JSON inside `<outcome>` tags. The factory reads i
 - `committed`: the work is committed (the default). No note needed.
 - `done without code`: the work needs no commit (a measurement, a manual check). Note: the result.
 - `already done`: the task's criteria already hold on this branch. No review, no commit. Note: the commit that did it.
-- `findings rejected`: a review-filed issue (not a task without issue) whose every finding you reject (it contradicts the issue or an ADR). Note: the reason.
 - `cannot finish`: blocked or failed; never for work that is merely hard. Note: what was done and what stopped you.
 
 <outcome>
