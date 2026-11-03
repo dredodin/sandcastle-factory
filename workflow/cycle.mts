@@ -75,14 +75,14 @@ const cycle = async (
   const done = items.filter((_, index) => outcomes[index]!.outcome === "committed");
   const leftOut = done.length === 0 ? [] : await merge(current, done);
   if (done.length === 0) log.info("No item committed. Nothing to merge.");
-  const { merged, ended: notMerged } = cycleEnds(items.map((item, index) => ({ item, outcome: outcomes[index]!.outcome })), leftOut);
-  const subjects = new Map([...new Set(merged.map((item) => item.repo))].map((name) => [name, mergeSubjects(repoNamed(run.workspace, name), run.branch)]));
-  run.record.addMerged(merged.map((item) => {
+  const ends = cycleEnds(items.map((item, index) => ({ item, outcome: outcomes[index]!.outcome })), leftOut);
+  const subjects = new Map([...new Set(ends.merged.map((item) => item.repo))].map((name) => [name, mergeSubjects(repoNamed(run.workspace, name), run.branch)]));
+  run.record.addMerged(ends.merged.map((item) => {
     const commit = mergeCommitOf(subjects.get(item.repo) ?? [], item, run.root);
     if (commit === "") log.warn(`  ${itemId(item)}: no merge commit found on \`${run.branch}\`; its comments get no reply.`);
     return { item, commit };
   }));
-  run.record.addEnded(notMerged);
+  run.record.addEnded(ends.ended);
   for (const item of done) {
     if (!hasIssue(item)) {
       if (leftOut.includes(item)) log.warn(`  ${itemId(item)}: the merge of \`${item.branch}\` left it out.`);

@@ -9,7 +9,6 @@ export type Rejection = { readonly repo: string; readonly finding: string; reado
 // An item merged into the integration branch, with its merge commit ("" when git did not show one).
 export type Merged = { readonly item: Item; readonly commit: string };
 
-// An item that did not merge: its implement run ended without commits, or the merge left it out.
 export type Ended = { readonly item: Item; readonly end: Exclude<Outcome, "committed"> | "merge conflict" };
 
 // `pass`: the review pass whose reports the plan worked from when the entry was recorded; 0 before the first pass.

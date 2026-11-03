@@ -55,9 +55,7 @@ export const reposWithoutPr = (planned: readonly Pick<Item, "repo" | "issue">[],
 
 const issueList = (issues: readonly number[]): string => issues.map((id) => `#${id}`).join(", ");
 
-// What each review pass found in one repo and what became of it: its report, then the findings of its review work fixed
-// (merged, or ended already done or done without code), rejected with a reason, and left over (cannot finish, merge conflict).
-// A pass that found nothing in the repo is left out; "" when none found anything.
+// Already done and done without code count as fixed: the finding needs no more work.
 export const reviewSection = (repo: string, review: ReviewRecord): string => {
   const part = (title: string, lines: readonly string[]): readonly string[] =>
     lines.length === 0 ? [] : ["", `${title}:`, ...lines.map((line) => `- ${line.replaceAll("\n", "\n  ")}`)];
