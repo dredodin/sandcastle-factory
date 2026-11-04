@@ -1,7 +1,7 @@
 // `tsx main.mts <setup | take N | resume N>`: parses arguments and dispatches to a mode. take and resume run setup first.
 
 import { fail, message, parseArgs } from "./shared/cli.mjs";
-import { withClaim } from "./shared/claim/pipe.mjs";
+import { withClaim } from "./shared/claim/pipe-claim.mjs";
 import { log, timed } from "./shared/logger.mjs";
 import { resume } from "./workflow/resume.mjs";
 import { setup } from "./workflow/setup.mjs";

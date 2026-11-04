@@ -135,7 +135,7 @@ The terms follow the factory glossary (R4).
 - **C3.** Docker or podman for sandboxes. Without them, `SANDBOX=none` runs agents on the host.
 - **C4.** All issues of a run are in the home repo (ADR-0006).
 - **C5.** The factory reads at most 1 000 items from the Kanban.
-- **C6.** Single machine only: a run is refused twice on one root only on the machine whose named pipe it uses (ADR-0009).
+- **C6.** Single machine only: a run is refused twice on one root only on the machine that holds the pipe (ADR-0009).
 
 ### 4.4 Assumptions
 
@@ -219,7 +219,7 @@ shared/
 ├── kanban.mts           # Status state machine (pure) + gh calls
 ├── sandbox.mts          # worktree + sandbox for each agent; integration worktrees
 ├── workspace.mts        # home repo + app repos from GLOSSARY-MAP.md
-├── claim/               # decision.mts: start or refuse, pipe name (pure); pipe.mts: thin shell that probes and holds the root's pipe
+├── claim/               # the run claim: start-decision.mts (pure: pipe name, hold / clear stale / refuse), pipe-claim.mts (thin shell: listens on the root's pipe), tests beside
 ├── env.mts, agents.mts  # .env schema; provider, model and effort for each phase
 └── branches.mts, pr-body.mts, …  # pure naming and assembly logic
 skills/onboarding-factory/
@@ -232,8 +232,8 @@ Pure logic is in `shared/`. Calls to `git`, `gh` and files are thin one-line wra
 
 ```mermaid
 flowchart TD
-  start([take N / resume N]) --> claim{Claim root:<br/>listen on the root's pipe}
-  claim -- live run on this root --> refuse
+  start([take N / resume N]) --> claim{Claim root:<br/>listen on its<br/>named pipe}
+  claim -- pipe taken by<br/>a live run --> refuse
   claim -- claimed --> gate{Kanban preflight<br/>+ root Status allows event?}
   gate -- no --> refuse([refuse])
   gate -- yes --> cyc
@@ -253,7 +253,7 @@ flowchart TD
   replies --> done([root → In review])
 ```
 
-- **Claim** comes first, before any Kanban read-for-write or card move. The run connects to the named pipe of its repo and root. A held pipe answers JSON `{ repo, root, startedAt }`: a live run, or a holder that is no factory run, refuses the start. Otherwise the run listens on the pipe for its whole life, so of two simultaneous starts exactly one holds it. The server is a worker thread (probes get an answer while the run blocks), unref'd, never keeps the process alive. A killed process frees its pipe, so `resume` needs no cleanup; a socket file it left behind is removed by the next start.
+- **Claim** comes first, before any Kanban read-for-write or card move. The run listens on the named pipe of its root, built from repo `owner/name` and root number (a Windows named pipe, or a Unix domain socket in `/tmp/sandcastle-factory/`). Listening works: the run holds the root for its whole life. Taken and a connection is accepted: a live run, so the start is refused, naming repo#root and its start time if it answers. Taken and refused (a socket file a dead process left): the file is removed and the run listens again. The holder answers JSON `{ repo, root, startedAt }` from the main thread: the OS accepts connections while the run blocks. If the server fails mid-run, it logs `log.error`. A killed process frees the pipe or leaves a dead socket file, so `resume` needs no cleanup.
 - **Plan** runs in the integration worktree of the home repo. It reads the root issue and its Ready for agent sub-issues. It turns review reports, PR comments (on resume) and plan check output into work items, and returns the items, the findings it rejects (each with a reason) and the PR comments it handled. It writes nothing to GitHub. Order comes only from `blockedBy`. Labels only route an item to a repo.
 - **Implement** writes the item test-first where there is a seam. Then it starts fresh-context subagents: Standards (when the diff has code), Docs (when the diff has code or Markdown) and Spec (always). It fixes their findings, runs the verify script and commits. It reports one outcome: `committed`, `done without code`, `already done` or `cannot finish`. A work item moves no card: its outcome is only logged.
 - **Merge** first tries one script chain: merge each item branch in order, then run the verify script. When the chain fails, it resets, and the merge agent resolves the conflicts. The default branch is merged in first when the integration branch conflicts with it.
@@ -297,7 +297,7 @@ stateDiagram-v2
 | Workspace list | `GLOSSARY-MAP.md` of the home repo | Links to `.sandcastle/repos/<name>/…`. No map means the home repo alone. |
 | Repo files | `.sandcastle/repos/<name>/` in the home repo | `Containerfile`, `setup.sh`, `verify.sh`; optional `deep-verify.sh`, `plan-check.sh` (home repo only), `CODING_STANDARDS.md`, `sparse-checkout`. The factory copies them into each worktree. |
 | Settings and secrets | `.sandcastle/.env`, for each machine | Only the wizard writes it. A shell variable overrides a known key for one run. |
-| Run claim | A named pipe per repo and root, for one run | No state on disk to go stale. The OS frees the pipe when the process dies. |
+| Run claim | A named pipe per root (Windows) or a socket file in `/tmp/sandcastle-factory/` (Linux, macOS), for one run | The OS frees the Windows pipe when the process dies; a dead POSIX socket file is removed by the next run. |
 | Run logs | `.sandcastle/logs/issue-<N>-take-<K>` or `-resume-<M>` | One file for each agent run. Each file starts with the provider, model and effort. Git ignores the logs. |
 
 ### 7.4 Infrastructure / deployment view
@@ -457,7 +457,7 @@ The ADRs are in `docs/adr/` of the factory repo.
 | 0006 | Issues live in the home repo; a repo label routes them | accepted |
 | 0007 | The Kanban Status is the state of a run | accepted |
 | 0008 | Agents only read GitHub | accepted |
-| 0009 | A run claims its root through a named pipe | accepted |
+| 0009 | A run claims its root through a named pipe per root | accepted |
 
 ### 10.1 ADR-0001: The harness tests its pure logic
 
@@ -519,12 +519,12 @@ The ADRs are in `docs/adr/` of the factory repo.
 
 **Consequences.** A review cannot lose or misroute findings. A retake starts from the spec alone. The built-in workflow Item added → Backlog is no longer needed.
 
-### 10.9 ADR-0009: A run claims its root through a named pipe
+### 10.9 ADR-0009: A run claims its root through a named pipe per root
 
-**Context.** The Status cannot tell a crashed run from a live one, and its read and write are separate calls. A second run on a live root sweeps the live run's sub-issues back to Ready for agent.
+**Context.** ADR-0007 promises a run refuses to start twice on one root, but the Status cannot tell a crashed run from a live one.
 
-**Decision.** Before any Kanban read-for-write or card move, a run listens on the named pipe of its root and holds it for its whole life. A held pipe answers its repo, root and start time; a live run on the root refuses the start, and listening is atomic, so one of two simultaneous starts wins. The decision is pure and table-tested; the pipe is a thin shell.
+**Decision.** Before any Kanban read-for-write or card move, a run listens on the named pipe of its root (exact name from repo and root number) and holds it for its whole life. Taken by a live run (a connection is accepted): refuse, naming repo#root and its start time if it answers. Taken by a dead POSIX socket file: remove it and listen again. The start decision is pure and table-tested; the I/O is a thin shell.
 
-**Rejected.** A local port pool. A lock ref on GitHub. A PID file. A port derived from the issue number. One fixed port per machine. A long-running server.
+**Rejected.** A pool of local ports: the pool size caps parallel runs, simultaneous starts need a tie-break, and free is told from foreign only by timing and fetch-error internals. A lock ref on GitHub. A PID file. A port derived from the issue number. One fixed port per machine. A long-running server.
 
-**Consequences.** No state goes stale: a killed process frees its pipe. Parallel runs on different roots work. Runs on two machines are not covered.
+**Consequences.** No state goes stale: a killed process frees the pipe or leaves a socket file nobody answers. Parallel runs on different roots are unlimited. Runs on two machines are not covered.

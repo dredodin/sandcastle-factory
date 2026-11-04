@@ -18,7 +18,7 @@ Testing rule:
 - Expected values are literals (`"sandcastle/hub/issue-42-take-3"`), never recomputed the way the code computes them.
 - Not tested: what TypeScript or a zod schema already guarantees; a restated regex; full error text. Assert an error was thrown and a key word, not the sentence.
 - No fakes of shell, git, gh, agents or podman. Where a decision is tangled with a git/gh call, extract the decision as a pure function (data in → answer out); the call stays a thin one-liner beside it. No other restructuring for tests.
-- One deliberate exception: `shared/claim/pipe.test.mts` exercises the real named-pipe shell of the run claim.
+- One deliberate exception: `shared/claim/pipe-claim.test.mts` exercises the real named pipe of the run claim.
 - Runner: built-in `node:test` via `tsx --test`. Tests sit next to the code: `branches.test.mts` beside `branches.mts`.
 
 ## Consequences
