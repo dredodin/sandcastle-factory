@@ -5,12 +5,16 @@ import { decideStart, pipeName, POSIX_DIR, type Attempt, type Identity } from ".
 const own: Identity = { repo: "acme/home", root: 5, startedAt: "t2" };
 
 test("decideStart: listening holds; a dead socket file is cleared; a live run is refused", () => {
-  const cases: readonly [string, Attempt, string][] = [
-    ["listening", { kind: "listening" }, "hold"],
+  const cases: readonly [string, Attempt<string>, string][] = [
+    ["listening", { kind: "listening", holder: "h" }, "hold"],
     ["dead peer", { kind: "taken", peer: { kind: "dead" } }, "clear-stale"],
     ["live peer", { kind: "taken", peer: { kind: "live", identity: null } }, "refuse"],
   ];
   for (const [name, attempt, type] of cases) assert.equal(decideStart(attempt, own).type, type, name);
+});
+
+test("decideStart: a hold carries what the run listens with", () => {
+  assert.deepEqual(decideStart({ kind: "listening", holder: "h" }, own), { type: "hold", holder: "h" });
 });
 
 test("decideStart: the refusal names repo#root, and the start time when the run answered", () => {
@@ -34,4 +38,10 @@ test("pipeName: a POSIX path over 100 characters throws, a Windows pipe does not
   const long = `acme/${"x".repeat(80)}`;
   assert.throws(() => pipeName(long, 1, "posix"), /longer than 100/);
   assert.doesNotThrow(() => pipeName(long, 1, "windows"));
+});
+
+test("pipeName: a POSIX path of exactly 100 characters is allowed, 101 is not", () => {
+  const at = (length: number) => pipeName(`a/${"x".repeat(length)}`, 1, "posix");
+  assert.equal(at(67).length, 100);
+  assert.throws(() => at(68), /longer than 100/);
 });

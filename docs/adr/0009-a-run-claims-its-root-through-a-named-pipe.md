@@ -15,7 +15,8 @@ status: accepted
 - The name is exact, built from repo `owner/name` and root number: a Windows named pipe (`\\.\pipe\sandcastle-factory-…`), a Unix domain socket in `/tmp/sandcastle-factory/` on Linux and macOS (path kept under the macOS limit; longer is an error).
 - Listening works: this run holds the root.
 - Name taken and a connection is accepted: a live run. Refuse, naming repo#root and, if the holder answers its JSON `{ repo, root, startedAt }` in time, its start time.
-- Name taken and the connection is refused (a POSIX socket file a dead process left): remove the file and listen again.
+- Name taken and the connection is refused (a POSIX socket file a dead process left): remove the file and listen again. On POSIX, probe, remove and listen run under a short start lock (`<name>.sock.lock`, an atomic `mkdir`, released before the run works; one older than 10 s is stale), so two starts cannot unlink each other's live socket.
+- The POSIX directory must be owned by the current user with mode `0700`; otherwise the run refuses, naming it.
 - The OS accepts connections while the run's loop is blocked, so the holder is the main thread: no worker, no server code in a string. If the server fails mid-run, the run logs it with `log.error`.
 - The start decision is pure and table-tested (`shared/claim/start-decision.mts`); the I/O is a thin shell (`shared/claim/pipe-claim.mts`).
 

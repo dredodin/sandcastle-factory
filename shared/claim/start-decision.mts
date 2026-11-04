@@ -25,14 +25,14 @@ export const pipeName = (repo: string, root: number, platform: Platform): string
 // Who holds a taken pipe: a connection was accepted (`identity` only when it answered in time), or nobody (a socket file a dead process left).
 export type Peer = { readonly kind: "live"; readonly identity: Identity | null } | { readonly kind: "dead" };
 
-// The result of trying to listen on the pipe.
-export type Attempt = { readonly kind: "listening" } | { readonly kind: "taken"; readonly peer: Peer };
+// The result of trying to listen on the pipe; `holder` is what the run holds when it listens.
+export type Attempt<H> = { readonly kind: "listening"; readonly holder: H } | { readonly kind: "taken"; readonly peer: Peer };
 
-export type Start = { readonly type: "hold" } | { readonly type: "clear-stale" } | { readonly type: "refuse"; readonly reason: string };
+export type Start<H> = { readonly type: "hold"; readonly holder: H } | { readonly type: "clear-stale" } | { readonly type: "refuse"; readonly reason: string };
 
 // Before any card moves: hold the pipe, clear a dead socket file and listen again, or refuse naming the live run.
-export const decideStart = (attempt: Attempt, own: Identity): Start => {
-  if (attempt.kind === "listening") return { type: "hold" };
+export const decideStart = <H,>(attempt: Attempt<H>, own: Identity): Start<H> => {
+  if (attempt.kind === "listening") return { type: "hold", holder: attempt.holder };
   if (attempt.peer.kind === "dead") return { type: "clear-stale" };
   const since = attempt.peer.identity === null ? "" : `, started ${attempt.peer.identity.startedAt}`;
   return { type: "refuse", reason: `a run is already live on ${own.repo}#${own.root}${since}.` };
