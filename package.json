@@ -3,7 +3,7 @@
   "version": "0.5.4",
   "private": true,
   "scripts": {
-    "verify": "tsc -p . && tsx --test \"**/*.test.mts\"",
+    "verify": "biome lint --error-on-warnings && tsc -p . && tsx --test \"**/*.test.mts\"",
     "mutate": "stryker run"
   },
   "dependencies": {
@@ -16,6 +16,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.6.4",
     "@stryker-mutator/core": "^10.0.0",
     "@stryker-mutator/tap-runner": "^10.0.0",
     "@types/node": "^26.4.0",
