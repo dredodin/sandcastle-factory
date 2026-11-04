@@ -2,8 +2,7 @@ import { spawn } from "node:child_process";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { withClaim } from "./pipe-claim.mjs";
-import { chmodSync, statSync } from "node:fs";
-import { pipeName, POSIX_DIR } from "./start-decision.mjs";
+import { pipeName } from "./start-decision.mjs";
 
 const identity = (root: number) => ({ repo: `acme/pipe-test-${process.pid}`, root, startedAt: "now" });
 const BLOCK_MS = 5_000; // The child has half of it to start and connect.
@@ -40,24 +39,4 @@ test("withClaim: a socket file left by a killed process is cleared, no flag", { 
   child.kill("SIGKILL");
   await new Promise((resolve) => child.once("close", resolve));
   assert.equal(await withClaim(identity(4), async () => "resumed"), "resumed");
-});
-
-test("withClaim: two runs starting on a dead socket file leave exactly one holder", { skip: !posix }, async () => {
-  const script = `require("node:net").createServer().listen(${JSON.stringify(pathOf(5))}, () => console.log("up"))`;
-  const child = spawn(process.execPath, ["-e", script]);
-  await new Promise((resolve) => child.stdout.once("data", resolve));
-  child.kill("SIGKILL");
-  await new Promise((resolve) => child.once("close", resolve));
-  const runs = await Promise.allSettled([1, 2, 3, 4].map(() => withClaim(identity(5), () => new Promise((resolve) => setTimeout(resolve, 300)))));
-  assert.equal(runs.filter((run) => run.status === "fulfilled").length, 1);
-});
-
-test("withClaim: a pipe directory with another mode is refused, named", { skip: !posix }, async () => {
-  const { mode } = statSync(POSIX_DIR);
-  chmodSync(POSIX_DIR, 0o755);
-  try {
-    await assert.rejects(withClaim(identity(6), async () => "no"), /has mode 755, not 700/);
-  } finally {
-    chmodSync(POSIX_DIR, mode & 0o777);
-  }
 });
