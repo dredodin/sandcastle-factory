@@ -72,7 +72,7 @@ One unit of work a plan hands to one implement agent: an unblocked sub-issue in 
 _Avoid_: task, job, work unit, ticket (when you mean any sub-issue)
 
 **Claim**:
-A run's hold on its root issue: the named pipe of that root, listened on for the run's life. A second run on the same root finds the name taken and is refused; a killed process frees it.
+A run's hold on its root issue: the named pipe of that root, listened on for the run's life. A second run on the same root finds the name taken and is refused; a killed process frees it, or leaves a socket file the next run clears.
 _Avoid_: lock
 
 ## Branches and delivery

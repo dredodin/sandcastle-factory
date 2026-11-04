@@ -10,7 +10,7 @@ status: accepted
 
 ## Decision
 
-**Before any Kanban read-for-write or card move, a run listens on the named pipe of its root and holds it for its whole life.** Holding the name is the whole lock.
+**Before any Kanban read-for-write or card move, a run listens on the named pipe of its root and holds it for its whole life.** Holding the name is the whole claim.
 
 - The name is exact, built from repo `owner/name` and root number: a Windows named pipe (`\\.\pipe\sandcastle-factory-…`), a Unix domain socket in `/tmp/sandcastle-factory/` on Linux and macOS (path kept under the macOS limit; longer is an error).
 - Listening works: this run holds the root.
