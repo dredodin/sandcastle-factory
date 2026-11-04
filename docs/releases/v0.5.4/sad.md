@@ -1,16 +1,16 @@
-# Solution Architecture Document: sandcastle-factory v0.5.2
+# Solution Architecture Document: sandcastle-factory v0.5.4
 
-Snapshot of v0.5.2, released 03-Nov-2026. Frozen: never edited after merge.
+Snapshot of v0.5.4. Frozen: never edited after merge.
 
 | Ver. | Description of change | Author | Date |
 | --- | --- | --- | --- |
 | 2.0 | As-built SAD for sandcastle-factory v0.4.2. | Dmitrii Bessonov | 02-Nov-2026 |
 | 3.0 | As-built SAD for v0.5.0: agents only read GitHub; review reports and PR comments become in-run work (ADR-0008). | Dmitrii Bessonov | 03-Nov-2026 |
-| 3.1 | As-built SAD for v0.5.2: a run claims its root through a named pipe per root (ADR-0009). | Dmitrii Bessonov | 03-Nov-2026 |
+| 3.1 | As-built SAD for v0.5.4: a run claims its root through a named pipe per root (ADR-0009). | Dmitrii Bessonov | 03-Nov-2026 |
 
 | Ref. | Name |
 | --- | --- |
-| R1 | Factory repository: github.com/dredodin/sandcastle-factory, tag v0.5.2 |
+| R1 | Factory repository: github.com/dredodin/sandcastle-factory, tag v0.5.4 |
 | R2 | Agent library: github.com/ai-hero-dev/sandcastle (`@ai-hero/sandcastle` 0.12.0) |
 | R3 | Interactive skills: github.com/mattpocock/skills, github.com/humanlayer/skills |
 | R4 | Factory glossary: `GLOSSARY.md` in R1 |
@@ -134,8 +134,7 @@ The terms follow the factory glossary (R4).
 - **C2.** Node 22+, git and a logged-in `gh` on the host. On Windows, Git Bash.
 - **C3.** Docker or podman for sandboxes. Without them, `SANDBOX=none` runs agents on the host.
 - **C4.** All issues of a run are in the home repo (ADR-0006).
-- **C5.** The factory reads at most 1 000 items from the Kanban.
-- **C6.** Single machine only: a run is refused twice on one root only on the machine that holds the pipe (ADR-0009).
+- **C5.** Single machine only: a second run on a root is refused only on the machine whose run holds the pipe (ADR-0009).
 
 ### 4.4 Assumptions
 
@@ -281,6 +280,7 @@ stateDiagram-v2
 ```
 
 - The factory refuses to start when the Status options are not exactly the five above.
+- The factory reads the root and its sub-issues with one GraphQL query that returns each Status.
 - A new take from In review closes the open PRs of the old take, and reopens the sub-issues that the old take closed.
 - A human closes the root issue after the last PR is merged.
 
@@ -387,7 +387,6 @@ flowchart TB
 - The Kanban built-in workflows cannot be checked before a run. When a workflow is off, the run fails at the first move that needs it.
 - Only one level of sub-issues is planned.
 - Libraries that open the repo through libgit2 do not work in a sandbox (ADR-0005).
-- The factory reads at most 1 000 Kanban items.
 - Runs on two machines are not detected: the claim is local (ADR-0009).
 
 ### 7.7 Risks and mitigations
@@ -507,7 +506,7 @@ The ADRs are in `docs/adr/` of the factory repo.
 
 **Rejected.** Labels as state. A local state file.
 
-**Consequences.** Humans and the factory see the same state. A crash leaves a state that `resume` can read. Each home repo needs a GitHub Project with a fixed Status field and two built-in workflows, and `GH_TOKEN` needs Project access. The factory reads at most 1 000 Kanban items.
+**Consequences.** Humans and the factory see the same state. A crash leaves a state that `resume` can read. Each home repo needs a GitHub Project with a fixed Status field and two built-in workflows, and `GH_TOKEN` needs Project access.
 
 ### 10.8 ADR-0008: Agents only read GitHub
 
@@ -527,4 +526,4 @@ The ADRs are in `docs/adr/` of the factory repo.
 
 **Rejected.** A pool of local ports: the pool size caps parallel runs, simultaneous starts need a tie-break, and free is told from foreign only by timing and fetch-error internals. A lock ref on GitHub. A PID file. A port derived from the issue number. One fixed port per machine. A long-running server.
 
-**Consequences.** Nothing needs cleanup by hand: a killed process frees the pipe or leaves a socket file the next run removes. Accepted risk: after a run died, two starts at the same instant can both run. Parallel runs on different roots are unlimited. Runs on two machines are not covered.
+**Consequences.** Nothing needs cleanup by hand: a killed process frees the pipe or leaves a socket file the next run removes. Accepted risk: after a run died, two starts at the same instant can both run. Parallel runs on different roots are unlimited. Runs on two machines are not covered. A refused second run has already run `setup` (it comes before the claim), so it relinks `.sandcastle/repos/<name>/source` under the live run.
