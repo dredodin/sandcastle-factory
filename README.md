@@ -8,7 +8,7 @@ Hand it a GitHub issue, walk away, come back to a pull request. AI agents plan t
 - **Sandboxes**: docker or podman. Without them, see `SANDBOX=none` below.
 - **GitHub only**: GitLab, Bitbucket and others are not supported. The home repo needs issues enabled and a Kanban (below).
 - **Kanban**: a GitHub Project whose Status has exactly `Backlog`, `Ready for agent`, `Agent working`, `In review`, `Done`, and the built-in workflows Item closed → Done and Item reopened → Ready for agent on. The factory refuses to start when the Status options differ; a switched-off workflow fails the run at the first move that needs it.
-- **Port pool** `FACTORY_PORTS` (optional, default `29170-29179`; ports and ranges, comma-separated; see [.env.example](.env.example)): the local ports a run claims one of. A second `take`/`resume` on a root with a live run on this machine is refused ([ADR-0009](docs/adr/0009-a-run-claims-its-root-through-a-local-port-pool.md)).
+- **One machine**: a second `take`/`resume` on a root with a live run on this machine is refused ([ADR-0009](docs/adr/0009-a-run-claims-its-root-through-a-named-pipe.md)); runs on two machines are not detected.
 - **Token** `GH_TOKEN`, one for every Workspace repo and the Kanban. Its kind follows the Kanban's owner:
   - Kanban of a personal account: a classic token (`repo`, `project`, `workflow`, `read:org`, `read:discussion`). Fine-grained tokens cannot reach a user-owned Project.
   - Kanban of an organisation: a fine-grained token for that organisation is enough. Repository access: every Workspace repo. Repository permissions: Contents, Issues, Pull requests, Workflows read/write; Metadata read. Organisation permissions: Projects read/write.
@@ -140,4 +140,4 @@ Decisions:
 | [0006](docs/adr/0006-issues-live-in-the-home-repo.md) | Issues live in the home repo; a repo label routes them | accepted |
 | [0007](docs/adr/0007-the-kanban-status-is-the-run-state.md) | The Kanban Status is the state of a run | accepted |
 | [0008](docs/adr/0008-agents-only-read-github.md) | Agents only read GitHub | accepted |
-| [0009](docs/adr/0009-a-run-claims-its-root-through-a-local-port-pool.md) | A run claims its root through a local port pool | accepted |
+| [0009](docs/adr/0009-a-run-claims-its-root-through-a-named-pipe.md) | A run claims its root through a named pipe per root | accepted |

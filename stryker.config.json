@@ -3,13 +3,13 @@
   "testRunner": "tap",
   "plugins": ["@stryker-mutator/tap-runner"],
   "tap": {
-    "testFiles": ["shared/*.test.mts"],
+    "testFiles": ["shared/**/*.test.mts"],
     "nodeArgs": ["--import", "tsx"]
   },
   "coverageAnalysis": "perTest",
   "mutate": [
     "shared/branches.mts",
-    "shared/claim.mts",
+    "shared/claim/start-decision.mts",
     "shared/config-block.mts",
     "shared/extract.mts",
     "shared/item.mts",

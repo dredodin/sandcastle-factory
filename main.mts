@@ -1,7 +1,7 @@
 // `tsx main.mts <setup | take N | resume N>`: parses arguments and dispatches to a mode. take and resume run setup first.
 
 import { fail, message, parseArgs } from "./shared/cli.mjs";
-import { withClaim } from "./shared/claim-socket.mjs";
+import { withClaim } from "./shared/claim/pipe-claim.mjs";
 import { log, timed } from "./shared/logger.mjs";
 import { resume } from "./workflow/resume.mjs";
 import { setup } from "./workflow/setup.mjs";
@@ -10,7 +10,7 @@ import { take } from "./workflow/take.mjs";
 const command = parseArgs(process.argv.slice(2));
 const ready = await setup(command.mode).catch((error: unknown) => fail(`Setup failed: ${message(error)}`));
 // Before anything reads or moves a card.
-const claimed = <T,>(root: number, work: () => Promise<T>): Promise<T> => withClaim(ready.env.ports, { repo: ready.workspace.home.slug, root, startedAt: new Date().toISOString() }, work);
+const claimed = <T,>(root: number, work: () => Promise<T>): Promise<T> => withClaim({ repo: ready.workspace.home.slug, root, startedAt: new Date().toISOString() }, work);
 if (command.mode !== "setup") {
   const run = { take, resume }[command.mode];
   const { root } = command;
