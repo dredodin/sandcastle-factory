@@ -3,9 +3,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { parseEnv as parseDotenv } from "node:util";
 import { z } from "zod";
-import { message } from "./cli.mjs";
 import type { KanbanRef } from "./kanban.mjs";
-import { DEFAULT_PORTS, parsePorts } from "./claim.mjs";
 import { repoKey } from "./names.mjs";
 
 export const PHASES = ["PLAN", "IMPLEMENT", "REVIEW", "MERGE", "PR"] as const;
@@ -33,12 +31,9 @@ export type Env = {
   readonly repoPaths: Values;
   // The home repo's Kanban.
   readonly kanban: KanbanRef;
-  // The pool of local ports a run claims its root through.
-  readonly ports: readonly number[];
 };
 
 const CLAUDE_AUTH = ["CLAUDE_CODE_OAUTH_TOKEN", "ANTHROPIC_API_KEY"] as const;
-const PORTS_KEY = "FACTORY_PORTS";
 const COPILOT_TOKEN = "COPILOT_GITHUB_TOKEN";
 const CODEX_KEY = "CODEX_API_KEY";
 // What a human does about a missing key, where a bare name is not enough.
@@ -85,7 +80,7 @@ export const readValues = (root: string): Values => {
 };
 
 // Keys the factory reads: the only ones a shell variable may set.
-const knownKeys = (repoNames: readonly string[]): readonly string[] => ["GH_TOKEN", "SANDBOX", ...PHASES.flatMap(phaseKeys), ...KANBAN_KEYS, PORTS_KEY, ...CLAUDE_AUTH, COPILOT_TOKEN, CODEX_KEY, ...repoNames.map(repoKey)];
+const knownKeys = (repoNames: readonly string[]): readonly string[] => ["GH_TOKEN", "SANDBOX", ...PHASES.flatMap(phaseKeys), ...KANBAN_KEYS, ...CLAUDE_AUTH, COPILOT_TOKEN, CODEX_KEY, ...repoNames.map(repoKey)];
 
 // `.env` values with the shell's non-empty values of known keys over them: a shell variable overrides `.env` for one run.
 export const withShellOverrides = (file: Values, shell: Readonly<Record<string, string | undefined>>, repoNames: readonly string[]): Values => ({
@@ -107,7 +102,6 @@ const schemaFor = (repoNames: readonly string[], hostLogin: boolean): z.ZodType<
       SANDBOX: z.enum(SANDBOXES),
       KANBAN_OWNER: nonEmpty,
       KANBAN_NUMBER: z.string().regex(/^[1-9][0-9]*$/, "a project number"),
-      [PORTS_KEY]: z.string().optional(),
       CLAUDE_CODE_OAUTH_TOKEN: nonEmpty.optional(),
       ANTHROPIC_API_KEY: nonEmpty.optional(),
       COPILOT_GITHUB_TOKEN: nonEmpty.optional(),
@@ -117,12 +111,6 @@ const schemaFor = (repoNames: readonly string[], hostLogin: boolean): z.ZodType<
     })
     .loose()
     .superRefine((values, ctx) => {
-      try {
-        const ports = values[PORTS_KEY];
-        if (typeof ports === "string") parsePorts(ports);
-      } catch (error) {
-        ctx.addIssue({ code: "custom", path: [PORTS_KEY], message: message(error) });
-      }
       const providers = PHASES.map((phase) => values[`${phase}_PROVIDER`]);
       if (providers.includes("claudeCode") && !CLAUDE_AUTH.some((key) => values[key])) {
         ctx.addIssue({ code: "custom", path: [CLAUDE_AUTH[0]], message: "set CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY" });
@@ -141,10 +129,7 @@ export const checkEnv = (values: Values, repoNames: readonly string[], hostLogin
   const parsed = schemaFor(repoNames, hostLogin).safeParse(values);
   if (!parsed.success) {
     const keys = [...new Set(parsed.error.issues.map((issue) => String(issue.path[0] ?? "?")))];
-    const portsIssue = parsed.error.issues.find((issue) => issue.path[0] === PORTS_KEY)?.message;
-    const others = keys.filter((key) => key !== PORTS_KEY);
-    const setupHint = others.length > 0 ? " Run `setup` to fill the missing ones." : "";
-    throw new Error(`.sandcastle/.env is incomplete or wrong, fix: ${keys.join(", ")}.${portsIssue ? ` ${PORTS_KEY}: ${portsIssue}.` : ""}${setupHint}`);
+    throw new Error(`.sandcastle/.env is incomplete or wrong, fix: ${keys.join(", ")}. Run \`setup\` to fill the missing ones.`);
   }
   const value = (key: string): string => parsed.data[key] ?? "";
   const phases = Object.fromEntries(
@@ -154,6 +139,5 @@ export const checkEnv = (values: Values, repoNames: readonly string[], hostLogin
   const repoPaths = Object.fromEntries(repoNames.map((name) => [name, value(repoKey(name))]));
   const mountCodexLogin = hostLogin && value(CODEX_KEY) === "" && PHASES.some((phase) => phases[phase].provider === "codex");
   const kanban = { owner: value("KANBAN_OWNER"), number: Number(value("KANBAN_NUMBER")) };
-  const ports = parsePorts(value(PORTS_KEY) || DEFAULT_PORTS);
-  return { sandbox: value("SANDBOX") as Env["sandbox"], phases, secrets, mountCodexLogin, repoPaths, kanban, ports };
+  return { sandbox: value("SANDBOX") as Env["sandbox"], phases, secrets, mountCodexLogin, repoPaths, kanban };
 };
