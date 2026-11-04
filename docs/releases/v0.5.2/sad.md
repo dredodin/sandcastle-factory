@@ -527,4 +527,4 @@ The ADRs are in `docs/adr/` of the factory repo.
 
 **Rejected.** A pool of local ports: the pool size caps parallel runs, simultaneous starts need a tie-break, and free is told from foreign only by timing and fetch-error internals. A lock ref on GitHub. A PID file. A port derived from the issue number. One fixed port per machine. A long-running server.
 
-**Consequences.** No state goes stale: a killed process frees the pipe or leaves a socket file nobody answers. Parallel runs on different roots are unlimited. Runs on two machines are not covered.
+**Consequences.** Nothing needs cleanup by hand: a killed process frees the pipe or leaves a socket file the next run removes. Accepted risk: after a run died, two starts at the same instant can both run. Parallel runs on different roots are unlimited. Runs on two machines are not covered.

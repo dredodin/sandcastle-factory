@@ -3,6 +3,7 @@
 
 import { mkdirSync, rmSync } from "node:fs";
 import { connect, createServer, type Server } from "node:net";
+import { text } from "node:stream/consumers";
 import { message } from "../cli.mjs";
 import { log } from "../logger.mjs";
 import { decideStart, identitySchema, pipeName, POSIX_DIR, type Attempt, type Identity, type Peer } from "./start-decision.mjs";
@@ -41,15 +42,13 @@ const listen = (path: string, identity: Identity): Promise<Server | null> =>
 const probe = (path: string): Promise<Peer> =>
   new Promise((resolve, reject) => {
     const socket = connect(path);
-    let text = "";
     socket.setEncoding("utf8");
     const done = (peer: Peer): void => {
       socket.destroy();
       resolve(peer);
     };
     socket.setTimeout(IDENTITY_MS, () => done({ kind: "live", identity: null }));
-    socket.on("data", (chunk: string) => (text += chunk));
-    socket.on("end", () => done({ kind: "live", identity: parseIdentity(text) }));
+    text(socket).then((reply) => done({ kind: "live", identity: parseIdentity(reply) }), () => undefined); // Socket errors are handled below.
     socket.on("error", (error) => {
       if (codeOf(error) === "ECONNREFUSED" || codeOf(error) === "ENOENT") done({ kind: "dead" });
       else reject(error);
@@ -69,7 +68,13 @@ const claimFrom = async (path: string, identity: Identity, attemptsLeft: number)
   if (start.type === "refuse") throw new Error(start.reason);
   if (start.type === "hold") return start.holder;
   if (attemptsLeft <= 1) throw new Error(`the claim on ${identity.repo}#${identity.root} kept changing hands; start again.`);
-  rmSync(path, { force: true }); // clear-stale: a socket file a dead process left.
+  if (process.platform !== "win32") {
+    try {
+      rmSync(path, { force: true }); // clear-stale: a socket file a dead process left.
+    } catch (error) {
+      throw named(identity, error);
+    }
+  } // A Windows pipe has no file: the holder is gone, just listen again.
   return claimFrom(path, identity, attemptsLeft - 1);
 };
 

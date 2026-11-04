@@ -40,3 +40,12 @@ test("withClaim: a socket file left by a killed process is cleared, no flag", { 
   await new Promise((resolve) => child.once("close", resolve));
   assert.equal(await withClaim(identity(4), async () => "resumed"), "resumed");
 });
+
+test("withClaim: two simultaneous starts on one root leave exactly one run", async () => {
+  const hold = () => withClaim(identity(5), () => new Promise<string>((resolve) => setTimeout(() => resolve("ran"), 200)));
+  const results = await Promise.allSettled([hold(), hold()]);
+  assert.equal(results.filter((result) => result.status === "fulfilled").length, 1);
+  const refused = results.filter((result) => result.status === "rejected");
+  assert.equal(refused.length, 1);
+  assert.match(String(refused[0]?.reason), /already live/);
+});

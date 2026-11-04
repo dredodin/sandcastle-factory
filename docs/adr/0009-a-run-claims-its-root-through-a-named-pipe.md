@@ -23,7 +23,7 @@ status: accepted
 
 - A pool of local ports: the pool size caps parallel runs, simultaneous starts need a tie-break, and free is told from foreign only by timing and fetch-error internals.
 - A lock ref on GitHub: goes stale on a crash and needs manual cleanup.
-- A PID file: disk state that goes stale.
+- A PID file: a file cannot prove its writer is alive (PIDs are reused); a pipe connection can.
 - A port derived from the issue number: collides with unrelated programs.
 - One fixed port per machine: blocks parallel roots.
 - A long-running server: a process to keep alive.
@@ -34,3 +34,4 @@ status: accepted
 - Parallel runs on different roots are unlimited. No setting.
 - Runs on two machines are not covered.
 - Accepted risk: after a run died, two starts on the same root in the same instant can both clear the socket file and one may unlink the other's live socket; both then run.
+- A refused second run has already run `setup` (it comes before the claim), so it relinks `.sandcastle/repos/<name>/source` under the live run before it is refused.
