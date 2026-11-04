@@ -9,10 +9,11 @@ import { take } from "./workflow/take.mjs";
 
 const command = parseArgs(process.argv.slice(2));
 const ready = await setup(command.mode).catch((error: unknown) => fail(`Setup failed: ${message(error)}`));
-// Before anything reads or moves a card.
-const claimed = <T,>(root: number, work: () => Promise<T>): Promise<T> => withClaim({ repo: ready.workspace.home.slug, root, startedAt: new Date().toISOString() }, work);
 if (command.mode !== "setup") {
   const run = { take, resume }[command.mode];
   const { root } = command;
-  await timed(`${command.mode} total`, async () => log.info(await claimed(root, () => run(ready.workspace, ready.env, root)))).catch((error: unknown) => fail(`${command.mode} failed: ${message(error)}`));
+  const identity = { repo: ready.workspace.home.slug, root, startedAt: new Date().toISOString() };
+  const label = `${command.mode[0]?.toUpperCase()}${command.mode.slice(1)}`;
+  // The claim comes before anything reads or moves a card.
+  await timed(`${command.mode} total`, async () => log.info(await withClaim(identity, () => run(ready.workspace, ready.env, root)))).catch((error: unknown) => fail(`${label} failed: ${message(error)}`));
 }

@@ -170,3 +170,16 @@ test("reviewSection: nothing found is no section; only review work counts as a f
 test("runBlock: the review section ends the block", () => {
   assert.equal(runBlock("Models: m.", "acme/hub", 7, [hub], [], {}, [], "## Review"), "<!-- sandcastle-run -->\nModels: m.\n\n## Review\n<!-- /sandcastle-run -->");
 });
+
+test("reviewSection: each end lands in its part, a rejection stays with its pass, a repo absent from a pass has no section", () => {
+  const review: ReviewRecord = {
+    ...none,
+    passes: [new Map([["app", "- one"]]), new Map([["app", "- two"]]), new Map([["lib", "- other"]])],
+    ended: [{ item: work("app", "d"), end: "done without code", pass: 1 }, { item: work("app", "f"), end: "cannot finish", pass: 1 }],
+    rejected: [{ repo: "app", finding: "r", reason: "why", pass: 2 }],
+  };
+  const text = reviewSection("app", review);
+  assert.match(text, /### Pass 1[\s\S]*Fixed:\n- d \(done without code\)\n\nLeft over:\n- f \(cannot finish\)\n\n### Pass 2[\s\S]*Rejected:\n- r — why$/);
+  assert.doesNotMatch(text.split("### Pass 2")[0] ?? "", /Rejected/);
+  assert.doesNotMatch(text, /Pass 3|other/);
+});
