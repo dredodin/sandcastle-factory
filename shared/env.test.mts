@@ -74,10 +74,3 @@ test("checkEnv: the host login is mounted only when a phase uses codex and no ke
 test("withShellOverrides: CODEX_API_KEY is a known key", () => {
   assert.deepEqual(withShellOverrides({}, { CODEX_API_KEY: "k" }, []), { CODEX_API_KEY: "k" });
 });
-
-test("checkEnv: FACTORY_PORTS defaults to ten ports and takes ranges; a bad value is named", () => {
-  const base = { GH_TOKEN: "t", SANDBOX: "none", ...kanban, ...phases("copilot"), COPILOT_GITHUB_TOKEN: "c" };
-  assert.equal(checkEnv(base, [], false).ports.length, 10);
-  assert.deepEqual(checkEnv({ ...base, FACTORY_PORTS: "7000-7001,7005" }, [], false).ports, [7000, 7001, 7005]);
-  assert.throws(() => checkEnv({ ...base, FACTORY_PORTS: "x" }, [], false), /FACTORY_PORTS/);
-});

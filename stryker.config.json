@@ -9,7 +9,7 @@
   "coverageAnalysis": "perTest",
   "mutate": [
     "shared/branches.mts",
-    "shared/claim.mts",
+    "shared/claim/decision.mts",
     "shared/config-block.mts",
     "shared/extract.mts",
     "shared/item.mts",

@@ -72,10 +72,7 @@ One unit of work a plan hands to one implement agent: an unblocked sub-issue in 
 _Avoid_: task, job, work unit, ticket (when you mean any sub-issue)
 
 **Claim**:
-A run's hold on its root issue: one port of the port pool, kept for the run's life and freed by the OS when the process dies.
-
-**Port pool**:
-The local ports (`FACTORY_PORTS`) a run claims one of, answering with its repo, root and start time, so a second run on the same root is refused.
+A run's hold on its root issue: the named pipe of that root, kept for the run's life and freed by the OS when the process dies. It answers with the run's repo, root and start time, so a second run on the same root is refused.
 _Avoid_: lock
 
 ## Branches and delivery
