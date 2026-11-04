@@ -71,6 +71,10 @@ _Avoid_: review issue
 One unit of work a plan hands to one implement agent: an unblocked sub-issue in Ready for agent, the root issue when it has none, or work the plan wrote as text from a Review report, PR comments or plan check output (no issue, no Kanban card). Always in exactly one repo.
 _Avoid_: task, job, work unit, ticket (when you mean any sub-issue)
 
+**Claim**:
+A run's hold on its root issue: the named pipe of that root, listened on for the run's life. A second run on the same root finds the name taken and is refused; a killed process frees it, or leaves a socket file the next run clears.
+_Avoid_: lock
+
 ## Branches and delivery
 
 **Integration branch**:

@@ -1,0 +1,52 @@
+import { spawn } from "node:child_process";
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import { fileURLToPath } from "node:url";
+import { withClaim } from "./pipe-claim.mjs";
+import { pipeName } from "./start-decision.mjs";
+
+const identity = (root: number) => ({ repo: `acme/pipe-test-${process.pid}`, root, startedAt: "now" });
+const BLOCK_MS = 5_000; // The child has half of it to start and connect.
+const connectFixture = fileURLToPath(new URL("./fixtures/connect.mts", import.meta.url));
+const listenFixture = fileURLToPath(new URL("./fixtures/listen.mts", import.meta.url));
+const posix = process.platform !== "win32";
+const pathOf = (root: number) => pipeName(identity(root).repo, root, posix ? "posix" : "windows");
+
+test("withClaim: a second run on the same root is refused, another root runs, the pipe is released after", async () => {
+  await withClaim(identity(1), async () => {
+    await assert.rejects(withClaim(identity(1), async () => "no"), /already live.*started now/);
+    assert.equal(await withClaim(identity(2), async () => "ok"), "ok");
+  });
+  assert.equal(await withClaim(identity(1), async () => "again"), "again");
+});
+
+test("withClaim: the pipe accepts a connection while the run blocks its event loop", async () => {
+  const { accepted, blockedUntil } = await withClaim(identity(3), async () => {
+    const child = spawn(process.execPath, ["--import", "tsx", connectFixture, pathOf(3)]);
+    const out = new Promise<string>((resolve) => {
+      let text = "";
+      child.stdout.on("data", (chunk: Buffer) => (text += chunk));
+      child.on("close", () => resolve(text));
+    });
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, BLOCK_MS);
+    return { accepted: Number(await out), blockedUntil: Date.now() };
+  });
+  assert.ok(accepted < blockedUntil - BLOCK_MS / 2);
+});
+
+test("withClaim: a socket file left by a killed process is cleared, no flag", { skip: !posix }, async () => {
+  const child = spawn(process.execPath, ["--import", "tsx", listenFixture, pathOf(4)]);
+  await new Promise((resolve) => child.stdout.once("data", resolve));
+  child.kill("SIGKILL");
+  await new Promise((resolve) => child.once("close", resolve));
+  assert.equal(await withClaim(identity(4), async () => "resumed"), "resumed");
+});
+
+test("withClaim: two simultaneous starts on one root leave exactly one run", async () => {
+  const hold = () => withClaim(identity(5), () => new Promise<string>((resolve) => setTimeout(() => resolve("ran"), 200)));
+  const results = await Promise.allSettled([hold(), hold()]);
+  assert.equal(results.filter((result) => result.status === "fulfilled").length, 1);
+  const refused = results.filter((result) => result.status === "rejected");
+  assert.equal(refused.length, 1);
+  assert.match(String(refused[0]?.reason), /already live/);
+});
