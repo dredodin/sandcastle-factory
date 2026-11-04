@@ -523,7 +523,7 @@ The ADRs are in `docs/adr/` of the factory repo.
 
 **Context.** ADR-0007 promises a run refuses to start twice on one root, but the Status cannot tell a crashed run from a live one.
 
-**Decision.** Before any Kanban read-for-write or card move, a run listens on the named pipe of its root (exact name from repo and root number) and holds it for its whole life. Taken by a live run (a connection is accepted): refuse, naming repo#root and its start time if it answers. Taken by a dead POSIX socket file: remove it and listen again, under a short per-root start lock so two starts never unlink each other's live socket; the socket directory must be owned by the user with mode 0700. The start decision is pure and table-tested; the I/O is a thin shell.
+**Decision.** Before any Kanban read-for-write or card move, a run listens on the named pipe of its root (exact name from repo and root number) and holds it for its whole life. Taken by a live run (a connection is accepted): refuse, naming repo#root and its start time if it answers. Taken by a dead POSIX socket file: remove it and listen again. The start decision is pure and table-tested; the I/O is a thin shell.
 
 **Rejected.** A pool of local ports: the pool size caps parallel runs, simultaneous starts need a tie-break, and free is told from foreign only by timing and fetch-error internals. A lock ref on GitHub. A PID file. A port derived from the issue number. One fixed port per machine. A long-running server.
 

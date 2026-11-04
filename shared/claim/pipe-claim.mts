@@ -1,18 +1,14 @@
 // The thin I/O shell around `start-decision.mts`: listens on the root's named pipe and holds it for the run's life.
 // No worker: the OS accepts a connection while the run's loop is blocked in `execFileSync`, so an accepted connection already proves a live run; the identity reply waits for the loop.
 
-import { mkdirSync, rmSync, statSync } from "node:fs";
+import { mkdirSync, rmSync } from "node:fs";
 import { connect, createServer, type Server } from "node:net";
-import { setTimeout as sleep } from "node:timers/promises";
 import { message } from "../cli.mjs";
 import { log } from "../logger.mjs";
 import { decideStart, identitySchema, pipeName, POSIX_DIR, type Attempt, type Identity, type Peer } from "./start-decision.mjs";
 
 const IDENTITY_MS = 2_000; // How long a refused run waits for the holder to say who it is.
 const MAX_ATTEMPTS = 3;
-const LOCK_WAIT_MS = 50;
-const LOCK_TRIES = 200;
-const LOCK_STALE_MS = 10_000; // A lock older than this was left by a killed process.
 
 const codeOf = (error: unknown): unknown => (error instanceof Error && "code" in error ? error.code : undefined);
 
@@ -64,40 +60,6 @@ const closed = (server: Server): Promise<void> => new Promise((resolve) => serve
 
 const named = (identity: Identity, error: unknown): Error => new Error(`cannot claim ${identity.repo}#${identity.root}: ${message(error)}`);
 
-const staleLock = (lock: string): boolean => {
-  try {
-    return Date.now() - statSync(lock).mtimeMs > LOCK_STALE_MS;
-  } catch {
-    return false; // Released meanwhile.
-  }
-};
-
-// Mutual exclusion among starting runs (not held while a run works): `mkdir` is atomic, so one waiter at a time clears a stale socket file.
-const exclusively = async <T,>(lock: string, body: () => Promise<T>, triesLeft = LOCK_TRIES): Promise<T> => {
-  try {
-    mkdirSync(lock);
-  } catch (error) {
-    if (codeOf(error) !== "EEXIST") throw error;
-    if (triesLeft <= 0) throw new Error(`the start lock ${lock} stays held; remove it if no run is starting.`);
-    if (staleLock(lock)) rmSync(lock, { recursive: true, force: true });
-    else await sleep(LOCK_WAIT_MS);
-    return exclusively(lock, body, triesLeft - 1);
-  }
-  try {
-    return await body();
-  } finally {
-    rmSync(lock, { recursive: true, force: true });
-  }
-};
-
-// The pipe directory must be ours and private: another user's directory could hold sockets that refuse every run.
-const checkDir = (): void => {
-  mkdirSync(POSIX_DIR, { recursive: true, mode: 0o700 });
-  const { uid, mode } = statSync(POSIX_DIR);
-  if (uid !== process.getuid?.()) throw new Error(`${POSIX_DIR} is owned by another user (uid ${uid}); remove it or fix its owner.`);
-  if ((mode & 0o777) !== 0o700) throw new Error(`${POSIX_DIR} has mode ${(mode & 0o777).toString(8)}, not 700; chmod 700 it.`);
-};
-
 // Listens, or clears a dead socket file and listens again; the server it returns is the hold.
 const claimFrom = async (path: string, identity: Identity, attemptsLeft: number): Promise<Server> => {
   const server = await listen(path, identity).catch((error: unknown) => Promise.reject(named(identity, error)));
@@ -117,13 +79,12 @@ export const withClaim = async <T,>(identity: Identity, work: () => Promise<T>):
   const path = pipeName(identity.repo, identity.root, windows ? "windows" : "posix");
   if (!windows) {
     try {
-      checkDir();
+      mkdirSync(POSIX_DIR, { recursive: true });
     } catch (error) {
       throw named(identity, error);
     }
   }
-  const claim = (): Promise<Server> => claimFrom(path, identity, MAX_ATTEMPTS);
-  const server = await (windows ? claim() : exclusively(`${path}.lock`, claim));
+  const server = await claimFrom(path, identity, MAX_ATTEMPTS);
   try {
     return await work();
   } finally {
