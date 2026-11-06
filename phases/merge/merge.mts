@@ -2,7 +2,7 @@ import { writeFileSync } from "node:fs";
 import { itemId, type Item } from "../../shared/item.mjs";
 import { log, timed } from "../../shared/logger.mjs";
 import { mergeCommand, messagesFor } from "../../shared/merge-record.mjs";
-import { logFileName, verifyCommand } from "../../shared/names.mjs";
+import { verifyCommand } from "../../shared/names.mjs";
 import { inParallel } from "../../shared/parallel.mjs";
 import { promptPath } from "../../shared/paths.mjs";
 import { isMerged } from "../../shared/repo.mjs";
@@ -17,12 +17,12 @@ type Merge<T> = { readonly of: T; readonly branch: string; readonly command: str
 const runMerge = async <T extends unknown>(cycle: Cycle, repo: Repo, name: string, merges: readonly Merge<T>[]): Promise<readonly T[]> => {
   const integration = await cycle.integrations.get(repo);
   const byScript = await timed(`${name} ${repo.name}`, async () => {
-    const logName = logFileName(`${cycle.number}-${name}`, repo.name, cycle.workspace.home.name);
+    const scriptLog = cycle.logs.next(`${name}-script`, repo.name);
     const steps = [...merges.map((merge) => merge.command), verifyCommand(repo.name)].join(" && ");
     const chain = await integration.exec(
       `exec 2>&1; head=$(git rev-parse HEAD) || exit 1; { ${steps}; } || { git merge --abort 2>/dev/null; git reset --hard "$head"; exit 1; }`,
     );
-    writeFileSync(`${cycle.logDir}/${logName}-script.log`, `${chain.stdout}\nexit ${chain.exitCode}\n`);
+    writeFileSync(scriptLog, `${chain.stdout}\nexit ${chain.exitCode}\n`);
     if (chain.exitCode !== 0) {
       await integration.run({
         promptFile: promptPath("merge"),
@@ -33,7 +33,7 @@ const runMerge = async <T extends unknown>(cycle: Cycle, repo: Repo, name: strin
         maxIterations: 1,
         name: "merge",
         idleTimeoutSeconds: IDLE_TIMEOUT_SECONDS,
-        ...phaseAgent(cycle, "MERGE", logName),
+        ...phaseAgent(cycle, "MERGE", `${name}-agent`, repo.name),
       });
     }
     return chain.exitCode === 0;

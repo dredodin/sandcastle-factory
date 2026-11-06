@@ -20,10 +20,10 @@ export const take = async (workspace: Workspace, env: Env, root: number): Promis
 
   const context = { workspace, env };
   return gate.run("take", () => integrationBranch(workspace, root), (kanban, branch) => {
-    const logDir = startRun("take", { workspace, env, settings }, root, title, branch);
+    const logs = startRun("take", { workspace, env, settings }, root, title, branch);
     return withIntegrations(context, (repo) => ({ repo, branch, baseBranch: repo.base }), async (integrations) => {
-      const run: Run = { agents, context, workspace, kanban, root, title, branch, integrations, logDir, record: openRecord() };
-      const planned = await cycles(run, FIRST_TAKE_PRS);
+      const run: Run = { agents, context, workspace, kanban, root, title, branch, integrations, logs, record: openRecord() };
+      const planned = await cycles(run, FIRST_TAKE_PRS, "Work");
       const touched = (): readonly Repo[] => integrations.opened().filter((repo) => hasFileDiff(repo, branch, repo.base));
       if (touched().length === 0) return { text: "Nothing completed: no PR.", pr: false };
       return { text: await finish(run, FIRST_TAKE_PRS, touched, planned), pr: true };

@@ -5,7 +5,7 @@ import { z } from "zod";
 import { extract } from "../../shared/extract.mjs";
 import { hasIssue, type Item } from "../../shared/item.mjs";
 import { log, timed } from "../../shared/logger.mjs";
-import { logFileName, verifyCommand } from "../../shared/names.mjs";
+import { verifyCommand } from "../../shared/names.mjs";
 import { inParallel } from "../../shared/parallel.mjs";
 import { mergedIssues } from "../../shared/repo.mjs";
 import { promptPath } from "../../shared/paths.mjs";
@@ -42,7 +42,7 @@ const prOfRepo = async (run: Run, repo: Repo): Promise<Pr> => {
     completionSignal: "</pull-request>",
     name: "pr",
     idleTimeoutSeconds: IDLE_TIMEOUT_SECONDS,
-    ...phaseAgent(run, "PR", logFileName("pr", repo.name, home.name)),
+    ...phaseAgent(run, "PR", "pr", repo.name),
   }));
   return { repo: repo.name, url: extract(result.stdout, "pull-request", pullRequestSchema).url, issues };
 };

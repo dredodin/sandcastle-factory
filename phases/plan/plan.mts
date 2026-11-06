@@ -47,7 +47,7 @@ export const plan = async (cycle: Cycle, openPrsText: string, session: PlanSessi
     completionSignal: "</plan>",
     name: "plan",
     idleTimeoutSeconds: IDLE_TIMEOUT_SECONDS,
-    logging: phaseAgent(cycle, "PLAN", `${cycle.number}-plan`).logging,
+    logging: phaseAgent(cycle, "PLAN", "plan", home.name).logging,
   }));
 
   const planned = extract(result.stdout, "plan", planOutputSchema(repos));
