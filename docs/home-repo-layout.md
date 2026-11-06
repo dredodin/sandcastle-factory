@@ -13,6 +13,7 @@ GLOSSARY-MAP.md            # lists the app repos; none: the home repo alone
     ├── setup.sh           # runs in the sandbox once the worktree is ready
     ├── verify.sh          # agents run it before every commit
     ├── sparse-checkout    # optional; what sandbox worktrees check out (git non-cone patterns)
+    ├── mounts             # optional; host folders the sandbox sees read-only, `<host path> -> <sandbox path>` per line
     ├── deep-verify.sh     # optional; slow check, run once per review pass, base branch as $1
     ├── CODING_STANDARDS.md  # optional; your standards, copied into every worktree; reviewers read them on top of the repo's own; yours win on conflict
     ├── plan-check.sh      # optional, home repo only; the plan agent runs it each cycle; non-zero exit = its output becomes work
