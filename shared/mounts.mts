@@ -1,17 +1,16 @@
-const SEPARATOR = " -> ";
+import type { MountConfig } from "@ai-hero/sandcastle";
 
-// A host folder shown read-only inside the sandbox.
-export type RepoMount = { readonly hostPath: string; readonly sandboxPath: string; readonly readonly: true };
+const SEPARATOR = " -> ";
 
 // The repo's `mounts` file: `<host path> -> <sandbox path>` per line; blank and `#` lines are skipped.
 // `file` names the source in errors.
-export const parseMounts = (text: string, file: string): readonly RepoMount[] =>
+export const parseMounts = (text: string, file: string): readonly MountConfig[] =>
   text.split(/\r?\n/).flatMap((raw, index) => {
     const line = raw.trim();
     if (line === "" || line.startsWith("#")) return [];
-    if (!line.includes(SEPARATOR)) throw new Error(`${file}:${index + 1}: expected "<host path> -> <sandbox path>", got "${line}"`);
     const separatorAt = line.indexOf(SEPARATOR);
+    if (separatorAt === -1) throw new Error(`${file}:${index + 1}: expected "<host path> -> <sandbox path>", got "${line}"`);
     const hostPath = line.slice(0, separatorAt).trim();
     const sandboxPath = line.slice(separatorAt + SEPARATOR.length).trim();
-    return [{ hostPath, sandboxPath, readonly: true as const }];
+    return [{ hostPath, sandboxPath, readonly: true }];
   });
