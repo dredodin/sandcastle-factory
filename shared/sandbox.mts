@@ -123,6 +123,8 @@ const open = async (context: SandboxContext, spec: SandboxSpec): Promise<Opened>
     await closeSandbox(sandbox, branch);
     throw kept(`${command} exited ${result.exitCode}: ${`${result.stdout}\n${result.stderr}`.trim().slice(-SETUP_OUTPUT_TAIL)}`);
   };
+  // Sandcastle trusts the mount only inside `run()`, not `exec()`. Not on `none`: it would write the host's git config.
+  if (context.env.sandbox !== "none") await prepare("git trust", 'git config --global --add safe.directory "$PWD"');
   // git pushes and fetches with the run's GitHub token, the same in every phase.
   await prepare("git auth", "gh auth setup-git");
   await prepare("setup.sh", `bash ${repoDir(repo.name)}/setup.sh`);
