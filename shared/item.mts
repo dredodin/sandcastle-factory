@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { DISCLAIMER, type Cycle } from "./run.mjs";
-import { githubUrl, logFileName, verifyCommand } from "./names.mjs";
+import { githubUrl, verifyCommand } from "./names.mjs";
 
 // Where an item comes from: an issue, or `work` the plan made from a review report, PR comments or plan check output.
 const SOURCES = ["issue", "review", "comment", "plan check"] as const;
@@ -67,12 +67,12 @@ const variantArgs = (item: Item, root: number, homeSlug: string): Readonly<Recor
 // Everything one implement run is given: every prompt argument, and the names of the run and its log.
 export const implementRunOf = (
   item: Item,
-  cycle: Pick<Cycle, "number" | "root">,
+  cycle: Pick<Cycle, "root">,
   context: { readonly home: RepoRef; readonly otherBranches: string },
 ): {
   readonly promptArgs: Readonly<Record<string, string>>;
   readonly name: string;
-  readonly logName: string;
+  readonly logBase: string;
 } => {
   return {
     promptArgs: {
@@ -87,6 +87,6 @@ export const implementRunOf = (
       OTHER_BRANCHES: context.otherBranches,
     },
     name: `implement ${itemId(item)}`,
-    logName: logFileName(`${cycle.number}-${itemId(item)}-implement`, item.repo, context.home.name),
+    logBase: `implement-${itemId(item)}`,
   };
 };

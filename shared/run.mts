@@ -4,6 +4,7 @@ import type { Agents } from "./agents.mjs";
 import type { Phase } from "./env.mjs";
 import type { Item } from "./item.mjs";
 import type { Kanban } from "./kanban.mjs";
+import type { RunLogs } from "./logger.mjs";
 import type { RunRecord } from "./record.mjs";
 import type { Integrations, SandboxContext } from "./sandbox.mjs";
 import type { Repo, Workspace } from "./workspace.mjs";
@@ -19,7 +20,7 @@ export type Run = {
   readonly branch: string;
   // One integration worktree per repo, opened the first time the repo is needed.
   readonly integrations: Integrations;
-  readonly logDir: string;
+  readonly logs: RunLogs;
   // What the run remembers in memory: review reports, rejected findings, merged items.
   readonly record: RunRecord;
 };
@@ -36,11 +37,12 @@ export type Plan = { readonly items: readonly Item[] };
 // A phase's agent and where it logs: one file per agent run, inside the run's own log folder,
 // starting with the provider, model and effort the phase runs with.
 export const phaseAgent = (
-  run: Pick<Run, "agents" | "context" | "logDir">,
+  run: Pick<Run, "agents" | "context" | "logs">,
   phase: Phase,
-  name: string,
+  base: string,
+  repo: string,
 ): { readonly agent: AgentProvider; readonly logging: { readonly type: "file"; readonly path: string } } => {
-  const path = `${run.logDir}/${name}.log`;
+  const path = run.logs.next(base, repo);
   const { provider, model, effort } = run.context.env.phases[phase];
   appendFileSync(path, `${phase}: ${provider} ${model}, effort ${effort}\n`);
   return { agent: run.agents[phase], logging: { type: "file", path } };

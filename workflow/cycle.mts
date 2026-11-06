@@ -9,7 +9,7 @@ import { freshPlan, plan, type PlanSession } from "../phases/plan/plan.mjs";
 import { pr } from "../phases/pr/pr.mjs";
 import { postReplies } from "../phases/pr/replies.mjs";
 import { hasIssue, itemId, type Item } from "../shared/item.mjs";
-import { log, openRunLog } from "../shared/logger.mjs";
+import { log, openRunLog, runLogs, type RunLogs } from "../shared/logger.mjs";
 import { inParallel } from "../shared/parallel.mjs";
 import { mergeCommitOf } from "../shared/merge-record.mjs";
 import { cycleEnds } from "../shared/record.mjs";
@@ -20,18 +20,18 @@ import { repoNamed, type Repo, type Workspace } from "../shared/workspace.mjs";
 
 const MAX_CYCLES = 10;
 
-// Opens the run's log folder and logs what the run is; returns the folder.
+// Opens the run's log folder and logs what the run is; returns its log files.
 export const startRun = (
   mode: Mode,
   run: { readonly workspace: Workspace; readonly env: Env; readonly settings: readonly PhaseSettings[] },
   root: number,
   title: string,
   branch: string,
-): string => {
+): RunLogs => {
   const { workspace, env, settings } = run;
   const logDir = openRunLog(workspace.root, mode, { home: workspace.home.name, root }, branch);
   log.info(configBlock({ mode, root, title, branch, logDir, repos: workspace.repos.map((repo) => repo.slug), sandbox: env.sandbox, settings, maxCycles: MAX_CYCLES }));
-  return logDir;
+  return runLogs(logDir);
 };
 
 // One cycle: plan, merge default branches (the conflicting ones), implement each item in parallel in its repo, merge.
@@ -40,9 +40,10 @@ const cycle = async (
   run: Run,
   number: number,
   openPrsText: string,
+  stretch: string,
   session: PlanSession,
 ): Promise<{ readonly items: readonly Item[]; readonly next: PlanSession; readonly stop: boolean }> => {
-  log.info(`\n=== Cycle ${number}/${MAX_CYCLES} ===`);
+  log.info(`\n=== ${stretch}: cycle ${number}/${MAX_CYCLES} ===`);
   const current = { ...run, number };
 
   const conflicting = run.workspace.repos.filter((repo) => conflictsWithBase(repo, run.branch));
@@ -98,9 +99,9 @@ const cycle = async (
 // Cycles until the plan is empty or the cap is reached; one after another, each plans on the last one's merge.
 // The first plans in a fresh session, each later one continues the last plan's when the provider can.
 // Resolves to every item planned along the way.
-export const cycles = (run: Run, openPrsText: string): Promise<readonly Item[]> => {
+export const cycles = (run: Run, openPrsText: string, stretch: string): Promise<readonly Item[]> => {
   const from = async (number: number, session: PlanSession): Promise<readonly Item[]> => {
-    const { items, next, stop } = await cycle(run, number, openPrsText, session);
+    const { items, next, stop } = await cycle(run, number, openPrsText, stretch, session);
     if (items.length === 0) return [];
     if (stop) return items;
     if (number === MAX_CYCLES) {
@@ -120,9 +121,9 @@ export const finish = async (run: Run, openPrsText: string, touched: () => reado
   let items = planned;
   for (let pass = 1; pass <= REVIEW_PASSES; pass++) {
     const repos = touched();
-    const passed = await inParallel(repos, (repo) => repo.name, async (repo) => [repo.name, await review(run, repo, pass)] as const);
+    const passed = await inParallel(repos, (repo) => repo.name, async (repo) => [repo.name, await review(run, repo)] as const);
     run.record.addPass(new Map(passed));
-    const found = await cycles(run, openPrsText);
+    const found = await cycles(run, openPrsText, `Review ${pass}`);
     items = [...items, ...found];
     // Nothing planned ends the reviews unless a report had findings the plan rejected: pass 2 checks the rest.
     if (found.length === 0 && passed.map(([, report]) => report).every((report) => report === "")) break;

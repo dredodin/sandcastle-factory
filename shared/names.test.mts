@@ -45,8 +45,6 @@ test("imageName: home and repo, lower case", () => {
   assert.equal(imageName("Hub", "App"), "sandcastle:hub-app");
 });
 
-test("logFileName: suffix for app repos only", () => {
-  assert.equal(logFileName("1-223-implement", "app", "hub"), "1-223-implement-app");
-  assert.equal(logFileName("review", "app", "hub"), "review-app");
-  assert.equal(logFileName("review", "hub", "hub"), "review");
+test("logFileName: the number pads to three digits, so names sort in order", () => {
+  assert.equal(logFileName(2, "implement-223", "app"), "002-implement-223-app.log");
 });

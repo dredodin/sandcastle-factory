@@ -23,11 +23,11 @@ export const resume = async (workspace: Workspace, env: Env, root: number): Prom
   // A repo new to the take starts from its default branch.
   const specFor = (repo: Repo): Omit<SandboxSpec, "name"> => ({ repo, branch, baseBranch: branchExists(repo, branch) ? branch : repo.base });
   return gate.run("resume", () => branch, (kanban) => {
-    const logDir = startRun("resume", { workspace, env, settings }, root, title, branch);
+    const logs = startRun("resume", { workspace, env, settings }, root, title, branch);
     return withIntegrations(context, specFor, async (integrations) => {
-      const run: Run = { agents, context, workspace, kanban, root, title, branch, integrations, logDir, record: openRecord() };
+      const run: Run = { agents, context, workspace, kanban, root, title, branch, integrations, logs, record: openRecord() };
       const prsText = openPrsText(workspace, branch);
-      const planned = await cycles(run, prsText);
+      const planned = await cycles(run, prsText, "Work");
       const touched = (): readonly Repo[] => workspace.repos.filter((repo) => branchExists(repo, branch) && hasFileDiff(repo, branch, repo.base));
       if (touched().length === 0) return { text: "Nothing to resume", pr: false };
       return { text: await finish(run, prsText, touched, planned), pr: true };

@@ -30,7 +30,7 @@ export const implement = async (cycle: Cycle, sandbox: Sandbox, item: Item): Pro
     maxIterations: IMPLEMENT_ITERATIONS,
     name: inputs.name,
     idleTimeoutSeconds: IDLE_TIMEOUT_SECONDS,
-    ...phaseAgent(cycle, "IMPLEMENT", inputs.logName),
+    ...phaseAgent(cycle, "IMPLEMENT", inputs.logBase, item.repo),
   }));
   try {
     return extract(result.stdout, "outcome", outcomeSchema);

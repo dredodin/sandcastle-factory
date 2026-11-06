@@ -36,5 +36,5 @@ export const deepVerifyCommand = (repo: string, base: string): string => `bash $
 // The command the plan agent runs each cycle, when the home repo has a plan check script.
 export const planCheckCommand = (repo: string): string => `bash ${repoDir(repo)}/plan-check.sh`;
 
-// A log file name; app repos get their name as a suffix, the home repo keeps the plain name.
-export const logFileName = (base: string, repo: string, home: string): string => (repo === home ? base : `${base}-${repo}`);
+// A log file name. `number`: run-wide, so the folder sorts in start order.
+export const logFileName = (number: number, base: string, repo: string): string => `${String(number).padStart(3, "0")}-${base}-${repo}.log`;

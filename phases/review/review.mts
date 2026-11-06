@@ -1,5 +1,5 @@
 import { log, timed } from "../../shared/logger.mjs";
-import { deepVerifyCommand, logFileName } from "../../shared/names.mjs";
+import { deepVerifyCommand } from "../../shared/names.mjs";
 import { promptPath } from "../../shared/paths.mjs";
 import { rejectedText } from "../../shared/record.mjs";
 import { reviewReport } from "../../shared/review-report.mjs";
@@ -8,7 +8,7 @@ import { otherBranchesText } from "../../shared/text.mjs";
 import type { Repo } from "../../shared/workspace.mjs";
 
 // Runs the one review agent, once over the whole integration branch of one repo against its default branch. Resolves to its Review report ("" when nothing found).
-export const review = async (run: Run, repo: Repo, pass: number): Promise<string> => {
+export const review = async (run: Run, repo: Repo): Promise<string> => {
   const { home } = run.workspace;
   const integration = await run.integrations.get(repo);
   const result = await timed(`review ${repo.name}`, () => integration.run({
@@ -26,7 +26,7 @@ export const review = async (run: Run, repo: Repo, pass: number): Promise<string
     },
     name: "review",
     idleTimeoutSeconds: IDLE_TIMEOUT_SECONDS,
-    ...phaseAgent(run, "REVIEW", logFileName(`review-${pass}`, repo.name, home.name)),
+    ...phaseAgent(run, "REVIEW", "review", repo.name),
   }));
   const { report, warning } = reviewReport(result.stdout);
   if (warning !== "") log.warn(`  review ${repo.name}: ${warning}`);

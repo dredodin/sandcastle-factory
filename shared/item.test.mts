@@ -36,7 +36,7 @@ test("planItemSchema: a work item names its source, an issue item none", () => {
 });
 
 test("implementRunOf: issue item in the home repo", () => {
-  assert.deepEqual(implementRunOf({ ...full("42"), title: "Fix", branch: "br" }, { number: 3, root: 7 }, context), {
+  assert.deepEqual(implementRunOf({ ...full("42"), title: "Fix", branch: "br" }, { root: 7 }, context), {
     promptArgs: {
       WORK: "https://github.com/acme/hub/issues/42",
       ISSUE: "42",
@@ -52,21 +52,20 @@ test("implementRunOf: issue item in the home repo", () => {
       REPORT: "comments the note on #42 and moves the card",
     },
     name: "implement 42",
-    logName: "3-42-implement",
+    logBase: "implement-42",
   });
 });
 
-test("implementRunOf: an app repo's issue is read from the home repo and its log carries the repo", () => {
-  const inputs = implementRunOf(full("42", "app"), { number: 1, root: 7 }, context);
+test("implementRunOf: an app repo's issue is read from the home repo", () => {
+  const inputs = implementRunOf(full("42", "app"), { root: 7 }, context);
   assert.equal(inputs.promptArgs["WORK"], "https://github.com/acme/hub/issues/42");
   assert.equal(inputs.promptArgs["VERIFY"], "bash .sandcastle/repos/app/verify.sh");
-  assert.equal(inputs.logName, "1-42-implement-app");
 });
 
 const work: Item = { issue: "", work: "Fix a.ts:3", source: "plan check", repo: "app", title: "Fix check", branch: "int-work-2-3" };
 
 test("implementRunOf: a work item gets its text, the root as issue, and names from its branch", () => {
-  assert.deepEqual(implementRunOf(work, { number: 4, root: 7 }, context), {
+  assert.deepEqual(implementRunOf(work, { root: 7 }, context), {
     promptArgs: {
       WORK: "Fix a.ts:3",
       READ: "This task has no issue: the text above is the whole task. You work in the repo `app`, the one checked out here. Commits reference the root and say what they fix.",
@@ -82,7 +81,7 @@ test("implementRunOf: a work item gets its text, the root as issue, and names fr
       OTHER_BRANCHES: "- app: sandcastle/hub/issue-7-take-1",
     },
     name: "implement work-2-3",
-    logName: "4-work-2-3-implement-app",
+    logBase: "implement-work-2-3",
   });
 });
 

@@ -4,6 +4,7 @@ import { pino } from "pino";
 import pretty from "pino-pretty";
 import prettyMs from "pretty-ms";
 import { runFolderName, type Mode, type RunKey } from "./branches.mjs";
+import { logFileName } from "./names.mjs";
 
 // Every harness message goes to the terminal and, once a run folder is open, to its `console.log`: same text.
 const files: { write: (text: Buffer) => void }[] = [];
@@ -28,6 +29,21 @@ export const openRunLog = (homePath: string, mode: Mode, key: RunKey, branch: st
   const fd = openSync(`${logDir}/console.log`, "a");
   files.push({ write: (text) => writeSync(fd, text) });
   return logDir;
+};
+
+// Hands out a run's log files. `next` numbers the file, names it on the console and returns its path.
+export type RunLogs = { readonly next: (base: string, repo: string) => string };
+
+export const runLogs = (logDir: string): RunLogs => {
+  const state = { last: 0 };
+  return {
+    next: (base, repo) => {
+      state.last += 1;
+      const name = logFileName(state.last, base, repo);
+      log.info(`log: ${name}`);
+      return `${logDir}/${name}`;
+    },
+  };
 };
 
 // Runs `work` and logs how long it took as `<label>: <duration>`, also when it fails.
