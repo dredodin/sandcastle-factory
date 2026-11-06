@@ -9,9 +9,9 @@ export const parseMounts = (text: string, file: string): readonly RepoMount[] =>
   text.split(/\r?\n/).flatMap((raw, index) => {
     const line = raw.trim();
     if (line === "" || line.startsWith("#")) return [];
-    const at = line.indexOf(SEPARATOR);
-    const hostPath = line.slice(0, at).trim();
-    const sandboxPath = line.slice(at + SEPARATOR.length).trim();
-    if (at < 0 || hostPath === "" || sandboxPath === "") throw new Error(`${file}:${index + 1}: expected "<host path> -> <sandbox path>", got "${line}"`);
+    if (!line.includes(SEPARATOR)) throw new Error(`${file}:${index + 1}: expected "<host path> -> <sandbox path>", got "${line}"`);
+    const separatorAt = line.indexOf(SEPARATOR);
+    const hostPath = line.slice(0, separatorAt).trim();
+    const sandboxPath = line.slice(separatorAt + SEPARATOR.length).trim();
     return [{ hostPath, sandboxPath, readonly: true as const }];
   });

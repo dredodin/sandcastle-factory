@@ -21,3 +21,7 @@ test("parseMounts: an empty side is an error", () => {
   assert.throws(() => parseMounts(" -> /b", "mounts"), /mounts:1:/);
   assert.throws(() => parseMounts("~/a -> ", "mounts"), /mounts:1:/);
 });
+
+test("parseMounts: extra spaces around the separator are not part of the paths", () => {
+  assert.deepEqual(parseMounts("~/a   ->   /b", "mounts"), [{ hostPath: "~/a", sandboxPath: "/b", readonly: true }]);
+});
