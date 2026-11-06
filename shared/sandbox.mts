@@ -38,13 +38,13 @@ const repoMounts = (workspace: Workspace, repo: Repo) => {
 };
 
 const providerFor = ({ workspace, env }: SandboxContext, repo: Repo): SandboxProvider => {
+  // `none` has no mounts: agents run on the host. Its `mounts` file is not even read.
+  if (env.sandbox === "none") return noSandbox({ env: env.secrets });
   // Read-write: a token refresh inside the sandbox must land on the host login, not invalidate it.
   const codexLogin = env.mountCodexLogin ? [{ hostPath: hostCodexLogin(), sandboxPath: SANDBOX_CODEX_LOGIN }] : [];
   const mounts = [...codexLogin, ...repoMounts(workspace, repo)];
   const options = { imageName: imageName(workspace.home.name, repo.name), env: env.secrets, mounts };
-  if (env.sandbox === "docker") return docker(options);
-  if (env.sandbox === "podman") return podman(options);
-  return noSandbox({ env: env.secrets });
+  return env.sandbox === "docker" ? docker(options) : podman(options);
 };
 
 // Teardown is a side effect: retried, then logged, never thrown.
