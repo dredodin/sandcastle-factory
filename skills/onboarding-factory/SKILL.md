@@ -90,7 +90,7 @@ Inspect the home repo: its language, package manager, build, typecheck, test and
 - `setup.sh`: `#!/bin/sh`, `set -e`; runs in the sandbox once the worktree is ready, cwd the worktree root: install dependencies.
 - `verify.sh`: `#!/bin/sh`, `set -e`; cwd the worktree root: the repo's real checks, the ones CI runs. Agents run it before every commit; red means no commit.
 
-If the repo's dependencies come from a private source the sandbox cannot reach, ask the human which host folder already holds them, write `.sandcastle/repos/<home>/mounts` and follow the recipe in `docs/repo-image.md` ("Packages the sandbox cannot download"). Never ask for feed credentials.
+If the repo's dependencies come from a private source the sandbox cannot reach, ask the human which host folder already holds them, write `.sandcastle/repos/<home>/mounts` and follow `docs/repo-image.md` ("Host folders in the sandbox"). Never ask for its credentials.
 
 Each file opens with a one-line comment saying what it is for. Run `bash .sandcastle/repos/<home>/verify.sh` from the repo root; red → fix the script or ask the human whether the repo itself is broken, until green.
 
@@ -134,7 +134,7 @@ Tokens, the Kanban, sandbox engine and clone paths are theirs: never read `.sand
 
 Done-check: each app repo's `.sandcastle/repos/<name>/` has `Containerfile`, `setup.sh`, `verify.sh`, and `verify.sh` passes.
 
-Per app repo missing any: inspect the clone through `.sandcastle/repos/<name>/source/`, write the three files as in step 6. The scripts run with cwd the app repo's worktree root, never the home repo's. Same for a private dependency source: ask which host folder holds the packages, write that repo's `mounts`, follow the `docs/repo-image.md` recipe; never ask for feed credentials. Check from the home repo root:
+Per app repo missing any: inspect the clone through `.sandcastle/repos/<name>/source/`, write the three files as in step 6. The scripts run with cwd the app repo's worktree root, never the home repo's. Same for a private dependency source: ask which host folder holds the packages, write that repo's `mounts`, follow the same section of `docs/repo-image.md`; never ask for its credentials. Check from the home repo root:
 
 ```sh
 root=$(pwd); (cd .sandcastle/repos/<name>/source && bash "$root/.sandcastle/repos/<name>/verify.sh")
