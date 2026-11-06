@@ -52,13 +52,20 @@ const closeSandbox = async (sandbox: Sandbox, branch: string): Promise<void> => 
   });
 };
 
-// An app repo carries nothing of the factory: keep the copied scripts and sandcastle's own folders out of its `git status`.
-const excludeFactoryFiles = (repo: Repo): void => {
-  const exclude = resolve(repo.path, sh(repo.path, "git", "rev-parse", "--git-path", "info/exclude"));
-  mkdirSync(dirname(exclude), { recursive: true });
-  const present = existsSync(exclude) ? readFileSync(exclude, "utf8").split("\n") : [];
-  if (!present.includes("/.sandcastle/")) appendFileSync(exclude, `${present.at(-1) === "" || present.length === 0 ? "" : "\n"}/.sandcastle/\n`);
+// A file of the clone's `info` folder is never committed and applies to all its worktrees.
+const addToGitInfo = (repo: Repo, file: "exclude" | "attributes", line: string): void => {
+  const path = resolve(repo.path, sh(repo.path, "git", "rev-parse", "--git-path", `info/${file}`));
+  mkdirSync(dirname(path), { recursive: true });
+  const present = existsSync(path) ? readFileSync(path, "utf8").split("\n") : [];
+  if (!present.includes(line)) appendFileSync(path, `${present.at(-1) === "" || present.length === 0 ? "" : "\n"}${line}\n`);
 };
+
+// An app repo carries nothing of the factory: keep the copied scripts and sandcastle's own folders out of its `git status`.
+const excludeFactoryFiles = (repo: Repo): void => addToGitInfo(repo, "exclude", "/.sandcastle/");
+
+// A Windows host checks out CRLF, and the container's git reports every such file as changed: files stored as LF stay LF.
+// Outranks the repo's own `.gitattributes`.
+const forceLfWorktrees = (repo: Repo): void => addToGitInfo(repo, "attributes", "* text=auto eol=lf");
 
 // A file of the repo's sandbox folder in the home repo.
 const homeFile = (workspace: Workspace, repo: Repo, file: string): string => `${workspace.root}/${repoDir(repo.name)}/${file}`;
@@ -99,6 +106,7 @@ const open = async (context: SandboxContext, spec: SandboxSpec): Promise<Opened>
   const { repo, name, branch, baseBranch } = spec;
   const step = `open ${repo.name} ${name}:`;
   if (!repo.isHome) excludeFactoryFiles(repo);
+  forceLfWorktrees(repo);
   const worktree = await timed(`${step} worktree`, () => {
     makeLightWorktree(context.workspace, spec);
     return createWorktree({ cwd: repo.path, branchStrategy: { type: "branch", branch, baseBranch } });
