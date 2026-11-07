@@ -123,17 +123,21 @@ export const worktreeOf = (repo: Repo, branch: string): string | undefined =>
     ?.replace(/^worktree /, "");
 
 // Merges `origin/<branch>` into the local branch in a worktree on it; a conflict is aborted and thrown.
-const mergeOrigin = (cwd: string, repo: Repo, branch: string): void => {
+const mergeOrigin = (cwd: string, repo: Repo, branch: string, kept: string | undefined): void => {
   try {
     sh(cwd, "git", "merge", "--no-edit", `origin/${branch}`);
   } catch {
     sh(cwd, "git", "merge", "--abort");
     const remote = `origin/${branch}`;
+    const resolve =
+      kept !== undefined
+        ? `in ${kept} run \`git merge ${remote}\`, fix the conflicts, commit, then re-run resume.`
+        : `make a worktree (\`git worktree add <dir> ${branch}\`), run \`git merge ${remote}\` there, fix the conflicts, commit, remove it, then re-run resume; or switch ${repo.path} back to ${repo.defaultBranch} before re-running resume.`;
     const commits = (range: string): string => sh(cwd, "git", "log", "--format=  %h %s", range) || "  (none)";
     throw new Error(
       `Merge conflict syncing ${branch} with ${remote} in ${repo.name}.\n` +
         `Local only:\n${commits(`${remote}..${branch}`)}\nOrigin only:\n${commits(`${branch}..${remote}`)}\n` +
-        `Resolve: in ${repo.path} run \`git switch ${branch} && git merge ${remote}\`, fix the conflicts, commit, then re-run resume.`,
+        `Resolve: ${resolve}`,
     );
   }
 };
@@ -152,13 +156,13 @@ export const syncWithOrigin = (repo: Repo, branch: string): void => {
   }
   if (isMerged(repo, remote, branch)) return;
   if (kept !== undefined) {
-    mergeOrigin(kept, repo, branch);
+    mergeOrigin(kept, repo, branch, kept);
     return;
   }
   const temp = join(mkdtempSync(join(tmpdir(), "sandcastle-sync-")), "worktree");
   sh(repo.path, "git", "worktree", "add", temp, branch);
   try {
-    mergeOrigin(temp, repo, branch);
+    mergeOrigin(temp, repo, branch, undefined);
   } finally {
     sh(repo.path, "git", "worktree", "remove", "--force", temp);
   }
