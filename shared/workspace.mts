@@ -2,7 +2,7 @@
 
 import { existsSync, lstatSync, readdirSync, realpathSync } from "node:fs";
 import { repoDir, slugFromRemote, type Slug } from "./names.mjs";
-import { succeeds, sh } from "./shell.mjs";
+import { sh } from "./shell.mjs";
 
 export type Repo = {
   readonly name: string;
@@ -31,16 +31,13 @@ export type Layout = {
 
 const originSlug = (path: string): Slug => slugFromRemote(sh(path, "git", "remote", "get-url", "origin"));
 
-// The app repos among the folders of `.sandcastle/repos/`: all but the home repo's, sorted.
-export const appFolders = (folders: readonly string[], homeName: string): readonly string[] => folders.filter((name) => name !== homeName).sort();
-
 // Reads the home repo's identity and its repo list. No `.env`, no network.
 export const readLayout = (cwd: string): Layout => {
   const root = sh(cwd, "git", "rev-parse", "--show-toplevel");
   const home = originSlug(root);
   const dir = `${root}/.sandcastle/repos`;
   const folders = existsSync(dir) ? readdirSync(dir, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name) : [];
-  return { root, homeName: home.name, homeSlug: `${home.owner}/${home.name}`, apps: appFolders(folders, home.name) };
+  return { root, homeName: home.name, homeSlug: `${home.owner}/${home.name}`, apps: folders.filter((name) => name !== home.name).sort() };
 };
 
 const isLink = (path: string): boolean => {
@@ -51,21 +48,45 @@ const isLink = (path: string): boolean => {
   }
 };
 
-// What is wrong with an app repo's `source` link, if anything. `isClone` only matters when the link resolves.
-export const sourceProblem = (name: string, resolves: boolean, linked: boolean, isClone: boolean): string | undefined => {
-  if (!linked && !resolves) return `${name}: no source link — run onboarding`;
-  if (!resolves || !isClone) return `${name}: source link is not a git clone — run onboarding`;
-  return undefined;
+export type SourceState = {
+  readonly linked: boolean;
+  readonly resolves: boolean;
+  // The link's real path; "" when it does not resolve.
+  readonly real: string;
+  // `git rev-parse --show-toplevel` in the link's target; "" when that is not in a git work tree.
+  readonly toplevel: string;
 };
 
-// Where an app repo's clone is: its `source` link, which must resolve to a git clone.
-export const sourceOf = (root: string, name: string): string => {
+const samePath = (a: string, b: string): boolean => a.replace(/\\/g, "/") === b.replace(/\\/g, "/");
+
+// What is wrong with an app repo's `source` link: empty when nothing. The target must be the clone's root, not a folder in it.
+export const sourceProblem = (name: string, state: SourceState): readonly string[] => {
+  if (!state.linked && !state.resolves) return [`${name}: no source link — run onboarding`];
+  if (!state.resolves || !samePath(state.toplevel, state.real)) return [`${name}: source link is not a git clone — run onboarding`];
+  return [];
+};
+
+const toplevelOf = (path: string): string => {
+  try {
+    return sh(path, "git", "rev-parse", "--show-toplevel");
+  } catch {
+    return "";
+  }
+};
+
+// Where an app repo's clone is: its `source` link, which must resolve to the root of a git clone.
+const sourceOf = (root: string, name: string): string => {
   const link = `${root}/${repoDir(name)}/source`;
   const resolves = existsSync(link);
-  const problem = sourceProblem(name, resolves, isLink(link), resolves && succeeds(link, "git", "rev-parse", "--git-dir"));
+  const real = resolves ? realpathSync(link) : "";
+  const [problem] = sourceProblem(name, { linked: isLink(link), resolves, real, toplevel: resolves ? toplevelOf(link) : "" });
   if (problem !== undefined) throw new Error(problem);
-  return realpathSync(link);
+  return real;
 };
+
+// Every app repo's clone path by name; throws naming the first repo whose link is missing or broken.
+export const sourcePaths = (layout: Layout): Readonly<Record<string, string>> =>
+  Object.fromEntries(layout.apps.map((name) => [name, sourceOf(layout.root, name)]));
 
 const repoAt = (name: string, path: string, isHome: boolean): Repo => {
   const slug = originSlug(path);
@@ -74,9 +95,9 @@ const repoAt = (name: string, path: string, isHome: boolean): Repo => {
 };
 
 // Resolves every repo's slug and default branch from its folder's `origin` and GitHub.
-export const resolveWorkspace = (layout: Layout): Workspace => {
+export const resolveWorkspace = (layout: Layout, sources: Readonly<Record<string, string>>): Workspace => {
   const home = repoAt(layout.homeName, layout.root, true);
-  const apps = layout.apps.map((name) => repoAt(name, sourceOf(layout.root, name), false));
+  const apps = layout.apps.map((name) => repoAt(name, sources[name] ?? "", false));
   return { root: layout.root, home, repos: [home, ...apps] };
 };
 
