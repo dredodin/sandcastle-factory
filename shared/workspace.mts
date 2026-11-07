@@ -1,7 +1,7 @@
 // The Workspace: the home repo and the repos worked together with it. Read from the current directory's repo root only.
 
 import { existsSync, readdirSync, realpathSync } from "node:fs";
-import { repoDir, slugFromRemote, sourceProblem, type Slug } from "./names.mjs";
+import { repoDir, slugFromRemote, isCloneRoot, type Slug } from "./names.mjs";
 import { sh } from "./shell.mjs";
 
 export type Repo = {
@@ -31,7 +31,7 @@ export type Layout = {
 
 const originSlug = (path: string): Slug => slugFromRemote(sh(path, "git", "remote", "get-url", "origin"));
 
-// Reads the home repo's identity and its repo list. No `.env`, no network.
+// Reads the home repo's identity and its app repo folders. No `.env`, no network.
 export const readLayout = (cwd: string): Layout => {
   const root = sh(cwd, "git", "rev-parse", "--show-toplevel");
   const home = originSlug(root);
@@ -51,9 +51,7 @@ const prefixOf = (path: string): string | null => {
 // Where an app repo's clone is: its `source` link, which must resolve to the root of a git clone.
 const sourceOf = (root: string, name: string): string => {
   const link = `${root}/${repoDir(name)}/source`;
-  const resolves = existsSync(link);
-  const problem = sourceProblem(name, { resolves, prefix: resolves ? prefixOf(link) : null });
-  if (problem !== "") throw new Error(problem);
+  if (!isCloneRoot(existsSync(link) ? prefixOf(link) : null)) throw new Error(`${name}: no source link — run onboarding`);
   return realpathSync(link);
 };
 
