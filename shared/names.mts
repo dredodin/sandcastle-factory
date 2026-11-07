@@ -1,4 +1,4 @@
-// Pure naming and parsing for the Workspace: no git, no gh, no files.
+// Pure naming and parsing for the Workspace, and its link-health check: no git, no gh, no files.
 
 export type Slug = { readonly owner: string; readonly name: string };
 
