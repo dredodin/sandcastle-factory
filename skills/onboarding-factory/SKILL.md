@@ -41,7 +41,7 @@ Show the repos the Workspace has now (the folders of `.sandcastle/repos/`, home 
 Per named repo, and per existing folder of `.sandcastle/repos/` (home repo's excluded) without a working `source` link: look in the home repo's sibling folders for a git clone whose `origin` is that GitHub repo.
 
 - Found: ask the human to confirm that clone.
-- Not found: say so and ask what to do. Never clone.
+- Not found: say so and ask what to do.
 
 Confirmed: make `.sandcastle/repos/<name>/` and link `source` to the clone. Windows: `cmd //c mklink /J <link> <clone>` (Windows paths), else `ln -s <clone> <link>`. Replace a stale link.
 
