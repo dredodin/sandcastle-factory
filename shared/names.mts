@@ -30,3 +30,13 @@ export const planCheckCommand = (repo: string): string => `bash ${repoDir(repo)}
 
 // A log file name. `number`: run-wide, so the folder sorts in start order.
 export const logFileName = (number: number, base: string, repo: string): string => `${String(number).padStart(3, "0")}-${base}-${repo}.log`;
+
+export type SourceState = {
+  readonly resolves: boolean;
+  // `git rev-parse --show-prefix` in the link: "" at a work tree's root; null when not in a work tree.
+  readonly prefix: string | null;
+};
+
+// What is wrong with an app repo's `source` link: "" when nothing. The target must be the clone's root, not a folder in it.
+export const sourceProblem = (name: string, state: SourceState): string =>
+  state.resolves && state.prefix === "" ? "" : `${name}: no source link — run onboarding`;

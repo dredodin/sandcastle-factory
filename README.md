@@ -32,7 +32,7 @@ Run in your **home repo**: the repo that holds the issues.
    npx skills add dredodin/sandcastle-factory -s onboarding-factory --copy
    ```
 2. In your agent, run `/onboarding-factory`. It installs the factory, asks which app repos to add and links their clones, writes their check scripts and builds their images. Rerun it later to add more repos.
-3. When the skill stops and asks, run setup in your own terminal (Windows: Git Bash). It asks for the tokens, models, sandbox and Kanban, which stay yours:
+3. When the skill stops and asks, run setup in your own terminal (Windows: Git Bash). It fills `.sandcastle/.env`, which stays yours:
    ```sh
    npm run sandcastle -- setup
    ```
