@@ -1,64 +1,36 @@
 ---
 name: run-factory
-description: Run the factory on an issue and report back. Use when asked to take, resume or run the factory / AFK agent / sandcastle on an issue. Starts `take` or `resume` in the background, waits for its exit, fixes known failures, reports the PRs or the failure and the slow phases.
+description: Run the factory (take or resume an issue), wait for it, report the PRs or the failure.
 ---
 
 # Run factory
 
-Run in the home repo. One run, start to report. A run takes minutes to hours, and its phase count is decided mid-run: never estimate its total time.
+Host only. Inside a factory sandbox (cwd under `.sandcastle/worktrees/`, or home `/home/agent`): stop and say so.
 
 ## 1. Start
 
-`take <issue>` for a fresh issue, `resume <issue>` to continue its latest take; the human's words pick. Start it as a background command that notifies you on exit (Claude Code: Bash with `run_in_background`; Windows: Git Bash, never PowerShell or cmd):
+From the home repo root, as a background command that notifies you on exit (Claude Code: Bash with `run_in_background`; Windows: Git Bash):
 
-```sh
-npm run sandcastle -- take <issue>
-```
-
-Done: the command runs in the background.
+| Command | Example | When |
+| --- | --- | --- |
+| `take <issue>` | `npm run sandcastle -- take 42` | First run on the issue. |
+| `resume <issue>` | `npm run sandcastle -- resume 42` | Continue its latest take: after a failure, after PR comments. |
+| `setup` | `npm run sandcastle -- setup` | Never from here: interactive, the human runs it. |
 
 ## 2. Wait
 
-Wait for the exit notice: it is the only signal. Reading the log on a `sleep` loop meanwhile blocks you and tells nothing the notice will not. You never stop the run, however long. Between start and notice, do other work the human asks for, or end your turn.
-
-Done: the exit notice arrived, with the exit code.
+For the exit notice only. Never poll, never stop the run.
 
 ## 3. Read
 
-The run's output prints `log folder: <path>`; read `<path>/console.log`. No such line (setup failed first): the output is all there is.
+The output names the run's log folder. Its `console.log` ends with the PR links, or the failure. A phase marked `slow`: open that phase's log in the same folder and find why.
 
-- Exit 0: the `PR:` block lists one link per repo, or the run says why there is none (`Nothing completed: no PR.`, `Nothing to resume`).
-- Non-zero: the last lines say `Take failed: …` or `Resume failed: …`.
-- Slow lines: a phase or `setup.sh` line reads `<label>: <duration> (median <d>)`, ending `, slow)` past twice its median on this machine. For each, read its log, the latest `log: NNN-….log` line above it of that name:
+## 4. Fix
 
-  | Line | Log |
-  | --- | --- |
-  | `plan <cycle>` | `NNN-plan-<home>.log` |
-  | `implement <id>` | `NNN-implement-<id>-<repo>.log` |
-  | `merge <repo>`, `merge-default <repo>` | `NNN-<same>-script-<repo>.log`, then `NNN-<same>-agent-<repo>.log` if any |
-  | `review <repo>`, `pr <repo>` | `NNN-<same>-<repo>.log` |
-  | `open … setup.sh` | none: name it slow only |
-
-  Give 1–2 lines on why it was slow, from that log.
-
-Done: you know the PRs or the failure, and why every slow line was slow.
-
-## 4. Known failure
-
-Failed: match the failure lines against [`known-issues.md`](known-issues.md).
-
-- Match: apply its fix, then go back to step 1 with `resume <issue>` (or what the entry says). One attempt per entry: the same failure again → step 5.
-- No match, and the failure line names a fix on this machine (a command to run, a service to start) that needs no secret and no decision of the human's: apply it, back to step 1 once as above. It got past that failure: the report carries a new entry for the registry.
-- Otherwise: step 5.
-
-Done: the run succeeded, or its failure has no fix left to try.
+Failed: look the failure up in [`known-issues.md`](known-issues.md). Listed: apply the fix, run the command its row says, back to step 2. Not listed but the fix is obvious and needs nothing from the human: same. One attempt per failure.
 
 ## 5. Report
 
-To the human:
-
-- The PR links, or the failure line and what you tried.
-- Each slow line: the line and why.
-- A failure you fixed that the registry lacks: a ready entry in its format, for the human to add to the factory's `skills/run-factory/known-issues.md`.
-
-Stop here. Reading and reviewing the PRs is the human's.
+- The PR links, or the failure and what you tried.
+- Each `slow` phase and why.
+- A failure fixed in step 4 that `known-issues.md` lacks: its new row.
