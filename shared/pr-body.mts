@@ -66,12 +66,18 @@ export const reviewSection = (repo: string, review: ReviewRecord): string => {
     return first.length > LINE_MAX ? `${first.slice(0, LINE_MAX - 1)}…` : first;
   };
   const mine = (entry: { readonly item: Item }): boolean => entry.item.repo === repo && entry.item.source === "review";
-  // A finding settled in a later pass is no longer unsettled: only the last pass with review items counts.
-  const last = Math.max(0, ...[...review.ended, ...review.merged].filter(mine).map(({ pass }) => pass));
+  // Settled per finding: a left-over is dropped when the same work later merged or ended otherwise. One left over twice shows once.
+  const entries = [...review.merged.map((entry) => ({ ...entry, end: "merged" })), ...review.ended].filter(mine);
+  const same = (a: Item, b: Item): boolean => a.work === b.work || a.branch === b.branch;
   const leftOver = review.ended
-    .filter((entry) => mine(entry) && entry.pass === last && (entry.end === "cannot finish" || entry.end === "merge conflict"))
-    .map(({ item, end }) => `- Left over: ${line(item.work)} (${end})`);
-  const rejected = review.rejected.filter((rejection) => rejection.repo === repo).map(({ finding, reason }) => `- Rejected: ${line(finding)} — ${line(reason)}`);
+    .filter((entry) => mine(entry) && (entry.end === "cannot finish" || entry.end === "merge conflict"))
+    .filter((entry, index, all) => !all.slice(index + 1).some((later) => same(later.item, entry.item)))
+    .filter((entry) => !entries.some((later) => later.pass > entry.pass && same(later.item, entry.item) && later.end !== "cannot finish" && later.end !== "merge conflict"))
+    .map(({ item, end }) => `- Left over: ${item.title} (${end})`);
+  const rejections = review.rejected.filter((rejection) => rejection.repo === repo);
+  const rejected = rejections
+    .filter((rejection, index) => !rejections.slice(index + 1).some((later) => later.finding === rejection.finding))
+    .map(({ finding, reason }) => `- Rejected: ${line(finding)} — ${line(reason)}`);
   const lines = [...leftOver, ...rejected];
   return lines.length === 0 ? "" : ["## Review", "", ...lines].join("\n");
 };
