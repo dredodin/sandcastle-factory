@@ -1,13 +1,5 @@
 // Pure naming and parsing for the Workspace: no git, no gh, no files.
 
-const MAP_LINK = /\]\(\s*<?(?:\.\/)?\.sandcastle\/repos\/([^/)>\s]+)\//g;
-
-// Repo names the home repo's GLOSSARY-MAP links to as `.sandcastle/repos/<name>/…`, each once, in order.
-export const repoNamesFromMap = (map: string): readonly string[] => [...new Set([...map.matchAll(MAP_LINK)].map((match) => match[1]!))];
-
-// The `.env` key holding a repo's local path.
-export const repoKey = (name: string): string => `REPO_${name.toUpperCase().replace(/[^A-Z0-9]/g, "_")}`;
-
 export type Slug = { readonly owner: string; readonly name: string };
 
 // A repo's GitHub URL from its `owner/name`.
