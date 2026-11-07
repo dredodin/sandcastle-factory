@@ -21,7 +21,7 @@ GLOSSARY-MAP.md            # optional; docs only, the factory never reads it
     └── source             # app repos only; link to the clone, onboarding makes it
 ```
 
-A repo is in the Workspace when it has a folder under `.sandcastle/repos/`. `setup`, `take` and `resume` fail on an app repo whose `source` link is missing or no git clone.
+A repo is in the Workspace when it has a folder under `.sandcastle/repos/`. `setup`, `take` and `resume` fail on an app repo whose `source` link is missing or no git clone; delete folders that are not repos.
 
 `.gitignore`:
 

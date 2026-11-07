@@ -1,6 +1,6 @@
 // The Workspace: the home repo and the repos worked together with it. Read from the current directory's repo root only.
 
-import { existsSync, readdirSync, realpathSync } from "node:fs";
+import { existsSync, lstatSync, readdirSync, realpathSync } from "node:fs";
 import { repoDir, slugFromRemote, type Slug } from "./names.mjs";
 import { succeeds, sh } from "./shell.mjs";
 
@@ -40,12 +40,20 @@ export const readLayout = (cwd: string): Layout => {
   return { root, homeName: home.name, homeSlug: `${home.owner}/${home.name}`, apps: folders.filter((name) => name !== home.name).sort() };
 };
 
+const isLink = (path: string): boolean => {
+  try {
+    return lstatSync(path).isSymbolicLink();
+  } catch {
+    return false;
+  }
+};
+
 // Where an app repo's clone is: its `source` link, which must resolve to a git clone.
 export const sourceOf = (root: string, name: string): string => {
   const link = `${root}/${repoDir(name)}/source`;
-  if (!existsSync(link)) throw new Error(`${name}: no source link — run onboarding`);
-  const path = realpathSync(link);
-  if (!succeeds(path, "git", "rev-parse", "--git-dir")) throw new Error(`${name}: source link is not a git clone — run onboarding`);
+  if (!existsSync(link) && !isLink(link)) throw new Error(`${name}: no source link — run onboarding`);
+  const path = existsSync(link) ? realpathSync(link) : "";
+  if (path === "" || !succeeds(path, "git", "rev-parse", "--git-dir")) throw new Error(`${name}: source link is not a git clone — run onboarding`);
   return path;
 };
 

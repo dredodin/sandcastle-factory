@@ -92,7 +92,7 @@ flowchart LR
         prs[Pull requests]
     end
     subgraph machine[Your machine]
-        home[Home repo<br/>settings, repo list]
+        home[Home repo<br/>settings, repo folders]
         sandboxes[Sandboxes<br/>one per agent]
         apps[App repo clones]
     end
@@ -102,7 +102,7 @@ flowchart LR
     sandboxes --> prs
 ```
 
-- **Home repo**: where you run the factory. Its GitHub issues hold the work; it holds the repo list and per-machine settings.
+- **Home repo**: where you run the factory. Its GitHub issues hold the work; it holds the repo folders and per-machine settings.
 - **App repo**: any other repo the factory may change.
 - **Sandbox**: where one agent works: a docker or podman container, or your machine itself with `SANDBOX=none`.
 

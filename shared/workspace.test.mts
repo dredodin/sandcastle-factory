@@ -22,6 +22,12 @@ test("sourceOf: a link to a folder that is no git clone fails naming the repo", 
   assert.throws(() => sourceOf(root, "web"), /web: source link is not a git clone — run onboarding/);
 });
 
+test("sourceOf: a dangling link fails naming the repo", () => {
+  const root = home();
+  symlinkSync(`${root}/gone`, `${root}/.sandcastle/repos/web/source`, "dir");
+  assert.throws(() => sourceOf(root, "web"), /web: source link is not a git clone — run onboarding/);
+});
+
 test("sourceOf: a link to a git clone gives the clone's path", () => {
   const root = home();
   const clone = mkdtempSync(`${tmpdir()}/clone-`);

@@ -30,7 +30,7 @@ test("withShellOverrides: a non-empty shell value of a known key wins over .env"
 });
 
 test("withShellOverrides: unknown shell variables are ignored", () => {
-  assert.deepEqual(withShellOverrides({ SANDBOX: "none" }, { PATH: "/bin", HOME: "/h", REPO_OTHER: "/x" }), { SANDBOX: "none" });
+  assert.deepEqual(withShellOverrides({ SANDBOX: "none" }, { PATH: "/bin", HOME: "/h", FOO: "/x" }), { SANDBOX: "none" });
 });
 
 test("withShellOverrides: an empty or unset shell value keeps the .env value", () => {
