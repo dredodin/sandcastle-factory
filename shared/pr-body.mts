@@ -55,33 +55,16 @@ export const reposWithoutPr = (planned: readonly Pick<Item, "repo" | "issue">[],
 
 const issueList = (issues: readonly number[]): string => issues.map((id) => `#${id}`).join(", ");
 
-// Already done and done without code count as fixed: the finding needs no more work.
+// The findings the run left unsettled, one line each: left over (cannot finish, merge conflict) and rejected with the reason.
+// Fixed findings are in the diff, the reports in the run's logs; nothing unsettled is no section.
 export const reviewSection = (repo: string, review: ReviewRecord): string => {
-  const part = (title: string, lines: readonly string[]): readonly string[] =>
-    lines.length === 0 ? [] : ["", `${title}:`, ...lines.map((line) => `- ${line.replaceAll("\n", "\n  ")}`)];
-  const passes = review.passes.flatMap((reports, index) => {
-    const pass = index + 1;
-    const report = reports.get(repo) ?? "";
-    if (report === "") return [];
-    const own = <T extends { readonly item: Item; readonly pass: number }>(entries: readonly T[]): readonly T[] =>
-      entries.filter((entry) => entry.pass === pass && entry.item.repo === repo && entry.item.source === "review");
-    const ended = own(review.ended);
-    const noted = (ends: readonly string[]) => ended.filter(({ end }) => ends.includes(end)).map(({ item, end }) => `${item.work} (${end})`);
-    return [
-      "",
-      `### Pass ${pass}`,
-      "",
-      "<details><summary>Report</summary>",
-      "",
-      report,
-      "",
-      "</details>",
-      ...part("Fixed", [...own(review.merged).map(({ item }) => item.work), ...noted(["already done", "done without code"])]),
-      ...part("Rejected", review.rejected.filter((rejection) => rejection.pass === pass && rejection.repo === repo).map(({ finding, reason }) => `${finding} — ${reason}`)),
-      ...part("Left over", noted(["cannot finish", "merge conflict"])),
-    ];
-  });
-  return passes.length === 0 ? "" : ["## Review", ...passes].join("\n");
+  const title = (text: string): string => text.split("\n")[0] ?? "";
+  const leftOver = review.ended
+    .filter(({ item, end }) => item.repo === repo && item.source === "review" && (end === "cannot finish" || end === "merge conflict"))
+    .map(({ item, end }) => `- Left over: ${title(item.work)} (${end})`);
+  const rejected = review.rejected.filter((rejection) => rejection.repo === repo).map(({ finding, reason }) => `- Rejected: ${title(finding)} — ${reason.split("\n")[0]}`);
+  const lines = [...leftOver, ...rejected];
+  return lines.length === 0 ? "" : ["## Review", "", ...lines].join("\n");
 };
 
 // One line naming the model each phase ran with.
