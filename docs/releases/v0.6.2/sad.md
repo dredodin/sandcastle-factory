@@ -352,7 +352,7 @@ flowchart TB
 
 #### 7.5.3 Traceability
 
-- An item is an issue or work the plan wrote. Review findings and PR comments become work, not issues; the PR description records each review's findings, and the run log holds the full reports.
+- An item is an issue or work the plan wrote. Review findings and PR comments become work, not issues; the PR description lists the findings the run left unsettled, one line each; the run log holds the full reports.
 - Each commit refers to its issue, or to the root issue for work. The factory comments on each sub-issue when it moves it.
 - The PR run block shows the models of each phase and the merge order across repos.
 

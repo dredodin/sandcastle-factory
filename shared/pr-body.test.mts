@@ -111,7 +111,7 @@ test("withRunBlock: an old block amid the body is cut out, the new one goes last
   assert.equal(withRunBlock("Body\n\n<!-- sandcastle-run -->\nA\n<!-- /sandcastle-run -->\n\nTail", "B"), "Body\nTail\n\nB\n");
 });
 
-const work = (repo: string, text: string, source: Item["source"] = "review"): Item => ({ issue: "", work: text, source, repo, title: "t", branch: `b-${text}` });
+const work = (repo: string, text: string, source: Item["source"] = "review"): Item => ({ issue: "", work: text, source, repo, title: text.replace(/\n[\s\S]*$/, ""), branch: `b-${text}` });
 const none: ReviewRecord = { rejected: [], merged: [], ended: [] };
 
 test("reviewSection: only left over and rejected findings, one line each; no report, no fixed", () => {
@@ -132,19 +132,25 @@ test("reviewSection: only left over and rejected findings, one line each; no rep
   );
 });
 
-test("reviewSection: only the last pass's left-over items; a finding settled later is not shown, one left over twice shows once", () => {
+test("reviewSection: a left-over stays until that finding itself is settled; one left over twice shows once", () => {
   const review: ReviewRecord = {
     ...none,
     ended: [
       { item: work("app", "old"), end: "cannot finish", pass: 1 },
       { item: work("app", "again"), end: "merge conflict", pass: 1 },
       { item: work("app", "again"), end: "merge conflict", pass: 2 },
+      { item: work("app", "fixed"), end: "cannot finish", pass: 1 },
     ],
-    merged: [{ item: work("app", "old"), commit: "c", pass: 2 }],
+    merged: [{ item: work("app", "fixed"), commit: "c", pass: 2 }, { item: work("app", "new"), commit: "c", pass: 2 }],
   };
-  assert.equal(reviewSection("app", review), "## Review\n\n- Left over: again (merge conflict)");
-  const settled: ReviewRecord = { ...none, ended: [{ item: work("app", "old"), end: "cannot finish", pass: 1 }], merged: [{ item: work("app", "new"), commit: "c", pass: 2 }] };
-  assert.equal(reviewSection("app", settled), "");
+  assert.equal(reviewSection("app", review), "## Review\n\n- Left over: old (cannot finish)\n- Left over: again (merge conflict)");
+  const rejectedLater: ReviewRecord = { ...none, ended: [{ item: work("app", "old"), end: "cannot finish", pass: 1 }], rejected: [{ repo: "app", finding: "x", reason: "r" }] };
+  assert.equal(reviewSection("app", rejectedLater), "## Review\n\n- Left over: old (cannot finish)\n- Rejected: x — r");
+});
+
+test("reviewSection: a finding rejected twice shows once with the latest reason", () => {
+  const rejected = [{ repo: "app", finding: "x", reason: "r1" }, { repo: "app", finding: "x", reason: "r2" }];
+  assert.equal(reviewSection("app", { ...none, rejected }), "## Review\n\n- Rejected: x — r2");
 });
 
 test("reviewSection: other repos' and comment items do not move the last pass", () => {
@@ -156,11 +162,11 @@ test("reviewSection: other repos' and comment items do not move the last pass", 
   assert.equal(reviewSection("app", review), "## Review\n\n- Left over: a (cannot finish)");
 });
 
-test("reviewSection: a long text is cut to 120 characters with an ellipsis", () => {
+test("reviewSection: a long finding or reason is cut to 120 characters with an ellipsis; left-over shows the title", () => {
   const long = "x".repeat(300);
   const review: ReviewRecord = { ...none, ended: [{ item: work("app", long), end: "cannot finish", pass: 1 }], rejected: [{ repo: "app", finding: long, reason: long }] };
   const cut = `${"x".repeat(119)}…`;
-  assert.equal(reviewSection("app", review), `## Review\n\n- Left over: ${cut} (cannot finish)\n- Rejected: ${cut} — ${cut}`);
+  assert.equal(reviewSection("app", review), `## Review\n\n- Left over: ${long} (cannot finish)\n- Rejected: ${cut} — ${cut}`);
   assert.equal(reviewSection("app", { ...none, rejected: [{ repo: "app", finding: "x".repeat(120), reason: "r" }] }), `## Review\n\n- Rejected: ${"x".repeat(120)} — r`);
 });
 
