@@ -20,6 +20,10 @@ _Avoid_: child repo, target repo
 The home repo plus every app repo with a folder in its `.sandcastle/repos/`. One run may touch any of them.
 _Avoid_: monorepo, project
 
+**Agent instructions file**:
+A repo's `AGENTS.md`, `CLAUDE.md` or `.github/copilot-instructions.md`, whichever exists; it rules that repo's slow suites.
+_Avoid_: prompt file, rules file
+
 **Repo label**:
 The `repo:<name>` label on an issue, naming the repo its work is done in. No repo label means the home repo.
 _Avoid_: routing tag

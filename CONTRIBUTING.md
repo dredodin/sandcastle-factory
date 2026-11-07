@@ -5,7 +5,7 @@ Rules for agents and humans: [AGENTS.md](AGENTS.md). Standards: [CODING_STANDARD
 ## Develop
 
 - `npm run verify`: lint (`biome.json`), typecheck, then tests. Green before every commit.
-- `npm run mutate`: mutation testing, Linux only.
+- `npm run mutate`: mutation testing, Linux only; slow, see [AGENTS.md](AGENTS.md).
 
 ## Release
 
