@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { z } from "zod";
 import { assertNoOpenTake, freeItemBranch, nextTakeBranch, pickLatestTake, type LatestTake, type RepoPrs, type RunKey } from "./branches.mjs";
 import { issuesIn } from "./merge-record.mjs";
+import { log } from "./logger.mjs";
 import { githubUrl } from "./names.mjs";
 import { sh, succeeds } from "./shell.mjs";
 import type { Repo, Workspace } from "./workspace.mjs";
@@ -53,10 +54,18 @@ export const integrationBranch = (workspace: Workspace, root: number): string =>
 
 const MERGE_TREE_CONFLICT = 1;
 
-// Fetches the repo, then whether its branch, if it exists, would conflict merging the default branch.
+// Fetches the repo (once more on failure; a second failure warns and goes on with the refs it has), then whether its branch, if it exists, would conflict merging the default branch.
 // A conflict: `git merge-tree` exits 1 and prints the tree; a failure (bad ref, old git) prints nothing and throws.
 export const conflictsWithBase = (repo: Repo, branch: string): boolean => {
-  fetchOrigin(repo);
+  try {
+    fetchOrigin(repo);
+  } catch {
+    try {
+      fetchOrigin(repo);
+    } catch (error) {
+      log.warn(`Could not fetch ${repo.name}; conflict check uses its current refs: ${error instanceof Error ? error.message : error}`);
+    }
+  }
   if (!branchExists(repo, branch)) return false;
   try {
     sh(repo.path, "git", "merge-tree", "--write-tree", branch, repo.base);
@@ -119,7 +128,13 @@ const mergeOrigin = (cwd: string, repo: Repo, branch: string): void => {
     sh(cwd, "git", "merge", "--no-edit", `origin/${branch}`);
   } catch {
     sh(cwd, "git", "merge", "--abort");
-    throw new Error(`Merge conflict syncing ${branch} with origin/${branch} in ${repo.name}: resolve it by hand.`);
+    const remote = `origin/${branch}`;
+    const commits = (range: string): string => sh(cwd, "git", "log", "--format=  %h %s", range) || "  (none)";
+    throw new Error(
+      `Merge conflict syncing ${branch} with ${remote} in ${repo.name}.\n` +
+        `Local only:\n${commits(`${remote}..${branch}`)}\nOrigin only:\n${commits(`${branch}..${remote}`)}\n` +
+        `Resolve: in ${repo.path} run \`git switch ${branch} && git merge ${remote}\`, fix the conflicts, commit, then re-run resume.`,
+    );
   }
 };
 
