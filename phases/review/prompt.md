@@ -23,7 +23,7 @@ Review the whole branch and print what you find.
 
 1. Read the diff: `git diff {{BASE_BRANCH}}...HEAD` and the commit list `git log {{BASE_BRANCH}}..HEAD --oneline`. Code in it (source, scripts, config, tests) → the **code review** below. Markdown in it → the **doc review** below. Both → code first.
 2. Deep verify script, when its file is in the worktree: `{{DEEP_VERIFY}}`, once, now. It is slow. What it reports are findings too.
-3. Print the Review report of repo `{{REPO_NAME}}` inside `<review>` tags: the findings, each with file, axis, what is wrong and how to fix it. A fix names the change to make in the files (for a mutant: which test kills which mutant), never a command to run. List every finding: only the plan rejects. Nothing found: `<review></review>`. Always print the tags.
+3. Print the Review report of repo `{{REPO_NAME}}` inside `<review>` tags: the findings, each with file, axis, what is wrong and how to fix it. List every finding: only the plan rejects. Nothing found: `<review></review>`. Always print the tags.
 
 ## Code review
 

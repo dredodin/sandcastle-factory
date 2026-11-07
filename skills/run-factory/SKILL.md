@@ -23,9 +23,7 @@ Until the run exits, however long. Never stop it.
 
 ## 3. Read
 
-The output names the run's log folder. Its `console.log` ends with the PR links, or the failure. A phase marked `slow`: open that phase's log in the same folder and find why. Caused by a whole-suite run of a slow suite (e.g. full mutation testing)? Propose, do not edit, a line for that repo's agent instructions file (its `AGENTS.md`, `CLAUDE.md` or `.github/copilot-instructions.md`, whichever exists; none: propose `AGENTS.md`), from this template:
-
-> `<command>` is slow: never run it whole. Narrowed: `<how>`, only when the task is about it.
+The output names the run's log folder. Its `console.log` ends with the PR links, or the failure. A phase marked `slow`: open that phase's log in the same folder and find why.
 
 ## 4. Fix
 
@@ -34,5 +32,5 @@ Failed: look the failure up in [`known-issues.md`](known-issues.md). Listed: app
 ## 5. Report
 
 - The PR links, or the failure and what you tried.
-- Each `slow` phase and why; the proposed line, if any.
+- Each `slow` phase and why.
 - A failure fixed in step 4 that `known-issues.md` lacks: its new row.
