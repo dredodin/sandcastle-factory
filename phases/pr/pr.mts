@@ -21,15 +21,28 @@ const bodySchema = z.object({ body: z.string() });
 
 class PrOutputError extends Error {}
 
+// One retry: the PR agent runs at most twice.
+const PR_RETRIES = 1;
+
 // Sub-issues whose merge commit the repo's branch carries, the root left out.
 const subIssuesOn = (run: Run, repo: Repo): readonly number[] => mergedIssues(repo, run.branch).filter((id) => id !== run.root);
 
 // First pass for one repo: the PR agent pushes the branch and opens the PR, or rewrites the open one.
 // Missing or invalid PR output reruns the agent once; a second failure fails the run.
 const prOfRepo = (run: Run, repo: Repo): Promise<Pr> => {
-  const policy = retry(handleType(PrOutputError), { maxAttempts: 1 });
-  policy.onRetry((reason) => log.warn(`${"error" in reason ? message(reason.error) : "PR output missing"}; running the PR phase once more.`));
+  const policy = retry(handleType(PrOutputError), { maxAttempts: PR_RETRIES });
+  // handleType without a result filter: every retry reason carries an error.
+  policy.onRetry((reason) => log.warn(`${message((reason as { error: unknown }).error)}; running the PR phase once more.`));
   return policy.execute(() => openPr(run, repo));
+};
+
+// The PR url the agent printed; a missing tag or a bad url is a PrOutputError.
+export const prUrl = (stdout: string, repoName: string): string => {
+  try {
+    return extract(stdout, "pull-request", pullRequestSchema).url;
+  } catch (error) {
+    throw new PrOutputError(`PR output of ${repoName} missing or invalid: ${message(error)}`);
+  }
 };
 
 const openPr = async (run: Run, repo: Repo): Promise<Pr> => {
@@ -55,11 +68,7 @@ const openPr = async (run: Run, repo: Repo): Promise<Pr> => {
     idleTimeoutSeconds: IDLE_TIMEOUT_SECONDS,
     ...phaseAgent(run, "PR", "pr", repo.name),
   }));
-  try {
-    return { repo: repo.name, url: extract(result.stdout, "pull-request", pullRequestSchema).url, issues };
-  } catch (error) {
-    throw new PrOutputError(`PR output of ${repo.name} missing or invalid: ${message(error)}`);
-  }
+  return { repo: repo.name, url: prUrl(result.stdout, repo.name), issues };
 };
 
 // Native `blockedBy` of the issues, read from the home repo; an issue GitHub cannot answer for has no blockers.
