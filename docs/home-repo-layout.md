@@ -3,13 +3,12 @@
 What the factory reads from the [home repo](../GLOSSARY.md). `/onboarding-factory` and `setup` create most of it.
 
 ```text
-GLOSSARY-MAP.md            # optional; docs only, the factory never reads it
 .sandcastle/
 ├── .env                   # per machine, holds the tokens, models, sandbox and Kanban; the setup wizard writes it
 ├── logs/                  # one folder per run
 ├── stats.json             # per machine, recent phase and setup.sh durations; the factory writes it
 ├── worktrees/             # sandbox worktrees; the factory makes them
-└── repos/<name>/          # one folder per repo of the Workspace, home repo included; the folders are the repo list
+└── repos/<name>/          # one folder per repo of the Workspace, home repo included
     ├── Containerfile      # the repo image
     ├── setup.sh           # runs in the sandbox once the worktree is ready
     ├── verify.sh          # agents run it before every commit
@@ -20,8 +19,6 @@ GLOSSARY-MAP.md            # optional; docs only, the factory never reads it
     ├── plan-check.sh      # optional, home repo only; the plan agent runs it each cycle; non-zero exit = its output becomes work
     └── source             # app repos only; link to the clone, onboarding makes it
 ```
-
-A repo is in the Workspace when it has a folder under `.sandcastle/repos/`.
 
 `.gitignore`:
 
