@@ -23,7 +23,9 @@ Until the run exits, however long. Never stop it.
 
 ## 3. Read
 
-The output names the run's log folder. Its `console.log` ends with the PR links, or the failure. A phase marked `slow`: open that phase's log in the same folder and find why.
+The output names the run's log folder. Its `console.log` ends with the PR links, or the failure. A phase marked `slow`: open that phase's log in the same folder and find why. Caused by a whole-suite run of a slow suite (e.g. full mutation testing)? Propose, do not edit, a line for that repo's agent instructions file (`AGENTS.md` or `CLAUDE.md`, whichever exists; never both), from this template:
+
+> `<suite>` is slow. Run it only when the task is about it, narrowed: `<narrowed command>`.
 
 ## 4. Fix
 
@@ -32,5 +34,5 @@ Failed: look the failure up in [`known-issues.md`](known-issues.md). Listed: app
 ## 5. Report
 
 - The PR links, or the failure and what you tried.
-- Each `slow` phase and why.
+- Each `slow` phase and why; the proposed line, if any.
 - A failure fixed in step 4 that `known-issues.md` lacks: its new row.
