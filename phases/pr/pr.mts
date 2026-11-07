@@ -28,8 +28,9 @@ const subIssuesOn = (run: Run, repo: Repo): readonly number[] => mergedIssues(re
 // Missing or invalid PR output reruns the agent once; a second failure fails the run.
 const prOfRepo = (run: Run, repo: Repo): Promise<Pr> => {
   const policy = retry(handleType(PrOutputError), { maxAttempts: PR_RETRIES });
-  // handleType without a result filter: every retry reason carries an error.
-  policy.onRetry((reason) => log.warn(`${message((reason as { error: unknown }).error)}; running the PR phase once more.`));
+  policy.onRetry((reason) => {
+    if ("error" in reason) log.warn(`${message(reason.error)}; running the PR phase once more.`);
+  });
   return policy.execute(() => openPr(run, repo));
 };
 
