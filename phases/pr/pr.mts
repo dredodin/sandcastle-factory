@@ -15,13 +15,26 @@ import { sh } from "../../shared/shell.mjs";
 import { repoNamed, type Repo } from "../../shared/workspace.mjs";
 
 const pullRequestSchema = z.object({ url: z.url() });
+class OutputError extends Error {}
+
 const bodySchema = z.object({ body: z.string() });
 
 // Sub-issues whose merge commit the repo's branch carries, the root left out.
 const subIssuesOn = (run: Run, repo: Repo): readonly number[] => mergedIssues(repo, run.branch).filter((id) => id !== run.root);
 
 // First pass for one repo: the PR agent pushes the branch and opens the PR, or rewrites the open one.
+// Missing or invalid PR output reruns the agent once; a second failure fails the run.
 const prOfRepo = async (run: Run, repo: Repo): Promise<Pr> => {
+  try {
+    return await openPr(run, repo);
+  } catch (error) {
+    if (!(error instanceof OutputError)) throw error;
+    log.warn(`PR output of ${repo.name} missing or invalid (${error.message}); running the PR phase once more.`);
+  }
+  return openPr(run, repo);
+};
+
+const openPr = async (run: Run, repo: Repo): Promise<Pr> => {
   const { home } = run.workspace;
   const issues = subIssuesOn(run, repo);
   const integration = await run.integrations.get(repo);
@@ -44,7 +57,11 @@ const prOfRepo = async (run: Run, repo: Repo): Promise<Pr> => {
     idleTimeoutSeconds: IDLE_TIMEOUT_SECONDS,
     ...phaseAgent(run, "PR", "pr", repo.name),
   }));
-  return { repo: repo.name, url: extract(result.stdout, "pull-request", pullRequestSchema).url, issues };
+  try {
+    return { repo: repo.name, url: extract(result.stdout, "pull-request", pullRequestSchema).url, issues };
+  } catch (error) {
+    throw new OutputError(`PR output of ${repo.name} missing or invalid: ${error instanceof Error ? error.message : error}`);
+  }
 };
 
 // Native `blockedBy` of the issues, read from the home repo; an issue GitHub cannot answer for has no blockers.
