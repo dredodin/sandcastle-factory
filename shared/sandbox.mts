@@ -7,7 +7,7 @@ import { noSandbox } from "@ai-hero/sandcastle/sandboxes/no-sandbox";
 import { podman } from "@ai-hero/sandcastle/sandboxes/podman";
 import { message } from "./cli.mjs";
 import type { Env } from "./env.mjs";
-import { log, timed } from "./logger.mjs";
+import { log, timed, timedPhase } from "./logger.mjs";
 import { parseMounts } from "./mounts.mjs";
 import { imageName, repoDir } from "./names.mjs";
 import { SANDBOX_CODEX_LOGIN, hostCodexLogin } from "./paths.mjs";
@@ -131,8 +131,11 @@ const open = async (context: SandboxContext, spec: SandboxSpec): Promise<Opened>
     throw kept(message(error));
   });
   // A failed step closes the sandbox and keeps the worktree.
-  const prepare = async (label: string, command: string): Promise<void> => {
-    const result = await timed(`${step} ${label}`, () => sandbox.exec(command)).catch(async (error: unknown) => {
+  // `statsKey`: null keeps the step out of the stats.
+  const prepare = async (label: string, command: string, statsKey: string | null): Promise<void> => {
+    const work = (): ReturnType<Sandbox["exec"]> => sandbox.exec(command);
+    const timing = statsKey === null ? timed(`${step} ${label}`, work) : timedPhase(`${step} ${label}`, statsKey, work);
+    const result = await timing.catch(async (error: unknown) => {
       await closeSandbox(sandbox, branch);
       throw kept(`${command}: ${message(error)}`);
     });
@@ -141,10 +144,10 @@ const open = async (context: SandboxContext, spec: SandboxSpec): Promise<Opened>
     throw kept(`${command} exited ${result.exitCode}: ${`${result.stdout}\n${result.stderr}`.trim().slice(-SETUP_OUTPUT_TAIL)}`);
   };
   // Sandcastle trusts the mount only inside `run()`, not `exec()`. Not on `none`: it would write the host's git config.
-  if (context.env.sandbox !== "none") await prepare("git trust", 'git config --global --add safe.directory "$PWD"');
+  if (context.env.sandbox !== "none") await prepare("git trust", 'git config --global --add safe.directory "$PWD"', null);
   // git pushes and fetches with the run's GitHub token, the same in every phase.
-  await prepare("git auth", "gh auth setup-git");
-  await prepare("setup.sh", `bash ${repoDir(repo.name)}/setup.sh`);
+  await prepare("git auth", "gh auth setup-git", null);
+  await prepare("setup.sh", `bash ${repoDir(repo.name)}/setup.sh`, `setup.sh ${repo.name}`);
 
   return {
     sandbox,

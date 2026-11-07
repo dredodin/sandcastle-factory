@@ -118,6 +118,8 @@ npm run sandcastle -- setup            # change settings, add repos
 
 A PR closes no issue: close the root yourself after the last PR merges. A sub-issue the factory cannot finish, or whose merge conflicts, goes to Backlog with a comment; the PR's Run block lists them.
 
+From an agent: `npx skills add dredodin/sandcastle-factory -s run-factory --copy`, then ask it to take or resume an issue.
+
 A shell variable overrides its setting for one run: `PLAN_MODEL=sonnet npm run sandcastle -- take 42`.
 
 ## Docs

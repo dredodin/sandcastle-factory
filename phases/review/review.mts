@@ -1,4 +1,4 @@
-import { log, timed } from "../../shared/logger.mjs";
+import { log, timedPhase } from "../../shared/logger.mjs";
 import { deepVerifyCommand } from "../../shared/names.mjs";
 import { promptPath } from "../../shared/paths.mjs";
 import { rejectedText } from "../../shared/record.mjs";
@@ -11,7 +11,7 @@ import type { Repo } from "../../shared/workspace.mjs";
 export const review = async (run: Run, repo: Repo): Promise<string> => {
   const { home } = run.workspace;
   const integration = await run.integrations.get(repo);
-  const result = await timed(`review ${repo.name}`, () => integration.run({
+  const result = await timedPhase(`review ${repo.name}`, `review ${repo.name}`, () => integration.run({
     promptFile: promptPath("review"),
     promptArgs: {
       ROOT: run.root,

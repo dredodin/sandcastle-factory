@@ -7,6 +7,7 @@ GLOSSARY-MAP.md            # lists the app repos; none: the home repo alone
 .sandcastle/
 ├── .env                   # per machine, holds the tokens and the Kanban; the setup wizard writes it
 ├── logs/                  # one folder per run
+├── stats.json             # per machine, recent phase and setup.sh durations; the factory writes it
 ├── worktrees/             # sandbox worktrees; the factory makes them
 └── repos/<name>/          # one folder per repo of the Workspace, home repo included
     ├── Containerfile      # the repo image
@@ -28,6 +29,7 @@ GLOSSARY-MAP.md            # lists the app repos; none: the home repo alone
 .sandcastle/.env
 .sandcastle/repos/*/source
 .sandcastle/logs/
+.sandcastle/stats.json
 .sandcastle/worktrees/
 ```
 

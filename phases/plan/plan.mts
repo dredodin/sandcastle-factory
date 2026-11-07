@@ -3,7 +3,7 @@ import type { ResumeSandboxRunResultOptions, SandboxRunResult } from "@ai-hero/s
 import { handledOf, handledText } from "../../shared/comments.mjs";
 import { extract } from "../../shared/extract.mjs";
 import { hasIssue, itemId, takenItems } from "../../shared/item.mjs";
-import { log, timed } from "../../shared/logger.mjs";
+import { log, timedPhase } from "../../shared/logger.mjs";
 import { planCheckCommand } from "../../shared/names.mjs";
 import { planOutputSchema } from "../../shared/plan-output.mjs";
 import { promptPath } from "../../shared/paths.mjs";
@@ -43,7 +43,7 @@ export const plan = async (cycle: Cycle, openPrsText: string, session: PlanSessi
     REJECTED: rejectedText(cycle.record.rejected()),
     HANDLED: handledText(cycle.record.handled()),
   });
-  const result = await timed(`plan ${cycle.number}`, () => session(prompt, {
+  const result = await timedPhase(`plan ${cycle.number}`, `plan ${home.name}`, () => session(prompt, {
     completionSignal: "</plan>",
     name: "plan",
     idleTimeoutSeconds: IDLE_TIMEOUT_SECONDS,

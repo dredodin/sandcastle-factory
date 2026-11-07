@@ -4,7 +4,7 @@ import { extract } from "../../shared/extract.mjs";
 import { implementRunOf, itemId, type Item } from "../../shared/item.mjs";
 import { message } from "../../shared/cli.mjs";
 import { OUTCOMES, reconcileOutcome, type ImplementOutcome } from "../../shared/kanban.mjs";
-import { log, timed } from "../../shared/logger.mjs";
+import { log, timedPhase } from "../../shared/logger.mjs";
 import { promptPath } from "../../shared/paths.mjs";
 import { IDLE_TIMEOUT_SECONDS, phaseAgent, type Cycle } from "../../shared/run.mjs";
 import { otherBranchesText } from "../../shared/text.mjs";
@@ -21,7 +21,7 @@ export const implement = async (cycle: Cycle, sandbox: Sandbox, item: Item): Pro
   const { home } = cycle.workspace;
   const otherBranches = otherBranchesText(cycle.integrations.opened(), item.repo, cycle.branch);
   const inputs = implementRunOf(item, cycle, { home, otherBranches });
-  const result = await timed(`implement ${itemId(item)}`, () => sandbox.run({
+  const result = await timedPhase(`implement ${itemId(item)}`, `implement ${item.repo}`, () => sandbox.run({
     promptFile: promptPath("implement"),
     promptArgs: inputs.promptArgs,
     maxIterations: IMPLEMENT_ITERATIONS,
