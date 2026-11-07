@@ -206,7 +206,6 @@ finish() {
 #   WIZARD_EFFORTS      one line per provider: its name, then its efforts, lowest first
 #   WIZARD_SANDBOXES    sandbox choices
 #   WIZARD_HOME_SLUG    owner/name of the home repo
-#   WIZARD_REPOS        one line per app repo: its .env key, then its name
 #   WIZARD_BASE_IMAGE   the image every repo image starts FROM
 #   WIZARD_IMAGES       one line per repo: its image, then its Containerfile
 #   WIZARD_FACTORY_DIR  build context of the base image
@@ -598,32 +597,6 @@ codex_stage() {
   ask_token CODEX_API_KEY "Paste the API key:"
 }
 
-# is_clone PATH: PATH is a git clone.
-is_clone() { [[ -n "$1" ]] && git -C "$1" rev-parse --git-dir >/dev/null 2>&1; }
-
-repos_stage() {
-  local keys=() names=() key name i value
-  while read -r key name; do if [[ -n "$key" ]]; then keys+=("$key"); names+=("$name"); fi; done <<< "$WIZARD_REPOS"
-  if (( ${#keys[@]} == 0 )); then skip; return 0; fi
-  if (( DONE )); then
-    value=ok
-    for key in "${keys[@]}"; do is_clone "$(current "$key")" || value=""; done
-    if [[ -n "$value" ]]; then skip; return 0; fi
-  fi
-  stage "App repos"
-  say "Where each app repo is cloned on this machine. Nothing is cloned for you."
-  for (( i = 0; i < ${#keys[@]}; i++ )); do
-    key=${keys[i]}
-    if (( DONE )) && is_clone "$(current "$key")"; then continue; fi
-    while :; do
-      ask "$key" "Path of ${names[i]}:" || exit 1
-      value=${!key}; value=${value//\\//}
-      if is_clone "$value"; then save "$key" "$value"; break; fi
-      warn "${value:-(empty)} is not a git clone"
-    done
-  done
-}
-
 images_stage() {
   local sandbox image file missing_files=() builds=() i
   sandbox=$(current SANDBOX)
@@ -636,7 +609,7 @@ images_stage() {
   done <<< "$WIZARD_IMAGES"
   if (( ${#builds[@]} + ${#missing_files[@]} == 0 )); then skip; return 0; fi
   stage "Repo images"
-  # A missing Containerfile leaves its image unbuilt, not setup unfinished: the sources still get linked.
+  # A missing Containerfile leaves its image unbuilt, not setup unfinished.
   for file in "${missing_files[@]+"${missing_files[@]}"}"; do
     warn "not built: no $file"
     SKIPPED+=("image of $file: add it, FROM $WIZARD_BASE_IMAGE, then run setup again")
@@ -671,7 +644,7 @@ images_stage() {
 
 run_wizard() {
 
-TOTAL_STAGES=10
+TOTAL_STAGES=9
 
 models_stage
 prerequisites_stage
@@ -681,7 +654,6 @@ kanban_stage
 claude_stage
 copilot_stage
 codex_stage
-repos_stage
 images_stage
 
 finish

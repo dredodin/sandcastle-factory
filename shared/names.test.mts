@@ -1,26 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { deepVerifyCommand, imageName, logFileName, planCheckCommand, repoKey, repoNamesFromMap, slugFromRemote } from "./names.mjs";
-
-test("repoNamesFromMap: names from .sandcastle/repos links, once each, in order", () => {
-  const map = [
-    "- [Web](./.sandcastle/repos/web/source/GLOSSARY.md) — the site",
-    "- [Api](.sandcastle/repos/api/source/GLOSSARY.md) — the service",
-    "- [Web again](<./.sandcastle/repos/web/source/docs/CONTEXT.md>)",
-    "- [Shared](./GLOSSARY.md) — not a repo",
-    "- [Elsewhere](./content/.sandcastle/repos/nope/x.md)",
-  ].join("\n");
-  assert.deepEqual(repoNamesFromMap(map), ["web", "api"]);
-});
-
-test("repoNamesFromMap: no links gives an empty list", () => {
-  assert.deepEqual(repoNamesFromMap("# Glossary Map\n\n- [Shared](./GLOSSARY.md)"), []);
-});
-
-test("repoKey: upper case, non-alphanumerics become underscores", () => {
-  assert.equal(repoKey("app"), "REPO_APP");
-  assert.equal(repoKey("my-app.v2"), "REPO_MY_APP_V2");
-});
+import { deepVerifyCommand, imageName, logFileName, planCheckCommand, slugFromRemote, sourceProblem } from "./names.mjs";
 
 test("deepVerifyCommand and planCheckCommand: scripts in the repo's folder", () => {
   assert.equal(deepVerifyCommand("app", "origin/main"), "bash .sandcastle/repos/app/deep-verify.sh origin/main");
@@ -47,4 +27,20 @@ test("imageName: home and repo, lower case", () => {
 
 test("logFileName: the number pads to three digits, so names sort in order", () => {
   assert.equal(logFileName(2, "implement-223", "app"), "002-implement-223-app.log");
+});
+
+test("sourceProblem: no resolving link names the repo", () => {
+  assert.equal(sourceProblem("web", { resolves: false, prefix: null }), "web: no source link — run onboarding");
+});
+
+test("sourceProblem: a link to a plain folder is a problem", () => {
+  assert.match(sourceProblem("web", { resolves: true, prefix: null }), /^web: no source link/);
+});
+
+test("sourceProblem: a link into a subfolder of a clone is a problem", () => {
+  assert.match(sourceProblem("web", { resolves: true, prefix: "src/" }), /^web: no source link/);
+});
+
+test("sourceProblem: a link to a clone's root is fine", () => {
+  assert.equal(sourceProblem("web", { resolves: true, prefix: "" }), "");
 });
