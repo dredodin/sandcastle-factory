@@ -9,7 +9,7 @@ Host only. Inside a factory sandbox (cwd under `.sandcastle/worktrees/`, or home
 
 ## 1. Start
 
-From the home repo root, as a background command that notifies you on exit (Claude Code: Bash with `run_in_background`; Windows: Git Bash):
+From the home repo root, in the background (Windows: Git Bash):
 
 | Command | Example | When |
 | --- | --- | --- |
@@ -19,7 +19,7 @@ From the home repo root, as a background command that notifies you on exit (Clau
 
 ## 2. Wait
 
-For the exit notice only. Never poll, never stop the run.
+Until the run exits, however long. Never stop it.
 
 ## 3. Read
 
