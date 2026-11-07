@@ -8,6 +8,7 @@ import { podman } from "@ai-hero/sandcastle/sandboxes/podman";
 import { message } from "./cli.mjs";
 import type { Env } from "./env.mjs";
 import { log, timed } from "./logger.mjs";
+import { parseMounts } from "./mounts.mjs";
 import { imageName, repoDir } from "./names.mjs";
 import { SANDBOX_CODEX_LOGIN, hostCodexLogin } from "./paths.mjs";
 import { branchExists, worktreeOf } from "./repo.mjs";
@@ -18,6 +19,7 @@ const TEARDOWN_ATTEMPTS = 3;
 const TEARDOWN_BACKOFF_MS = 500;
 const NO_SUCH_CONTAINER = /no such container/i;
 const SPARSE_LIST = "sparse-checkout";
+const MOUNTS_FILE = "mounts";
 const COPIED_FILES = ["setup.sh", "verify.sh", "deep-verify.sh", "plan-check.sh", "CODING_STANDARDS.md"] as const;
 const SETUP_OUTPUT_TAIL = 2000;
 
@@ -29,13 +31,20 @@ export type SandboxContext = { readonly workspace: Workspace; readonly env: Env 
 // One sandbox: a worktree of one repo on one branch, cut from `baseBranch`. `name`: the item's slug, or `integration`.
 export type SandboxSpec = { readonly repo: Repo; readonly name: string; readonly branch: string; readonly baseBranch: string };
 
+// The repo's `mounts` file in the home repo, if any: host folders the sandbox sees read-only.
+const repoMounts = (workspace: Workspace, repo: Repo) => {
+  const path = homeFile(workspace, repo, MOUNTS_FILE);
+  return existsSync(path) ? parseMounts(readFileSync(path, "utf8"), path) : [];
+};
+
 const providerFor = ({ workspace, env }: SandboxContext, repo: Repo): SandboxProvider => {
+  // `none` has no mounts: agents run on the host. Its `mounts` file is not even read.
+  if (env.sandbox === "none") return noSandbox({ env: env.secrets });
   // Read-write: a token refresh inside the sandbox must land on the host login, not invalidate it.
-  const mounts = env.mountCodexLogin ? [{ hostPath: hostCodexLogin(), sandboxPath: SANDBOX_CODEX_LOGIN }] : [];
+  const codexLogin = env.mountCodexLogin ? [{ hostPath: hostCodexLogin(), sandboxPath: SANDBOX_CODEX_LOGIN }] : [];
+  const mounts = [...codexLogin, ...repoMounts(workspace, repo)];
   const options = { imageName: imageName(workspace.home.name, repo.name), env: env.secrets, mounts };
-  if (env.sandbox === "docker") return docker(options);
-  if (env.sandbox === "podman") return podman(options);
-  return noSandbox({ env: env.secrets });
+  return env.sandbox === "docker" ? docker(options) : podman(options);
 };
 
 // Teardown is a side effect: retried, then logged, never thrown.
