@@ -31,13 +31,16 @@ export type Layout = {
 
 const originSlug = (path: string): Slug => slugFromRemote(sh(path, "git", "remote", "get-url", "origin"));
 
+// The app repos among the folders of `.sandcastle/repos/`: all but the home repo's, sorted.
+export const appFolders = (folders: readonly string[], homeName: string): readonly string[] => folders.filter((name) => name !== homeName).sort();
+
 // Reads the home repo's identity and its repo list. No `.env`, no network.
 export const readLayout = (cwd: string): Layout => {
   const root = sh(cwd, "git", "rev-parse", "--show-toplevel");
   const home = originSlug(root);
   const dir = `${root}/.sandcastle/repos`;
   const folders = existsSync(dir) ? readdirSync(dir, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name) : [];
-  return { root, homeName: home.name, homeSlug: `${home.owner}/${home.name}`, apps: folders.filter((name) => name !== home.name).sort() };
+  return { root, homeName: home.name, homeSlug: `${home.owner}/${home.name}`, apps: appFolders(folders, home.name) };
 };
 
 const isLink = (path: string): boolean => {
@@ -48,13 +51,20 @@ const isLink = (path: string): boolean => {
   }
 };
 
+// What is wrong with an app repo's `source` link, if anything. `isClone` only matters when the link resolves.
+export const sourceProblem = (name: string, resolves: boolean, linked: boolean, isClone: boolean): string | undefined => {
+  if (!linked && !resolves) return `${name}: no source link — run onboarding`;
+  if (!resolves || !isClone) return `${name}: source link is not a git clone — run onboarding`;
+  return undefined;
+};
+
 // Where an app repo's clone is: its `source` link, which must resolve to a git clone.
 export const sourceOf = (root: string, name: string): string => {
   const link = `${root}/${repoDir(name)}/source`;
-  if (!existsSync(link) && !isLink(link)) throw new Error(`${name}: no source link — run onboarding`);
-  const path = existsSync(link) ? realpathSync(link) : "";
-  if (path === "" || !succeeds(path, "git", "rev-parse", "--git-dir")) throw new Error(`${name}: source link is not a git clone — run onboarding`);
-  return path;
+  const resolves = existsSync(link);
+  const problem = sourceProblem(name, resolves, isLink(link), resolves && succeeds(link, "git", "rev-parse", "--git-dir"));
+  if (problem !== undefined) throw new Error(problem);
+  return realpathSync(link);
 };
 
 const repoAt = (name: string, path: string, isHome: boolean): Repo => {

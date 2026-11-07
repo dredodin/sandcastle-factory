@@ -6,7 +6,8 @@ Snapshot of v0.6.0. Frozen: never edited after merge.
 | --- | --- | --- | --- |
 | 2.0 | As-built SAD for sandcastle-factory v0.4.2. | Dmitrii Bessonov | 02-Nov-2026 |
 | 3.0 | As-built SAD for v0.5.0: agents only read GitHub; review reports and PR comments become in-run work (ADR-0008). | Dmitrii Bessonov | 03-Nov-2026 |
-| 3.1 | As-built SAD for v0.6.0: a run claims its root through a named pipe per root (ADR-0009). | Dmitrii Bessonov | 03-Nov-2026 |
+| 3.1 | As-built SAD for v0.5.4: a run claims its root through a named pipe per root (ADR-0009). | Dmitrii Bessonov | 03-Nov-2026 |
+| 4.0 | As-built SAD for v0.6.0: app repo paths leave `.env`; the `.sandcastle/repos/` folders are the Workspace; onboarding links clones. | Dmitrii Bessonov | 07-Nov-2026 |
 
 | Ref. | Name |
 | --- | --- |
@@ -57,7 +58,7 @@ The terms follow the factory glossary (R4).
 | Cycle | One plan → implement → merge pass in a run. A run repeats cycles until the plan is empty. |
 | Deep verify script | The optional slow check of a repo. Review runs it once on the whole branch. Its output goes into the review report. |
 | Factory | The program that turns one issue tree into pull requests. It runs each phase as an agent in a sandbox. |
-| Home repo | The repo that the factory runs from. It holds the issues, the repo list and the per-machine settings. |
+| Home repo | The repo that the factory runs from. It holds the issues, the repo folders and the per-machine settings. |
 | Integration branch | The branch where a take collects its work. There is one per touched repo, with the same name in each repo. |
 | Issue | A GitHub issue in the home repo. This is the basic unit of work. |
 | Item | One unit of work that the plan gives to one implement agent: an unblocked sub-issue in Ready for agent, the root issue when it has no sub-issues, or work that the plan writes as text from a review report, PR comments or plan check output (no issue, no Kanban card). An item is always in one repo. |
@@ -209,7 +210,7 @@ Long AFK runs are possible because the plan is agreed before the run, and becaus
 ```text
 main.mts                 # CLI: setup | take N | resume N
 workflow/
-├── setup.mts, wizard.sh # reads the layout, opens the wizard, links clones, creates repo labels
+├── setup.mts, wizard.sh # reads the layout, opens the wizard, checks the source links, creates repo labels
 ├── take.mts             # new integration branches, cycles, finish
 ├── resume.mts           # finds the latest take, syncs with origin, cycles, finish
 └── cycle.mts            # cycle loop (≤10), review passes (≤2), PR phase
@@ -526,4 +527,4 @@ The ADRs are in `docs/adr/` of the factory repo.
 
 **Rejected.** A pool of local ports: the pool size caps parallel runs, simultaneous starts need a tie-break, and free is told from foreign only by timing and fetch-error internals. A lock ref on GitHub. A PID file. A port derived from the issue number. One fixed port per machine. A long-running server.
 
-**Consequences.** Nothing needs cleanup by hand: a killed process frees the pipe or leaves a socket file the next run removes. Accepted risk: after a run died, two starts at the same instant can both run. Parallel runs on different roots are unlimited. Runs on two machines are not covered. A refused second run has already run `setup` (it comes before the claim), so it relinks `.sandcastle/repos/<name>/source` under the live run.
+**Consequences.** Nothing needs cleanup by hand: a killed process frees the pipe or leaves a socket file the next run removes. Accepted risk: after a run died, two starts at the same instant can both run. Parallel runs on different roots are unlimited. Runs on two machines are not covered.

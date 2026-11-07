@@ -7,7 +7,7 @@ import { log } from "../shared/logger.mjs";
 import { imageName, repoDir } from "../shared/names.mjs";
 import { hostCodexLogin } from "../shared/paths.mjs";
 import { succeeds, sh } from "../shared/shell.mjs";
-import { readLayout, resolveWorkspace, type Layout, type Workspace } from "../shared/workspace.mjs";
+import { readLayout, resolveWorkspace, sourceOf, type Layout, type Workspace } from "../shared/workspace.mjs";
 
 const forwardSlashes = (path: string): string => path.replace(/\\/g, "/");
 const WIZARD = forwardSlashes(fileURLToPath(new URL("./wizard.sh", import.meta.url)));
@@ -64,6 +64,7 @@ const startPodmanMachine = (cwd: string): void => {
 // In a terminal, the wizard opens: always for `setup`, only when something is missing for a run.
 export const setup = async (mode: Command["mode"]): Promise<{ readonly workspace: Workspace; readonly env: Env }> => {
   const layout = readLayout(process.cwd());
+  for (const name of layout.apps) sourceOf(layout.root, name);
   if (process.stdin.isTTY && (mode === "setup" || missingKeys(settingsOf(layout), hasCodexLogin()).length > 0)) runWizard(layout);
   const values = settingsOf(layout);
   const left = missingKeys(values, hasCodexLogin());

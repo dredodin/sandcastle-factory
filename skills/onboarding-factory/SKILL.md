@@ -34,11 +34,11 @@ None of them: ask the human which one to create, so the repo fits the agents the
 
 ## 2. Workspace repos
 
-Done-check: every folder of `.sandcastle/repos/` other than the home repo's has a `source` link to a git clone.
+Done-check: none, always ask.
 
 Show the repos the Workspace has now (the folders of `.sandcastle/repos/`, home repo's excluded; none: the home repo alone) and ask the human which app repos to add, by name: the GitHub repo name, as `.sandcastle/repos/<name>/` will spell it. The agreed list is the Workspace for every later step.
 
-Per named repo without a working `source` link: look in the home repo's sibling folders for a git clone whose `origin` is that GitHub repo.
+Per named repo, and per existing folder of `.sandcastle/repos/` (home repo's excluded) without a working `source` link: look in the home repo's sibling folders for a git clone whose `origin` is that GitHub repo.
 
 - Found: ask the human to confirm that clone.
 - Not found: say so and ask what to do. Never clone.
