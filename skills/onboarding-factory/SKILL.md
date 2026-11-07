@@ -47,7 +47,7 @@ Confirmed: make `.sandcastle/repos/<name>/` and link `source` to the clone. Wind
 
 ## 3. Tracker, labels, domain docs
 
-Done-check: `docs/agents/issue-tracker.md` and `docs/agents/domain.md` exist, and every app repo of step 2 has its link in `GLOSSARY-MAP.md`'s `## Repos`; the map is docs only, nothing reads it.
+Done-check: `docs/agents/issue-tracker.md` and `docs/agents/domain.md` exist, and every app repo of step 2 has its link in `GLOSSARY-MAP.md`'s `## Repos`.
 
 Read `.claude/skills/setup-matt-pocock-skills/SKILL.md` and walk it here, in this conversation: it is user-invoked, so it cannot be fired. Its questions go to the human as it says. One override, Section C's layout, decided by the Workspace rather than monorepo signals:
 

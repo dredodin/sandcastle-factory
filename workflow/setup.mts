@@ -7,7 +7,7 @@ import { log } from "../shared/logger.mjs";
 import { imageName, repoDir } from "../shared/names.mjs";
 import { hostCodexLogin } from "../shared/paths.mjs";
 import { succeeds, sh } from "../shared/shell.mjs";
-import { readLayout, resolveWorkspace, sourceOf, type Layout, type Workspace } from "../shared/workspace.mjs";
+import { readLayout, resolveWorkspace, sourcePaths, type Layout, type Workspace } from "../shared/workspace.mjs";
 
 const forwardSlashes = (path: string): string => path.replace(/\\/g, "/");
 const WIZARD = forwardSlashes(fileURLToPath(new URL("./wizard.sh", import.meta.url)));
@@ -21,19 +21,17 @@ const hasCodexLogin = (): boolean => existsSync(hostCodexLogin());
 const settingsOf = (layout: Layout): Values => withShellOverrides(readValues(layout.root), process.env);
 
 // What the wizard is handed, so bash holds no copy of the factory's lists.
-const wizardEnv = (layout: Layout): Values => {
-  return {
-    ENV_FILE: envPath(layout.root),
-    WIZARD_PHASES: PHASES.join(" "),
-    WIZARD_EFFORTS: PROVIDERS.map((provider) => [provider, ...EFFORTS[provider]].join(" ")).join("\n"),
-    WIZARD_SANDBOXES: SANDBOXES.join(" "),
-    WIZARD_HOME_SLUG: layout.homeSlug,
-    WIZARD_BASE_IMAGE: BASE_IMAGE,
-    WIZARD_IMAGES: [layout.homeName, ...layout.apps].map((name) => `${imageName(layout.homeName, name)} ${repoDir(name)}/Containerfile`).join("\n"),
-    WIZARD_FACTORY_DIR: FACTORY_DIR,
-    WIZARD_CODEX_LOGIN: hasCodexLogin() ? "1" : "",
-  };
-};
+const wizardEnv = (layout: Layout): Values => ({
+  ENV_FILE: envPath(layout.root),
+  WIZARD_PHASES: PHASES.join(" "),
+  WIZARD_EFFORTS: PROVIDERS.map((provider) => [provider, ...EFFORTS[provider]].join(" ")).join("\n"),
+  WIZARD_SANDBOXES: SANDBOXES.join(" "),
+  WIZARD_HOME_SLUG: layout.homeSlug,
+  WIZARD_BASE_IMAGE: BASE_IMAGE,
+  WIZARD_IMAGES: [layout.homeName, ...layout.apps].map((name) => `${imageName(layout.homeName, name)} ${repoDir(name)}/Containerfile`).join("\n"),
+  WIZARD_FACTORY_DIR: FACTORY_DIR,
+  WIZARD_CODEX_LOGIN: hasCodexLogin() ? "1" : "",
+});
 
 // The wizard is the only writer of `.env`.
 const runWizard = (layout: Layout): void => {
@@ -64,14 +62,14 @@ const startPodmanMachine = (cwd: string): void => {
 // In a terminal, the wizard opens: always for `setup`, only when something is missing for a run.
 export const setup = async (mode: Command["mode"]): Promise<{ readonly workspace: Workspace; readonly env: Env }> => {
   const layout = readLayout(process.cwd());
-  for (const name of layout.apps) sourceOf(layout.root, name);
+  const sources = sourcePaths(layout);
   if (process.stdin.isTTY && (mode === "setup" || missingKeys(settingsOf(layout), hasCodexLogin()).length > 0)) runWizard(layout);
   const values = settingsOf(layout);
   const left = missingKeys(values, hasCodexLogin());
   if (left.length > 0) throw new Error(`Missing in .sandcastle/.env: ${withHints(left)}. A human runs \`npm run sandcastle -- setup\` in their terminal.`);
   const env = checkEnv(values, hasCodexLogin());
   if (env.sandbox === "podman") startPodmanMachine(layout.root);
-  const workspace = resolveWorkspace(layout);
+  const workspace = resolveWorkspace(layout, sources);
   createLabels(workspace);
   for (const [key, value] of Object.entries(env.secrets)) process.env[key] ??= value;
   log.info(`Setup done: ${workspace.repos.map((repo) => repo.slug).join(", ")}; sandbox ${env.sandbox}.`);
