@@ -9,7 +9,7 @@ The program that turns one issue tree into pull requests, running each phase as 
 _Avoid_: sandcastle (the library it runs agents with), pipeline, orchestrator
 
 **Home repo**:
-The repo the factory runs from. It holds the issues, the repo list and the per-machine settings.
+The repo the factory runs from. It holds the issues, the repo folders and the per-machine settings.
 _Avoid_: hub, main repo, host repo
 
 **App repo**:
@@ -17,7 +17,7 @@ Any repo of the Workspace other than the home repo.
 _Avoid_: child repo, target repo
 
 **Workspace**:
-The home repo plus every app repo it lists. One run may touch any of them.
+The home repo plus every app repo with a folder in its `.sandcastle/repos/`. One run may touch any of them.
 _Avoid_: monorepo, project
 
 **Repo label**:
@@ -123,7 +123,7 @@ _Avoid_: state, stage
 ## Setup
 
 **Setup wizard**:
-The terminal walk-through `setup` opens: the only writer of `.sandcastle/.env`.
+The terminal walk-through `setup` opens: the only writer of `.sandcastle/.env`. Asks only what `.env` holds.
 
 **Wizard stage**:
 One step of the setup wizard.

@@ -1,8 +1,8 @@
 // The Workspace: the home repo and the repos worked together with it. Read from the current directory's repo root only.
 
-import { existsSync, readFileSync } from "node:fs";
-import { repoNamesFromMap, slugFromRemote, type Slug } from "./names.mjs";
-import { sh } from "./shell.mjs";
+import { existsSync, readdirSync, realpathSync } from "node:fs";
+import { repoDir, slugFromRemote, type Slug } from "./names.mjs";
+import { succeeds, sh } from "./shell.mjs";
 
 export type Repo = {
   readonly name: string;
@@ -17,7 +17,7 @@ export type Repo = {
 export type Workspace = {
   readonly root: string;
   readonly home: Repo;
-  // The home repo first, then every other repo of GLOSSARY-MAP.
+  // The home repo first, then every other folder of `.sandcastle/repos/`.
   readonly repos: readonly Repo[];
 };
 
@@ -25,22 +25,29 @@ export type Layout = {
   readonly root: string;
   readonly homeName: string;
   readonly homeSlug: string;
-  // Repo names GLOSSARY-MAP links to; may include the home repo's own name.
-  readonly mapped: readonly string[];
+  // Folders of `.sandcastle/repos/` other than the home repo's, sorted.
+  readonly apps: readonly string[];
 };
 
 const originSlug = (path: string): Slug => slugFromRemote(sh(path, "git", "remote", "get-url", "origin"));
 
-// Reads the home repo's identity and its repo list. No `.env`, no network. No GLOSSARY-MAP: the home repo alone.
+// Reads the home repo's identity and its repo list. No `.env`, no network.
 export const readLayout = (cwd: string): Layout => {
   const root = sh(cwd, "git", "rev-parse", "--show-toplevel");
   const home = originSlug(root);
-  const map = `${root}/GLOSSARY-MAP.md`;
-  return { root, homeName: home.name, homeSlug: `${home.owner}/${home.name}`, mapped: existsSync(map) ? repoNamesFromMap(readFileSync(map, "utf8")) : [] };
+  const dir = `${root}/.sandcastle/repos`;
+  const folders = existsSync(dir) ? readdirSync(dir, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name) : [];
+  return { root, homeName: home.name, homeSlug: `${home.owner}/${home.name}`, apps: folders.filter((name) => name !== home.name).sort() };
 };
 
-// Repos other than the home repo, which need a local path in `.env`.
-export const appRepoNames = (layout: Layout): readonly string[] => layout.mapped.filter((name) => name !== layout.homeName);
+// Where an app repo's clone is: its `source` link, which must resolve to a git clone.
+export const sourceOf = (root: string, name: string): string => {
+  const link = `${root}/${repoDir(name)}/source`;
+  if (!existsSync(link)) throw new Error(`${name}: no source link — run onboarding`);
+  const path = realpathSync(link);
+  if (!succeeds(path, "git", "rev-parse", "--git-dir")) throw new Error(`${name}: source link is not a git clone — run onboarding`);
+  return path;
+};
 
 const repoAt = (name: string, path: string, isHome: boolean): Repo => {
   const slug = originSlug(path);
@@ -49,9 +56,9 @@ const repoAt = (name: string, path: string, isHome: boolean): Repo => {
 };
 
 // Resolves every repo's slug and default branch from its folder's `origin` and GitHub.
-export const resolveWorkspace = (layout: Layout, repoPaths: Readonly<Record<string, string>>): Workspace => {
+export const resolveWorkspace = (layout: Layout): Workspace => {
   const home = repoAt(layout.homeName, layout.root, true);
-  const apps = appRepoNames(layout).map((name) => repoAt(name, repoPaths[name] ?? "", false));
+  const apps = layout.apps.map((name) => repoAt(name, sourceOf(layout.root, name), false));
   return { root: layout.root, home, repos: [home, ...apps] };
 };
 

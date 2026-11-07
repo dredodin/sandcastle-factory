@@ -34,13 +34,20 @@ None of them: ask the human which one to create, so the repo fits the agents the
 
 ## 2. Workspace repos
 
-Done-check: none, always ask.
+Done-check: every folder of `.sandcastle/repos/` other than the home repo's has a `source` link to a git clone.
 
-Show the repos the Workspace has now (`GLOSSARY-MAP.md`'s `## Repos` links; no map: the home repo alone) and ask the human which app repos to add, by name: the GitHub repo name, as `.sandcastle/repos/<name>/` will spell it. The agreed list is the Workspace for every later step.
+Show the repos the Workspace has now (the folders of `.sandcastle/repos/`, home repo's excluded; none: the home repo alone) and ask the human which app repos to add, by name: the GitHub repo name, as `.sandcastle/repos/<name>/` will spell it. The agreed list is the Workspace for every later step.
+
+Per named repo without a working `source` link: look in the home repo's sibling folders for a git clone whose `origin` is that GitHub repo.
+
+- Found: ask the human to confirm that clone.
+- Not found: say so and ask what to do. Never clone.
+
+Confirmed: make `.sandcastle/repos/<name>/` and link `source` to the clone. Windows: `cmd //c mklink /J <link> <clone>` (Windows paths), else `ln -s <clone> <link>`. Replace a stale link.
 
 ## 3. Tracker, labels, domain docs
 
-Done-check: `docs/agents/issue-tracker.md` and `docs/agents/domain.md` exist, and every app repo of step 2 has its link in `GLOSSARY-MAP.md`'s `## Repos`.
+Done-check: `docs/agents/issue-tracker.md` and `docs/agents/domain.md` exist, and every app repo of step 2 has its link in `GLOSSARY-MAP.md`'s `## Repos`; the map is docs only, nothing reads it.
 
 Read `.claude/skills/setup-matt-pocock-skills/SKILL.md` and walk it here, in this conversation: it is user-invoked, so it cannot be fired. Its questions go to the human as it says. One override, Section C's layout, decided by the Workspace rather than monorepo signals:
 
@@ -50,7 +57,7 @@ Read `.claude/skills/setup-matt-pocock-skills/SKILL.md` and walk it here, in thi
   ```markdown
   ## Repos
 
-  App repos of the Workspace, not contexts. Links resolve once `npm run sandcastle -- setup` has linked the clone.
+  App repos of the Workspace, not contexts. Links resolve once onboarding has linked the clone.
 
   - [<name>](./.sandcastle/repos/<name>/source/GLOSSARY.md) — <one line: what the repo is>
   ```
@@ -120,7 +127,7 @@ The Kanban is the home repo's GitHub Project; every issue's Status is the factor
 
 ## 8. Setup, by the human
 
-Done-check: `.sandcastle/.env` exists (test its existence only) and every app repo of the Workspace has its `.sandcastle/repos/<name>/source` link.
+Done-check: `.sandcastle/.env` exists (test its existence only) and every app repo of the Workspace has its `.sandcastle/repos/<name>/source` link (step 2).
 
 Stop. The human runs, in their own terminal (Windows: Git Bash, not PowerShell or cmd: setup runs its wizard with `bash`, which there may resolve to WSL):
 
@@ -128,7 +135,7 @@ Stop. The human runs, in their own terminal (Windows: Git Bash, not PowerShell o
 npm run sandcastle -- setup
 ```
 
-Tokens, the Kanban, sandbox engine and clone paths are theirs: never read `.sandcastle/.env`, never ask for a path. Setup warns about Containerfiles still missing; that is expected. Continue once they say it exited 0.
+Tokens, the Kanban and the sandbox engine are theirs: never read `.sandcastle/.env`. Setup warns about Containerfiles still missing; that is expected. Continue once they say it exited 0.
 
 ## 9. App repo scripts
 
