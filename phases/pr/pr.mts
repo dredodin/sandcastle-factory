@@ -4,22 +4,19 @@ import { join } from "node:path";
 import { handleType, retry } from "cockatiel";
 import { z } from "zod";
 import { message } from "../../shared/cli.mjs";
-import { extract } from "../../shared/extract.mjs";
 import { hasIssue, type Item } from "../../shared/item.mjs";
 import { log, timedPhase } from "../../shared/logger.mjs";
 import { verifyCommand } from "../../shared/names.mjs";
 import { inParallel } from "../../shared/parallel.mjs";
 import { mergedIssues } from "../../shared/repo.mjs";
 import { promptPath } from "../../shared/paths.mjs";
+import { PrOutputError, prUrl } from "../../shared/pr-output.mjs";
 import { blockersFromJson, modelsLine, reposWithoutPr, reviewSection, runBlock, withRunBlock, type BlockedBy, type Pr } from "../../shared/pr-body.mjs";
 import { IDLE_TIMEOUT_SECONDS, phaseAgent, type Run } from "../../shared/run.mjs";
 import { sh } from "../../shared/shell.mjs";
 import { repoNamed, type Repo } from "../../shared/workspace.mjs";
 
-const pullRequestSchema = z.object({ url: z.url() });
 const bodySchema = z.object({ body: z.string() });
-
-class PrOutputError extends Error {}
 
 // One retry: the PR agent runs at most twice.
 const PR_RETRIES = 1;
@@ -34,15 +31,6 @@ const prOfRepo = (run: Run, repo: Repo): Promise<Pr> => {
   // handleType without a result filter: every retry reason carries an error.
   policy.onRetry((reason) => log.warn(`${message((reason as { error: unknown }).error)}; running the PR phase once more.`));
   return policy.execute(() => openPr(run, repo));
-};
-
-// The PR url the agent printed; a missing tag or a bad url is a PrOutputError.
-export const prUrl = (stdout: string, repoName: string): string => {
-  try {
-    return extract(stdout, "pull-request", pullRequestSchema).url;
-  } catch (error) {
-    throw new PrOutputError(`PR output of ${repoName} missing or invalid: ${message(error)}`);
-  }
 };
 
 const openPr = async (run: Run, repo: Repo): Promise<Pr> => {
