@@ -51,13 +51,14 @@ const prefixOf = (path: string): string | null => {
 // Where an app repo's clone is: its `source` link, which must resolve to the root of a git clone.
 const sourceOf = (root: string, name: string): string => {
   const link = `${root}/${repoDir(name)}/source`;
-  if (!isCloneRoot(existsSync(link) ? prefixOf(link) : null)) throw new Error(`${name}: no source link — run onboarding`);
+  if (!isCloneRoot(prefixOf(link))) throw new Error(`${name}: no source link — run onboarding`);
   return realpathSync(link);
 };
 
-// Every app repo's clone path by name; throws naming the first repo whose link is missing or broken.
-export const sourcePaths = (layout: Layout): Readonly<Record<string, string>> =>
-  Object.fromEntries(layout.apps.map((name) => [name, sourceOf(layout.root, name)]));
+export type Source = { readonly name: string; readonly path: string };
+
+// Every app repo's clone path; throws naming the first repo whose link is missing or broken.
+export const sourcePaths = (layout: Layout): readonly Source[] => layout.apps.map((name) => ({ name, path: sourceOf(layout.root, name) }));
 
 const repoAt = (name: string, path: string, isHome: boolean): Repo => {
   const slug = originSlug(path);
@@ -66,9 +67,9 @@ const repoAt = (name: string, path: string, isHome: boolean): Repo => {
 };
 
 // Resolves every repo's slug and default branch from its folder's `origin` and GitHub.
-export const resolveWorkspace = (layout: Layout, sources: Readonly<Record<string, string>>): Workspace => {
+export const resolveWorkspace = (layout: Layout, sources: readonly Source[]): Workspace => {
   const home = repoAt(layout.homeName, layout.root, true);
-  const apps = layout.apps.map((name) => repoAt(name, sources[name] ?? "", false));
+  const apps = sources.map(({ name, path }) => repoAt(name, path, false));
   return { root: layout.root, home, repos: [home, ...apps] };
 };
 

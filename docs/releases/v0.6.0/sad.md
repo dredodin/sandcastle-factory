@@ -223,6 +223,7 @@ shared/
 ├── env.mts, agents.mts  # .env schema; provider, model and effort for each phase
 └── branches.mts, pr-body.mts, …  # pure naming and assembly logic
 skills/onboarding-factory/
+skills/run-factory/       # SKILL.md and known-issues.md: failure phrase → fix table
 Containerfile            # base image sandcastle-factory:base
 ```
 
@@ -296,10 +297,10 @@ stateDiagram-v2
 | Commits | Each repo | Subject starts with `SANDCASTLE:`. Body has `Issue: #<N>`. |
 | PR | Each touched repo | One for each take. The run block is between `<!-- sandcastle-run -->` markers. |
 | Workspace list | Folders of `.sandcastle/repos/` | Minus the home repo's. Each app repo's `source` link, made by onboarding, is the only record of its clone; missing or not a git clone fails the run. |
-| Repo files | `.sandcastle/repos/<name>/` in the home repo | `Containerfile`, `setup.sh`, `verify.sh`; optional `deep-verify.sh`, `plan-check.sh` (home repo only), `CODING_STANDARDS.md`, `sparse-checkout`. The factory copies them into each worktree. |
+| Repo files | `.sandcastle/repos/<name>/` in the home repo | `Containerfile`, `setup.sh`, `verify.sh`; optional `deep-verify.sh`, `plan-check.sh` (home repo only), `CODING_STANDARDS.md`, `sparse-checkout`, `mounts`. The factory copies them into each worktree. |
 | Settings and secrets | `.sandcastle/.env`, for each machine | Only the wizard writes it. A shell variable overrides a known key for one run. |
 | Run claim | A named pipe per root (Windows) or a socket file in `/tmp/sandcastle-factory/` (Linux, macOS), for one run | The OS frees the Windows pipe when the process dies; a dead POSIX socket file is removed by the next run. |
-| Run logs | `.sandcastle/logs/issue-<N>-take-<K>` or `-resume-<M>` | One file for each agent run. Each file starts with the provider, model and effort. Git ignores the logs. |
+| Run logs | `.sandcastle/logs/<run>/` | `console.log` plus one numbered file `<NNN>-<base>-<repo>.log` for each agent run. Each file starts with the provider, model and effort. Git ignores the logs. |
 
 ### 7.4 Infrastructure / deployment view
 

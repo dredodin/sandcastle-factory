@@ -17,7 +17,7 @@ What the factory reads from the [home repo](../GLOSSARY.md). `/onboarding-factor
     ├── deep-verify.sh     # optional; slow check, run once per review pass, base branch as $1
     ├── CODING_STANDARDS.md  # optional; your standards, copied into every worktree; reviewers read them on top of the repo's own; yours win on conflict
     ├── plan-check.sh      # optional, home repo only; the plan agent runs it each cycle; non-zero exit = its output becomes work
-    └── source             # app repos only; link to the clone, onboarding makes it
+    └── source             # app repos only; link to the app repo's clone (junction on Windows)
 ```
 
 `.gitignore`:

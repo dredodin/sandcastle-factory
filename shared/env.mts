@@ -76,13 +76,13 @@ export const readValues = (root: string): Values => {
 };
 
 // Keys the factory reads: the only ones a shell variable may set.
-const knownKeys = (): readonly string[] => ["GH_TOKEN", "SANDBOX", ...PHASES.flatMap(phaseKeys), ...KANBAN_KEYS, ...CLAUDE_AUTH, COPILOT_TOKEN, CODEX_KEY];
+const KNOWN_KEYS: readonly string[] = ["GH_TOKEN", "SANDBOX", ...PHASES.flatMap(phaseKeys), ...KANBAN_KEYS, ...CLAUDE_AUTH, COPILOT_TOKEN, CODEX_KEY];
 
 // `.env` values with the shell's non-empty values of known keys over them: a shell variable overrides `.env` for one run.
 export const withShellOverrides = (file: Values, shell: Readonly<Record<string, string | undefined>>): Values => ({
   ...file,
   ...Object.fromEntries(
-    knownKeys().flatMap((key) => {
+    KNOWN_KEYS.flatMap((key) => {
       const value = shell[key] ?? "";
       return value === "" ? [] : [[key, value]];
     }),

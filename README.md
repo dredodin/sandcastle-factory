@@ -113,7 +113,7 @@ More terms: [GLOSSARY.md](GLOSSARY.md).
 ```text
 npm run sandcastle -- take <issue>     # start fresh on an issue
 npm run sandcastle -- resume <issue>   # continue its latest take in every repo, e.g. after PR comments
-npm run sandcastle -- setup            # change settings, add repos
+npm run sandcastle -- setup            # change settings, build missing images
 ```
 
 A PR closes no issue: close the root yourself after the last PR merges. A sub-issue the factory cannot finish, or whose merge conflicts, goes to Backlog with a comment; the PR's Run block lists them.
