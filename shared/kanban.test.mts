@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { next, preflight, treeOf, type Event, type Next } from "./kanban.mjs";
+import { next, preflight, reconcileOutcome, treeOf, type Event, type Next, type Outcome } from "./kanban.mjs";
 import type { Status } from "./status.mjs";
 
 const set = (status: Status): Next => ({ type: "set", status });
@@ -98,4 +98,21 @@ test("treeOf: a root without sub-issues", () => {
   const tree = treeOf(response(node(1, item(KANBAN, "Ready for agent")), []), KANBAN);
   assert.deepEqual(tree.subIssues, []);
   assert.deepEqual(tree.statuses, new Map([[1, "Ready for agent"]]));
+});
+
+test("reconcileOutcome: reported outcome against commit count", () => {
+  const cases: [Outcome, number, Outcome, string][] = [
+    ["committed", 0, "cannot finish", "The run reported committed with no commits."],
+    ["committed", 2, "committed", "n"],
+    ["done without code", 0, "done without code", "n"],
+    ["already done", 0, "already done", "n"],
+    ["done without code", 1, "committed", 'Reported "done without code", but the run has commits. n'],
+    ["already done", 3, "committed", 'Reported "already done", but the run has commits. n'],
+    ["cannot finish", 0, "cannot finish", "n"],
+    ["cannot finish", 2, "cannot finish", "n"],
+  ];
+  for (const [reported, commits, outcome, note] of cases) {
+    assert.deepEqual(reconcileOutcome({ outcome: reported, note: "n" }, commits), { outcome, note }, `${reported} with ${commits}`);
+  }
+  assert.equal(reconcileOutcome({ outcome: "already done", note: "" }, 1).note, 'Reported "already done", but the run has commits.');
 });

@@ -49,6 +49,19 @@ export type Event = keyof typeof MOVES;
 export const OUTCOMES = ["committed", "done without code", "already done", "cannot finish"] as const;
 export type Outcome = (typeof OUTCOMES)[number];
 
+// What an implement run reports: one outcome the harness maps to the sub-issue's move.
+export type ImplementOutcome = { readonly outcome: Outcome; readonly note: string };
+
+// The reported outcome checked against the run's commit count: commits are never dropped, a claim without them never merges.
+export const reconcileOutcome = (reported: ImplementOutcome, commits: number): ImplementOutcome => {
+  if (reported.outcome === "cannot finish") return reported;
+  if (reported.outcome === "committed") {
+    return commits > 0 ? reported : { outcome: "cannot finish", note: "The run reported committed with no commits." };
+  }
+  if (commits === 0) return reported;
+  return { outcome: "committed", note: `Reported "${reported.outcome}", but the run has commits.${reported.note === "" ? "" : ` ${reported.note}`}` };
+};
+
 // What the factory does with an issue in `status` (null: not on the Kanban) on `event`.
 export const next = (status: Status | null, event: Event): Next => {
   const { from, to }: Move = MOVES[event];

@@ -74,6 +74,11 @@ const cycle = async (
     else log.info(`  ${itemId(item)}: ${outcome}: ${note}`);
   }
   const done = items.filter((_, index) => outcomes[index]!.outcome === "committed");
+  // A committed note is the reconciled report of the agent: keep it visible.
+  items.forEach((item, index) => {
+    const { outcome, note } = outcomes[index]!;
+    if (outcome === "committed" && note !== "") log.info(`  ${itemId(item)}: ${note}`);
+  });
   const leftOut = done.length === 0 ? [] : await merge(current, done);
   if (done.length === 0) log.info("No item committed. Nothing to merge.");
   const ends = cycleEnds(items.map((item, index) => ({ item, outcome: outcomes[index]!.outcome })), leftOut);
