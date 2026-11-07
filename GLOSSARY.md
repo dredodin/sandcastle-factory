@@ -21,7 +21,7 @@ The home repo plus every app repo with a folder in its `.sandcastle/repos/`. One
 _Avoid_: monorepo, project
 
 **Agent instructions file**:
-A repo's one `AGENTS.md` or `CLAUDE.md`, never both; it rules that repo's slow suites.
+A repo's `AGENTS.md`, `CLAUDE.md` or `.github/copilot-instructions.md`, whichever exists; it rules that repo's slow suites.
 _Avoid_: prompt file, rules file
 
 **Repo label**:

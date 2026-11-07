@@ -23,7 +23,7 @@ Until the run exits, however long. Never stop it.
 
 ## 3. Read
 
-The output names the run's log folder. Its `console.log` ends with the PR links, or the failure. A phase marked `slow`: open that phase's log in the same folder and find why. Caused by a whole-suite run of a slow suite (e.g. full mutation testing)? Propose, do not edit, a line for that repo's [agent instructions file](../../GLOSSARY.md) (whichever exists; neither: propose `AGENTS.md`), from this template:
+The output names the run's log folder. Its `console.log` ends with the PR links, or the failure. A phase marked `slow`: open that phase's log in the same folder and find why. Caused by a whole-suite run of a slow suite (e.g. full mutation testing)? Propose, do not edit, a line for that repo's agent instructions file (its `AGENTS.md`, `CLAUDE.md` or `.github/copilot-instructions.md`, whichever exists; none: propose `AGENTS.md`), from this template:
 
 > `<command>` is slow: never run it whole. Narrowed: `<how>`, only when the task is about it.
 
