@@ -1,6 +1,6 @@
 {
   "name": "sandcastle-factory",
-  "version": "0.6.3",
+  "version": "0.6.2",
   "private": true,
   "scripts": {
     "verify": "biome lint --error-on-warnings && tsc -p . && tsx --test \"**/*.test.mts\"",
