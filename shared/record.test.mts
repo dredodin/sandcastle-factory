@@ -19,15 +19,14 @@ test("a comment handled again replaces its earlier entry", () => {
   assert.deepEqual(record.handled().map(({ id, decision }) => `${id} ${decision}`), ["c2 needs info", "c1 planned"]);
 });
 
-test("entries carry the pass whose reports the plan worked from; cleared reports leave the pass", () => {
+test("merged and ended entries carry the pass whose reports the plan worked from; cleared reports leave the pass", () => {
   const record = openRecord();
-  record.reject([{ repo: "app", finding: "a", reason: "r" }]);
+  record.addEnded([{ item: item("a"), end: "cannot finish" }]);
   record.addPass(new Map([["app", "- x"]]));
   record.clearReports();
-  record.reject([{ repo: "app", finding: "b", reason: "r" }]);
-  assert.deepEqual(record.review().rejected.map(({ finding, pass }) => `${finding} ${pass}`), ["a 0", "b 1"]);
+  record.addEnded([{ item: item("b"), end: "cannot finish" }]);
+  assert.deepEqual(record.review().ended.map(({ item: { branch }, pass }) => `${branch} ${pass}`), ["a 0", "b 1"]);
   assert.equal(record.reports().size, 0);
-  assert.equal(record.review().passes.length, 1);
 });
 
 const item = (branch: string): Item => ({ issue: "", work: "w", source: "review", repo: "app", title: "t", branch });
