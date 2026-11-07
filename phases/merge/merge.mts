@@ -1,6 +1,6 @@
 import { writeFileSync } from "node:fs";
 import { itemId, type Item } from "../../shared/item.mjs";
-import { log, timed } from "../../shared/logger.mjs";
+import { log, timedPhase } from "../../shared/logger.mjs";
 import { mergeCommand, messagesFor } from "../../shared/merge-record.mjs";
 import { verifyCommand } from "../../shared/names.mjs";
 import { inParallel } from "../../shared/parallel.mjs";
@@ -16,7 +16,7 @@ type Merge<T> = { readonly of: T; readonly branch: string; readonly command: str
 // and the merge agent takes over with the merge prompt. Resolves to what was left out either way.
 const runMerge = async <T extends unknown>(cycle: Cycle, repo: Repo, name: string, merges: readonly Merge<T>[]): Promise<readonly T[]> => {
   const integration = await cycle.integrations.get(repo);
-  const byScript = await timed(`${name} ${repo.name}`, async () => {
+  const byScript = await timedPhase(`${name} ${repo.name}`, `${name} ${repo.name}`, async () => {
     const scriptLog = cycle.logs.next(`${name}-script`, repo.name);
     const steps = [...merges.map((merge) => merge.command), verifyCommand(repo.name)].join(" && ");
     const chain = await integration.exec(

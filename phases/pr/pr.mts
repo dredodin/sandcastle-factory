@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { z } from "zod";
 import { extract } from "../../shared/extract.mjs";
 import { hasIssue, type Item } from "../../shared/item.mjs";
-import { log, timed } from "../../shared/logger.mjs";
+import { log, timedPhase } from "../../shared/logger.mjs";
 import { verifyCommand } from "../../shared/names.mjs";
 import { inParallel } from "../../shared/parallel.mjs";
 import { mergedIssues } from "../../shared/repo.mjs";
@@ -25,7 +25,7 @@ const prOfRepo = async (run: Run, repo: Repo): Promise<Pr> => {
   const { home } = run.workspace;
   const issues = subIssuesOn(run, repo);
   const integration = await run.integrations.get(repo);
-  const result = await timed(`pr ${repo.name}`, () => integration.run({
+  const result = await timedPhase(`pr ${repo.name}`, `pr ${repo.name}`, () => integration.run({
     promptFile: promptPath("pr"),
     promptArgs: {
       INTEGRATION_BRANCH: run.branch,
