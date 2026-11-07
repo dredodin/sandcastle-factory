@@ -53,7 +53,7 @@ export type Outcome = (typeof OUTCOMES)[number];
 export type ImplementOutcome = { readonly outcome: Outcome; readonly note: string };
 
 // The reported outcome checked against the run's commit count: commits are never dropped, a claim without them never merges.
-export const reconcile = (reported: ImplementOutcome, commits: number): ImplementOutcome => {
+export const reconcileOutcome = (reported: ImplementOutcome, commits: number): ImplementOutcome => {
   if (reported.outcome === "cannot finish") return reported;
   if (reported.outcome === "committed") {
     return commits > 0 ? reported : { outcome: "cannot finish", note: "The run reported committed with no commits." };

@@ -3,7 +3,7 @@ import { z } from "zod";
 import { extract } from "../../shared/extract.mjs";
 import { implementRunOf, itemId, type Item } from "../../shared/item.mjs";
 import { message } from "../../shared/cli.mjs";
-import { OUTCOMES, reconcile, type ImplementOutcome } from "../../shared/kanban.mjs";
+import { OUTCOMES, reconcileOutcome, type ImplementOutcome } from "../../shared/kanban.mjs";
 import { log, timed } from "../../shared/logger.mjs";
 import { promptPath } from "../../shared/paths.mjs";
 import { IDLE_TIMEOUT_SECONDS, phaseAgent, type Cycle } from "../../shared/run.mjs";
@@ -30,7 +30,7 @@ export const implement = async (cycle: Cycle, sandbox: Sandbox, item: Item): Pro
     ...phaseAgent(cycle, "IMPLEMENT", inputs.logBase, item.repo),
   }));
   try {
-    return reconcile(extract(result.stdout, "outcome", outcomeSchema), result.commits.length);
+    return reconcileOutcome(extract(result.stdout, "outcome", outcomeSchema), result.commits.length);
   } catch (error) {
     log.warn(`  ${itemId(item)} outcome unreadable: ${message(error)}`);
     return result.commits.length > 0 ? { outcome: "committed", note: "" } : { outcome: "cannot finish", note: "The implement run ended with no commits and reported no outcome." };
