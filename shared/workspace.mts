@@ -1,7 +1,7 @@
 // The Workspace: the home repo and the repos worked together with it. Read from the current directory's repo root only.
 
-import { existsSync, lstatSync, readdirSync, realpathSync } from "node:fs";
-import { repoDir, slugFromRemote, type Slug } from "./names.mjs";
+import { existsSync, readdirSync, realpathSync } from "node:fs";
+import { repoDir, slugFromRemote, sourceProblem, type Slug } from "./names.mjs";
 import { sh } from "./shell.mjs";
 
 export type Repo = {
@@ -40,37 +40,11 @@ export const readLayout = (cwd: string): Layout => {
   return { root, homeName: home.name, homeSlug: `${home.owner}/${home.name}`, apps: folders.filter((name) => name !== home.name).sort() };
 };
 
-const isLink = (path: string): boolean => {
+const prefixOf = (path: string): string | null => {
   try {
-    return lstatSync(path).isSymbolicLink();
+    return sh(path, "git", "rev-parse", "--show-prefix");
   } catch {
-    return false;
-  }
-};
-
-export type SourceState = {
-  readonly linked: boolean;
-  // The link's real path; "" when it does not resolve.
-  readonly real: string;
-  // `git rev-parse --show-toplevel` in the link's target; "" when that is not in a git work tree.
-  readonly toplevel: string;
-};
-
-const samePath = (a: string, b: string): boolean => a.replace(/\\/g, "/") === b.replace(/\\/g, "/");
-
-// What is wrong with an app repo's `source` link: "" when nothing. The target must be the clone's root, not a folder in it.
-export const sourceProblem = (name: string, state: SourceState): string => {
-  const resolves = state.real !== "";
-  if (!state.linked && !resolves) return `${name}: no source link — run onboarding`;
-  if (!resolves || !samePath(state.toplevel, state.real)) return `${name}: source link is not a git clone — run onboarding`;
-  return "";
-};
-
-const toplevelOf = (path: string): string => {
-  try {
-    return sh(path, "git", "rev-parse", "--show-toplevel");
-  } catch {
-    return "";
+    return null;
   }
 };
 
@@ -78,10 +52,9 @@ const toplevelOf = (path: string): string => {
 const sourceOf = (root: string, name: string): string => {
   const link = `${root}/${repoDir(name)}/source`;
   const resolves = existsSync(link);
-  const real = resolves ? realpathSync(link) : "";
-  const problem = sourceProblem(name, { linked: isLink(link), real, toplevel: resolves ? toplevelOf(link) : "" });
+  const problem = sourceProblem(name, { resolves, prefix: resolves ? prefixOf(link) : null });
   if (problem !== "") throw new Error(problem);
-  return real;
+  return realpathSync(link);
 };
 
 // Every app repo's clone path by name; throws naming the first repo whose link is missing or broken.

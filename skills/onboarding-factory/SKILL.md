@@ -135,7 +135,7 @@ Stop. The human runs, in their own terminal (Windows: Git Bash, not PowerShell o
 npm run sandcastle -- setup
 ```
 
-Tokens, the Kanban and the sandbox engine are theirs: never read `.sandcastle/.env`. Setup warns about Containerfiles still missing; that is expected. Continue once they say it exited 0.
+`.sandcastle/.env` is theirs: never read it. Setup warns about Containerfiles still missing; that is expected. Continue once they say it exited 0.
 
 ## 9. App repo scripts
 
