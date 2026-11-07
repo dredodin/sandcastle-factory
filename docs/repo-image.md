@@ -15,9 +15,11 @@ With `SANDBOX=none` there are no images.
 
 ## Host folders in the sandbox
 
-For what a sandbox cannot get on its own, such as packages from a private source it has no credentials for. Mount the folder where your machine already holds it: list the folder in `.sandcastle/repos/<name>/mounts`, one `<host path> -> <sandbox path>` per line (`#` and blank lines skipped). Every sandbox of that repo gets it, read-only. With `SANDBOX=none` agents see your folders anyway.
+Any folder of your machine can appear in the sandbox: packages from a private source, ready dependencies, anything. List it in `.sandcastle/repos/<name>/mounts`, one `<host path> -> <sandbox path>` per line (`#` and blank lines skipped). Every sandbox of that repo gets it, read-only; end the line with ` (rw)` to allow writing. With `SANDBOX=none` agents see your folders anyway.
 
-- Tell the tool where the folder is, usually with `ENV` in the `Containerfile`. Changed the `Containerfile`: rebuild the image, as above.
+The factory only mounts. Everything else is the repo's: `ENV` in the `Containerfile` (changed it: rebuild the image, as above), or any command in `setup.sh`.
+
+- `(rw)`: what agents write lands on your machine, and all sandboxes of the repo share the folder. Sandboxes run in parallel.
 - Mount outside any folder the tool writes to: a mount makes its parent folders root-owned, and the tool loses write access there.
 - Anything missing from the folder, the sandbox still cannot get. Fetch it on your machine, then run again.
 - Agents can read all of the folder. Keep secrets out of it.
@@ -45,3 +47,27 @@ NuGet's own gotchas:
 - `NuGetAudit=false`: the vulnerability audit calls the sources and fails the restore (`NU1900`) under `TreatWarningsAsErrors`.
 - The folder must be a restored cache (`<id>/<version>/…`), not bare `.nupkg` files. To hold only one app's packages, run on the host: `dotnet restore --packages <folder>`.
 - A package missing from the folder, say a new version an agent adds, sends NuGet to the feed and the restore fails with `NU1301`. Run `dotnet restore` on the host.
+
+### Example: ready `node_modules`
+
+No install: every sandbox reuses one folder. Build it once in the repo's image, on your machine:
+
+```sh
+podman run --rm --entrypoint sh -v "$PWD:/repo:ro" -v "<folder>:/out" sandcastle:<home>-<name> -c 'cp /repo/package*.json /out && cd /out && npm ci'
+```
+
+`mounts`:
+
+```text
+<folder>/node_modules -> /home/agent/deps/node_modules
+```
+
+`setup.sh`:
+
+```sh
+ln -sfn /home/agent/deps/node_modules node_modules
+```
+
+- The sandbox path must end in `node_modules`: Node looks for packages by the real path of the link.
+- `.gitignore`: `node_modules`, no trailing slash. `node_modules/` does not match a link.
+- Dependencies changed: build the folder again. Read-only, agents cannot add a package.

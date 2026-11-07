@@ -1,5 +1,5 @@
-# Dependencies
-node_modules/
+# Dependencies: a folder, or a link to one (see docs/repo-image.md)
+node_modules
 
 # Mutation testing (`npm run mutate`)
 .stryker-tmp/

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { parseMounts } from "./mounts.mjs";
 
-test("parseMounts: skips blanks and comments, every mount read-only, CRLF tolerated", () => {
+test("parseMounts: skips blanks and comments, read-only by default, CRLF tolerated", () => {
   const text = "# packages\r\n\r\n~/.nuget/packages -> /home/agent/nuget-packages\r\n  # more\r\n";
   assert.deepEqual(parseMounts(text, "mounts"), [{ hostPath: "~/.nuget/packages", sandboxPath: "/home/agent/nuget-packages", readonly: true }]);
 });
@@ -24,4 +24,16 @@ test("parseMounts: an empty side is an error", () => {
 
 test("parseMounts: extra spaces around the separator are not part of the paths", () => {
   assert.deepEqual(parseMounts("~/a   ->   /b", "mounts"), [{ hostPath: "~/a", sandboxPath: "/b", readonly: true }]);
+});
+
+test("parseMounts: a line ending in (rw) is writable and keeps its paths clean", () => {
+  assert.deepEqual(parseMounts("~/a -> /b (rw)\r\n~/c -> /d", "mounts"), [
+    { hostPath: "~/a", sandboxPath: "/b", readonly: false },
+    { hostPath: "~/c", sandboxPath: "/d", readonly: true },
+  ]);
+});
+
+test("parseMounts: (rw) in place of a sandbox path is an error", () => {
+  assert.throws(() => parseMounts("~/a -> (rw)", "mounts"), /mounts:1:/);
+  assert.throws(() => parseMounts("~/a ->  (rw)", "mounts"), /mounts:1:/);
 });

@@ -31,7 +31,7 @@ export type SandboxContext = { readonly workspace: Workspace; readonly env: Env 
 // One sandbox: a worktree of one repo on one branch, cut from `baseBranch`. `name`: the item's slug, or `integration`.
 export type SandboxSpec = { readonly repo: Repo; readonly name: string; readonly branch: string; readonly baseBranch: string };
 
-// The repo's `mounts` file in the home repo, if any: host folders the sandbox sees read-only.
+// The repo's `mounts` file in the home repo, if any: host folders the sandbox sees.
 const repoMounts = (workspace: Workspace, repo: Repo) => {
   const path = homeFile(workspace, repo, MOUNTS_FILE);
   return existsSync(path) ? parseMounts(readFileSync(path, "utf8"), path) : [];
