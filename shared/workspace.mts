@@ -50,7 +50,6 @@ const isLink = (path: string): boolean => {
 
 export type SourceState = {
   readonly linked: boolean;
-  readonly resolves: boolean;
   // The link's real path; "" when it does not resolve.
   readonly real: string;
   // `git rev-parse --show-toplevel` in the link's target; "" when that is not in a git work tree.
@@ -59,11 +58,12 @@ export type SourceState = {
 
 const samePath = (a: string, b: string): boolean => a.replace(/\\/g, "/") === b.replace(/\\/g, "/");
 
-// What is wrong with an app repo's `source` link: empty when nothing. The target must be the clone's root, not a folder in it.
-export const sourceProblem = (name: string, state: SourceState): readonly string[] => {
-  if (!state.linked && !state.resolves) return [`${name}: no source link — run onboarding`];
-  if (!state.resolves || !samePath(state.toplevel, state.real)) return [`${name}: source link is not a git clone — run onboarding`];
-  return [];
+// What is wrong with an app repo's `source` link: "" when nothing. The target must be the clone's root, not a folder in it.
+export const sourceProblem = (name: string, state: SourceState): string => {
+  const resolves = state.real !== "";
+  if (!state.linked && !resolves) return `${name}: no source link — run onboarding`;
+  if (!resolves || !samePath(state.toplevel, state.real)) return `${name}: source link is not a git clone — run onboarding`;
+  return "";
 };
 
 const toplevelOf = (path: string): string => {
@@ -79,8 +79,8 @@ const sourceOf = (root: string, name: string): string => {
   const link = `${root}/${repoDir(name)}/source`;
   const resolves = existsSync(link);
   const real = resolves ? realpathSync(link) : "";
-  const [problem] = sourceProblem(name, { linked: isLink(link), resolves, real, toplevel: resolves ? toplevelOf(link) : "" });
-  if (problem !== undefined) throw new Error(problem);
+  const problem = sourceProblem(name, { linked: isLink(link), real, toplevel: resolves ? toplevelOf(link) : "" });
+  if (problem !== "") throw new Error(problem);
   return real;
 };
 
