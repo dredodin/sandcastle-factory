@@ -46,7 +46,7 @@ const cycle = async (
   log.info(`\n=== ${stretch}: cycle ${number}/${MAX_CYCLES} ===`);
   const current = { ...run, number };
 
-  const conflicting = run.workspace.repos.filter((repo) => conflictsWithBase(repo, run.branch));
+  const conflicting = (await Promise.all(run.workspace.repos.map(async (repo) => ((await conflictsWithBase(repo, run.branch)) ? [repo] : [])))).flat();
   conflicting.forEach((repo) => log.info(`  ${run.branch} conflicts with ${repo.base} in ${repo.name}`));
   const { items, next } = await plan(current, openPrsText, session);
   // The reports reach the plan agent once, in the cycle after their pass.
