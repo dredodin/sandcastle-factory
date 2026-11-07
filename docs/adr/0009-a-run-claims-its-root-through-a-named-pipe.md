@@ -34,4 +34,3 @@ status: accepted
 - Parallel runs on different roots are unlimited. No setting.
 - Runs on two machines are not covered.
 - Accepted risk: after a run died, two starts on the same root in the same instant can both clear the socket file and one may unlink the other's live socket; both then run.
-- A refused second run has already run `setup` (it comes before the claim), so it relinks `.sandcastle/repos/<name>/source` under the live run before it is refused.

@@ -4,7 +4,6 @@ import { existsSync, readFileSync } from "node:fs";
 import { parseEnv as parseDotenv } from "node:util";
 import { z } from "zod";
 import type { KanbanRef } from "./kanban.mjs";
-import { repoKey } from "./names.mjs";
 
 export const PHASES = ["PLAN", "IMPLEMENT", "REVIEW", "MERGE", "PR"] as const;
 export type Phase = (typeof PHASES)[number];
@@ -27,8 +26,6 @@ export type Env = {
   readonly secrets: Values;
   // Whether sandboxes get the host's Codex login file: a phase uses codex, no `CODEX_API_KEY`, and the host has the login.
   readonly mountCodexLogin: boolean;
-  // Local path of every repo that is not the home repo, by repo name.
-  readonly repoPaths: Values;
   // The home repo's Kanban.
   readonly kanban: KanbanRef;
 };
@@ -52,7 +49,7 @@ const has = (values: Values, key: string): boolean => (values[key] ?? "") !== ""
 
 // Every key the machine needs, given the values so far.
 // Provider-dependent keys appear once the providers are known.
-const requiredKeys = (values: Values, repoNames: readonly string[], hostLogin: boolean): readonly string[] => {
+const requiredKeys = (values: Values, hostLogin: boolean): readonly string[] => {
   const providers = PHASES.map((phase) => values[`${phase}_PROVIDER`]);
   const claudeAuth = CLAUDE_AUTH.find((key) => has(values, key)) ?? CLAUDE_AUTH[0];
   return [
@@ -63,13 +60,12 @@ const requiredKeys = (values: Values, repoNames: readonly string[], hostLogin: b
     ...(providers.includes("claudeCode") ? [claudeAuth] : []),
     ...(providers.includes("copilot") ? [COPILOT_TOKEN] : []),
     ...(providers.includes("codex") && !hostLogin ? [CODEX_KEY] : []),
-    ...repoNames.map(repoKey),
   ];
 };
 
 // `hostLogin`: the host has a Codex login file, which stands in for `CODEX_API_KEY`.
-export const missingKeys = (values: Values, repoNames: readonly string[], hostLogin: boolean): readonly string[] =>
-  requiredKeys(values, repoNames, hostLogin).filter((key) => !has(values, key));
+export const missingKeys = (values: Values, hostLogin: boolean): readonly string[] =>
+  requiredKeys(values, hostLogin).filter((key) => !has(values, key));
 
 export const envPath = (root: string): string => `${root}/.sandcastle/.env`;
 
@@ -80,13 +76,13 @@ export const readValues = (root: string): Values => {
 };
 
 // Keys the factory reads: the only ones a shell variable may set.
-const knownKeys = (repoNames: readonly string[]): readonly string[] => ["GH_TOKEN", "SANDBOX", ...PHASES.flatMap(phaseKeys), ...KANBAN_KEYS, ...CLAUDE_AUTH, COPILOT_TOKEN, CODEX_KEY, ...repoNames.map(repoKey)];
+const KNOWN_KEYS: readonly string[] = ["GH_TOKEN", "SANDBOX", ...PHASES.flatMap(phaseKeys), ...KANBAN_KEYS, ...CLAUDE_AUTH, COPILOT_TOKEN, CODEX_KEY];
 
 // `.env` values with the shell's non-empty values of known keys over them: a shell variable overrides `.env` for one run.
-export const withShellOverrides = (file: Values, shell: Readonly<Record<string, string | undefined>>, repoNames: readonly string[]): Values => ({
+export const withShellOverrides = (file: Values, shell: Readonly<Record<string, string | undefined>>): Values => ({
   ...file,
   ...Object.fromEntries(
-    knownKeys(repoNames).flatMap((key) => {
+    KNOWN_KEYS.flatMap((key) => {
       const value = shell[key] ?? "";
       return value === "" ? [] : [[key, value]];
     }),
@@ -95,7 +91,7 @@ export const withShellOverrides = (file: Values, shell: Readonly<Record<string, 
 
 const nonEmpty = z.string().min(1);
 
-const schemaFor = (repoNames: readonly string[], hostLogin: boolean): z.ZodType<Record<string, string | undefined>> =>
+const schemaFor = (hostLogin: boolean): z.ZodType<Record<string, string | undefined>> =>
   z
     .object({
       GH_TOKEN: nonEmpty,
@@ -107,7 +103,6 @@ const schemaFor = (repoNames: readonly string[], hostLogin: boolean): z.ZodType<
       COPILOT_GITHUB_TOKEN: nonEmpty.optional(),
       CODEX_API_KEY: nonEmpty.optional(),
       ...Object.fromEntries(PHASES.flatMap((phase) => [[`${phase}_PROVIDER`, z.enum(PROVIDERS)], [`${phase}_MODEL`, nonEmpty], [`${phase}_EFFORT`, nonEmpty]])),
-      ...Object.fromEntries(repoNames.map((name) => [repoKey(name), nonEmpty])),
     })
     .loose()
     .superRefine((values, ctx) => {
@@ -123,10 +118,10 @@ const schemaFor = (repoNames: readonly string[], hostLogin: boolean): z.ZodType<
       }
     }) as z.ZodType<Record<string, string | undefined>>;
 
-// The checked environment; throws naming every missing or invalid key. `repoNames` are the repos other than the home repo.
+// The checked environment; throws naming every missing or invalid key.
 // `hostLogin`: see `missingKeys`.
-export const checkEnv = (values: Values, repoNames: readonly string[], hostLogin: boolean): Env => {
-  const parsed = schemaFor(repoNames, hostLogin).safeParse(values);
+export const checkEnv = (values: Values, hostLogin: boolean): Env => {
+  const parsed = schemaFor(hostLogin).safeParse(values);
   if (!parsed.success) {
     const keys = [...new Set(parsed.error.issues.map((issue) => String(issue.path[0] ?? "?")))];
     throw new Error(`.sandcastle/.env is incomplete or wrong, fix: ${keys.join(", ")}. Run \`setup\` to fill the missing ones.`);
@@ -136,8 +131,7 @@ export const checkEnv = (values: Values, repoNames: readonly string[], hostLogin
     PHASES.map((phase) => [phase, { provider: value(`${phase}_PROVIDER`), model: value(`${phase}_MODEL`), effort: value(`${phase}_EFFORT`) }]),
   ) as Record<Phase, PhaseSetting>;
   const secrets = Object.fromEntries(SECRET_KEYS.flatMap((key) => (parsed.data[key] ? [[key, value(key)]] : [])));
-  const repoPaths = Object.fromEntries(repoNames.map((name) => [name, value(repoKey(name))]));
   const mountCodexLogin = hostLogin && value(CODEX_KEY) === "" && PHASES.some((phase) => phases[phase].provider === "codex");
   const kanban = { owner: value("KANBAN_OWNER"), number: Number(value("KANBAN_NUMBER")) };
-  return { sandbox: value("SANDBOX") as Env["sandbox"], phases, secrets, mountCodexLogin, repoPaths, kanban };
+  return { sandbox: value("SANDBOX") as Env["sandbox"], phases, secrets, mountCodexLogin, kanban };
 };

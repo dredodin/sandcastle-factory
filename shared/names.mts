@@ -1,12 +1,4 @@
-// Pure naming and parsing for the Workspace: no git, no gh, no files.
-
-const MAP_LINK = /\]\(\s*<?(?:\.\/)?\.sandcastle\/repos\/([^/)>\s]+)\//g;
-
-// Repo names the home repo's GLOSSARY-MAP links to as `.sandcastle/repos/<name>/…`, each once, in order.
-export const repoNamesFromMap = (map: string): readonly string[] => [...new Set([...map.matchAll(MAP_LINK)].map((match) => match[1]!))];
-
-// The `.env` key holding a repo's local path.
-export const repoKey = (name: string): string => `REPO_${name.toUpperCase().replace(/[^A-Z0-9]/g, "_")}`;
+// Pure naming and parsing for the Workspace, and its link-health check: no git, no gh, no files.
 
 export type Slug = { readonly owner: string; readonly name: string };
 
@@ -38,3 +30,6 @@ export const planCheckCommand = (repo: string): string => `bash ${repoDir(repo)}
 
 // A log file name. `number`: run-wide, so the folder sorts in start order.
 export const logFileName = (number: number, base: string, repo: string): string => `${String(number).padStart(3, "0")}-${base}-${repo}.log`;
+
+// Whether an app repo's `source` link is fine. `prefix`: `git rev-parse --show-prefix` in the link; null when it does not resolve or is not in a work tree. "" is a clone's root.
+export const isCloneRoot = (prefix: string | null): boolean => prefix === "";

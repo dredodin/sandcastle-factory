@@ -3,9 +3,8 @@
 What the factory reads from the [home repo](../GLOSSARY.md). `/onboarding-factory` and `setup` create most of it.
 
 ```text
-GLOSSARY-MAP.md            # lists the app repos; none: the home repo alone
 .sandcastle/
-├── .env                   # per machine, holds the tokens and the Kanban; the setup wizard writes it
+├── .env                   # per machine, holds the tokens, models, sandbox and Kanban; the setup wizard writes it
 ├── logs/                  # one folder per run
 ├── stats.json             # per machine, recent phase and setup.sh durations; the factory writes it
 ├── worktrees/             # sandbox worktrees; the factory makes them
@@ -18,10 +17,8 @@ GLOSSARY-MAP.md            # lists the app repos; none: the home repo alone
     ├── deep-verify.sh     # optional; slow check, run once per review pass, base branch as $1
     ├── CODING_STANDARDS.md  # optional; your standards, copied into every worktree; reviewers read them on top of the repo's own; yours win on conflict
     ├── plan-check.sh      # optional, home repo only; the plan agent runs it each cycle; non-zero exit = its output becomes work
-    └── source             # link to the app repo's clone; setup makes it
+    └── source             # app repos only; link to the app repo's clone (junction on Windows)
 ```
-
-`GLOSSARY-MAP.md` names a repo by linking a file under `.sandcastle/repos/<name>/`.
 
 `.gitignore`:
 
