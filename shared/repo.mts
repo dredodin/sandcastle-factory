@@ -1,8 +1,10 @@
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { handleAll, retry } from "cockatiel";
 import { z } from "zod";
 import { assertNoOpenTake, freeItemBranch, nextTakeBranch, pickLatestTake, type LatestTake, type RepoPrs, type RunKey } from "./branches.mjs";
+import { message } from "./cli.mjs";
 import { issuesIn } from "./merge-record.mjs";
 import { log } from "./logger.mjs";
 import { githubUrl } from "./names.mjs";
@@ -54,18 +56,13 @@ export const integrationBranch = (workspace: Workspace, root: number): string =>
 
 const MERGE_TREE_CONFLICT = 1;
 
-// Fetches the repo (once more on failure; a second failure warns and goes on with the refs it has), then whether its branch, if it exists, would conflict merging the default branch.
+// Fetches the repo, retried once; a second failure warns and keeps the current refs.
+// Then whether its branch, if it exists, would conflict merging the default branch.
 // A conflict: `git merge-tree` exits 1 and prints the tree; a failure (bad ref, old git) prints nothing and throws.
-export const conflictsWithBase = (repo: Repo, branch: string): boolean => {
-  try {
-    fetchOrigin(repo);
-  } catch {
-    try {
-      fetchOrigin(repo);
-    } catch (error) {
-      log.warn(`Could not fetch ${repo.name}; conflict check uses its current refs: ${error instanceof Error ? error.message : error}`);
-    }
-  }
+export const conflictsWithBase = async (repo: Repo, branch: string): Promise<boolean> => {
+  await retry(handleAll, { maxAttempts: 1 }).execute(() => fetchOrigin(repo)).catch((error: unknown) => {
+    log.warn(`Could not fetch ${repo.name}; conflict check uses its current refs: ${message(error)}`);
+  });
   if (!branchExists(repo, branch)) return false;
   try {
     sh(repo.path, "git", "merge-tree", "--write-tree", branch, repo.base);
@@ -123,16 +120,12 @@ export const worktreeOf = (repo: Repo, branch: string): string | undefined =>
     ?.replace(/^worktree /, "");
 
 // Merges `origin/<branch>` into the local branch in a worktree on it; a conflict is aborted and thrown.
-const mergeOrigin = (cwd: string, repo: Repo, branch: string, kept: string | undefined): void => {
+const mergeOrigin = (cwd: string, repo: Repo, branch: string, resolve: string): void => {
   try {
     sh(cwd, "git", "merge", "--no-edit", `origin/${branch}`);
   } catch {
     sh(cwd, "git", "merge", "--abort");
     const remote = `origin/${branch}`;
-    const resolve =
-      kept !== undefined
-        ? `in ${kept} run \`git merge ${remote}\`, fix the conflicts, commit, then re-run resume.`
-        : `make a worktree (\`git worktree add <dir> ${branch}\`), run \`git merge ${remote}\` there, fix the conflicts, commit, remove it, then re-run resume; or switch ${repo.path} back to ${repo.defaultBranch} before re-running resume.`;
     const commits = (range: string): string => sh(cwd, "git", "log", "--format=  %h %s", range) || "  (none)";
     throw new Error(
       `Merge conflict syncing ${branch} with ${remote} in ${repo.name}.\n` +
@@ -156,13 +149,13 @@ export const syncWithOrigin = (repo: Repo, branch: string): void => {
   }
   if (isMerged(repo, remote, branch)) return;
   if (kept !== undefined) {
-    mergeOrigin(kept, repo, branch, kept);
+    mergeOrigin(kept, repo, branch, `in ${kept} run \`git merge ${remote}\`, fix the conflicts, commit, then re-run resume.`);
     return;
   }
   const temp = join(mkdtempSync(join(tmpdir(), "sandcastle-sync-")), "worktree");
   sh(repo.path, "git", "worktree", "add", temp, branch);
   try {
-    mergeOrigin(temp, repo, branch, undefined);
+    mergeOrigin(temp, repo, branch, `make a worktree (\`git worktree add <dir> ${branch}\`), run \`git merge ${remote}\` there, fix the conflicts, commit, remove it, then re-run resume.`);
   } finally {
     sh(repo.path, "git", "worktree", "remove", "--force", temp);
   }

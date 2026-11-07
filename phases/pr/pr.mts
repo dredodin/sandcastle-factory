@@ -1,7 +1,9 @@
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { handleType, retry } from "cockatiel";
 import { z } from "zod";
+import { message } from "../../shared/cli.mjs";
 import { extract } from "../../shared/extract.mjs";
 import { hasIssue, type Item } from "../../shared/item.mjs";
 import { log, timedPhase } from "../../shared/logger.mjs";
@@ -24,14 +26,10 @@ const subIssuesOn = (run: Run, repo: Repo): readonly number[] => mergedIssues(re
 
 // First pass for one repo: the PR agent pushes the branch and opens the PR, or rewrites the open one.
 // Missing or invalid PR output reruns the agent once; a second failure fails the run.
-const prOfRepo = async (run: Run, repo: Repo): Promise<Pr> => {
-  try {
-    return await openPr(run, repo);
-  } catch (error) {
-    if (!(error instanceof PrOutputError)) throw error;
-    log.warn(`${error.message}; running the PR phase once more.`);
-  }
-  return openPr(run, repo);
+const prOfRepo = (run: Run, repo: Repo): Promise<Pr> => {
+  const policy = retry(handleType(PrOutputError), { maxAttempts: 1 });
+  policy.onRetry((reason) => log.warn(`${"error" in reason ? message(reason.error) : "PR output missing"}; running the PR phase once more.`));
+  return policy.execute(() => openPr(run, repo));
 };
 
 const openPr = async (run: Run, repo: Repo): Promise<Pr> => {
@@ -60,7 +58,7 @@ const openPr = async (run: Run, repo: Repo): Promise<Pr> => {
   try {
     return { repo: repo.name, url: extract(result.stdout, "pull-request", pullRequestSchema).url, issues };
   } catch (error) {
-    throw new PrOutputError(`PR output of ${repo.name} missing or invalid: ${error instanceof Error ? error.message : error}`);
+    throw new PrOutputError(`PR output of ${repo.name} missing or invalid: ${message(error)}`);
   }
 };
 
