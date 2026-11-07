@@ -53,16 +53,25 @@ export const reposWithoutPr = (planned: readonly Pick<Item, "repo" | "issue">[],
       open: [...new Set(planned.filter((item) => item.repo === repo).map((item) => Number(item.issue)))],
     }));
 
+// Longest finding or reason printed in the review section.
+const LINE_MAX = 120;
+
 const issueList = (issues: readonly number[]): string => issues.map((id) => `#${id}`).join(", ");
 
 // The findings the run left unsettled, one line each: left over (cannot finish, merge conflict) and rejected with the reason.
 // Fixed findings are in the diff, the reports in the run's logs; nothing unsettled is no section.
 export const reviewSection = (repo: string, review: ReviewRecord): string => {
-  const title = (text: string): string => text.split("\n")[0] ?? "";
+  const line = (text: string): string => {
+    const first = text.replace(/\n[\s\S]*$/, "");
+    return first.length > LINE_MAX ? `${first.slice(0, LINE_MAX - 1)}…` : first;
+  };
+  const mine = (entry: { readonly item: Item }): boolean => entry.item.repo === repo && entry.item.source === "review";
+  // A finding settled in a later pass is no longer unsettled: only the last pass with review items counts.
+  const last = Math.max(0, ...[...review.ended, ...review.merged].filter(mine).map(({ pass }) => pass));
   const leftOver = review.ended
-    .filter(({ item, end }) => item.repo === repo && item.source === "review" && (end === "cannot finish" || end === "merge conflict"))
-    .map(({ item, end }) => `- Left over: ${title(item.work)} (${end})`);
-  const rejected = review.rejected.filter((rejection) => rejection.repo === repo).map(({ finding, reason }) => `- Rejected: ${title(finding)} — ${reason.split("\n")[0]}`);
+    .filter((entry) => mine(entry) && entry.pass === last && (entry.end === "cannot finish" || entry.end === "merge conflict"))
+    .map(({ item, end }) => `- Left over: ${line(item.work)} (${end})`);
+  const rejected = review.rejected.filter((rejection) => rejection.repo === repo).map(({ finding, reason }) => `- Rejected: ${line(finding)} — ${line(reason)}`);
   const lines = [...leftOver, ...rejected];
   return lines.length === 0 ? "" : ["## Review", "", ...lines].join("\n");
 };
