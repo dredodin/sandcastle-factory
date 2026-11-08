@@ -19,7 +19,6 @@
     "shared/names.mts",
     "shared/parallel.mts",
     "shared/pr-body.mts",
-    "shared/pr-output.mts",
     "shared/prompt.mts"
   ],
   "mutator": { "excludedMutations": ["Regex"] },
