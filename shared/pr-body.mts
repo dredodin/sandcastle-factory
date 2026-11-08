@@ -53,18 +53,12 @@ export const reposWithoutPr = (planned: readonly Pick<Item, "repo" | "issue">[],
       open: [...new Set(planned.filter((item) => item.repo === repo).map((item) => Number(item.issue)))],
     }));
 
-// Longest finding or reason printed in the review section.
-const LINE_MAX = 120;
-
 const issueList = (issues: readonly number[]): string => issues.map((id) => `#${id}`).join(", ");
 
 // The findings the run left unsettled, one line each: left over (cannot finish, merge conflict) and rejected with the reason.
 // Fixed findings are in the diff, the reports in the run's logs; nothing unsettled is no section.
 export const reviewSection = (repo: string, review: ReviewRecord): string => {
-  const line = (text: string): string => {
-    const first = text.replace(/\n[\s\S]*$/, "");
-    return first.length > LINE_MAX ? `${first.slice(0, LINE_MAX - 1)}…` : first;
-  };
+  const line = (text: string): string => text.replace(/\n[\s\S]*$/, "");
   const mine = (entry: { readonly item: Item }): boolean => entry.item.repo === repo && entry.item.source === "review";
   // Settled per finding: a left-over is dropped when the same work later merged or ended otherwise. One left over twice shows once.
   const entries = [...review.merged.map((entry) => ({ ...entry, end: "merged" })), ...review.ended].filter(mine);

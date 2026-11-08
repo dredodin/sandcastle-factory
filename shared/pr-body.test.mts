@@ -162,12 +162,10 @@ test("reviewSection: other repos' and comment items do not move the last pass", 
   assert.equal(reviewSection("app", review), "## Review\n\n- Left over: a (cannot finish)");
 });
 
-test("reviewSection: a long finding or reason is cut to 120 characters with an ellipsis; left-over shows the title", () => {
+test("reviewSection: a rejected finding and its reason show their first line whole", () => {
   const long = "x".repeat(300);
-  const review: ReviewRecord = { ...none, ended: [{ item: work("app", long), end: "cannot finish", pass: 1 }], rejected: [{ repo: "app", finding: long, reason: long }] };
-  const cut = `${"x".repeat(119)}…`;
-  assert.equal(reviewSection("app", review), `## Review\n\n- Left over: ${long} (cannot finish)\n- Rejected: ${cut} — ${cut}`);
-  assert.equal(reviewSection("app", { ...none, rejected: [{ repo: "app", finding: "x".repeat(120), reason: "r" }] }), `## Review\n\n- Rejected: ${"x".repeat(120)} — r`);
+  const rejected = [{ repo: "app", finding: `${long}\nmore`, reason: `${long}\nmore` }];
+  assert.equal(reviewSection("app", { ...none, rejected }), `## Review\n\n- Rejected: ${long} — ${long}`);
 });
 
 test("reviewSection: everything fixed or nothing found is no section", () => {
