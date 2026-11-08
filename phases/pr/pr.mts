@@ -4,18 +4,19 @@ import { join } from "node:path";
 import { handleType, retry } from "cockatiel";
 import { z } from "zod";
 import { message } from "../../shared/cli.mjs";
+import { ExtractError, extract } from "../../shared/extract.mjs";
 import { hasIssue, type Item } from "../../shared/item.mjs";
 import { log, timedPhase } from "../../shared/logger.mjs";
 import { verifyCommand } from "../../shared/names.mjs";
 import { inParallel } from "../../shared/parallel.mjs";
 import { mergedIssues } from "../../shared/repo.mjs";
 import { promptPath } from "../../shared/paths.mjs";
-import { PrOutputError, prUrl } from "../../shared/pr-output.mjs";
 import { blockersFromJson, modelsLine, reposWithoutPr, reviewSection, runBlock, withRunBlock, type BlockedBy, type Pr } from "../../shared/pr-body.mjs";
 import { IDLE_TIMEOUT_SECONDS, phaseAgent, type Run } from "../../shared/run.mjs";
 import { sh } from "../../shared/shell.mjs";
 import { repoNamed, type Repo } from "../../shared/workspace.mjs";
 
+const pullRequestSchema = z.object({ url: z.url() });
 const bodySchema = z.object({ body: z.string() });
 
 // One retry: the PR agent runs at most twice.
@@ -27,7 +28,7 @@ const subIssuesOn = (run: Run, repo: Repo): readonly number[] => mergedIssues(re
 // First pass for one repo: the PR agent pushes the branch and opens the PR, or rewrites the open one.
 // Missing or invalid PR output reruns the agent once; a second failure fails the run.
 const prOfRepo = (run: Run, repo: Repo): Promise<Pr> => {
-  const policy = retry(handleType(PrOutputError), { maxAttempts: PR_RETRIES });
+  const policy = retry(handleType(ExtractError), { maxAttempts: PR_RETRIES });
   policy.onRetry((reason) => {
     if ("error" in reason) log.warn(`${message(reason.error)}; running the PR phase once more.`);
   });
@@ -57,7 +58,7 @@ const openPr = async (run: Run, repo: Repo): Promise<Pr> => {
     idleTimeoutSeconds: IDLE_TIMEOUT_SECONDS,
     ...phaseAgent(run, "PR", "pr", repo.name),
   }));
-  return { repo: repo.name, url: prUrl(result.stdout, repo.name), issues };
+  return { repo: repo.name, url: extract(result.stdout, "pull-request", pullRequestSchema).url, issues };
 };
 
 // Native `blockedBy` of the issues, read from the home repo; an issue GitHub cannot answer for has no blockers.

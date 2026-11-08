@@ -13,7 +13,7 @@ import { log, openRunLog, runLogs, type RunLogs } from "../shared/logger.mjs";
 import { inParallel } from "../shared/parallel.mjs";
 import { mergeCommitOf } from "../shared/merge-record.mjs";
 import { cycleEnds } from "../shared/record.mjs";
-import { conflictsWithBase, mergeSubjects } from "../shared/repo.mjs";
+import { conflictsWithBase, fetched, mergeSubjects } from "../shared/repo.mjs";
 import type { Run } from "../shared/run.mjs";
 import { withSandbox } from "../shared/sandbox.mjs";
 import { repoNamed, type Repo, type Workspace } from "../shared/workspace.mjs";
@@ -46,6 +46,10 @@ const cycle = async (
   log.info(`\n=== ${stretch}: cycle ${number}/${MAX_CYCLES} ===`);
   const current = { ...run, number };
 
+  // A failed fetch is retried once, then planned without: the refs stay as they are.
+  run.workspace.repos.forEach((repo) => {
+    if (!fetched(repo) && !fetched(repo)) log.warn(`Could not fetch ${repo.name}; the conflict check uses its current refs.`);
+  });
   const conflicting = run.workspace.repos.filter((repo) => conflictsWithBase(repo, run.branch));
   conflicting.forEach((repo) => log.info(`  ${run.branch} conflicts with ${repo.base} in ${repo.name}`));
   const { items, next } = await plan(current, openPrsText, session);
