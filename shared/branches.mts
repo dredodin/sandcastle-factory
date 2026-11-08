@@ -12,6 +12,12 @@ const takeNumber = (key: RunKey, ref: string): number =>
 
 export const isTakeBranch = (key: RunKey, branch: string): boolean => takeNumber(key, branch) > 0;
 
+// The root issue a branch belongs to: `sandcastle/<home>/issue-<N>-take-<K>` plus any item suffix. Undefined for any other branch.
+export const rootOfBranch = (home: string, branch: string): number | undefined => {
+  const match = new RegExp(`^sandcastle/${escapeRegExp(home)}/issue-([0-9]+)-take-[0-9]+(-|$)`).exec(branch);
+  return match === null ? undefined : Number(match[1]);
+};
+
 export type OpenPr = { readonly url: string; readonly headRefName: string };
 
 export type RepoPrs = { readonly repo: string; readonly prs: readonly OpenPr[] };

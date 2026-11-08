@@ -46,7 +46,7 @@ The issue a run is started on. Its direct sub-issues are the work; without sub-i
 _Avoid_: epic, parent ticket
 
 **Run**:
-One invocation of the factory on a root issue: either a take or a resume.
+One invocation of the factory on a root issue: either a take or a resume. `setup` and `clean` are human commands, not runs; `clean` removes the worktrees and local branches of every take whose root issue is closed.
 
 **Take**:
 A run that starts fresh integration branches for a root issue. Takes of one root are numbered 1, 2, 3…
