@@ -1,18 +1,20 @@
-// `tsx main.mts <setup | clean | take N | resume N>`: parses arguments and dispatches to a mode. setup, take and resume run setup; clean only resolves the workspace.
+// `tsx main.mts <setup | clean | take N | resume N>`: parses arguments and dispatches to a mode. setup, take and resume run setup; clean only resolves the workspace (with `.env`'s GH_TOKEN).
 
-import { fail, message, parseArgs } from "./shared/cli.mjs";
 import { withClaim } from "./shared/claim/pipe-claim.mjs";
-import { clean } from "./workflow/clean.mjs";
+import { fail, message, parseArgs } from "./shared/cli.mjs";
 import { log, timed } from "./shared/logger.mjs";
+import { clean } from "./workflow/clean.mjs";
 import { resume } from "./workflow/resume.mjs";
-import { setup } from "./workflow/setup.mjs";
+import { setup, workspaceHere } from "./workflow/setup.mjs";
 import { take } from "./workflow/take.mjs";
-import { readLayout, resolveWorkspace, sourcePaths } from "./shared/workspace.mjs";
 
 const command = parseArgs(process.argv.slice(2));
 if (command.mode === "clean") {
-  const layout = readLayout(process.cwd());
-  await clean(resolveWorkspace(layout, sourcePaths(layout))).catch((error: unknown) => fail(`Clean failed: ${message(error)}`));
+  try {
+    clean(workspaceHere());
+  } catch (error) {
+    fail(`Clean failed: ${message(error)}`);
+  }
 } else {
   const ready = await setup(command.mode).catch((error: unknown) => fail(`Setup failed: ${message(error)}`));
   if (command.mode === "take" || command.mode === "resume") {

@@ -21,8 +21,8 @@ const issueOf = (workspace: Workspace, root: number, fields: string): string => 
   return sh(home.path, "gh", "issue", "view", `${root}`, "--repo", home.slug, "--json", fields);
 };
 
-// The root issue's state (`OPEN`, `CLOSED`). Issues live in the home repo only.
-export const rootState = (workspace: Workspace, root: number): string => rootSchema.pick({ state: true }).parse(JSON.parse(issueOf(workspace, root, "state"))).state;
+// Whether the root issue is closed, for any reason. Issues live in the home repo only.
+export const isRootClosed = (workspace: Workspace, root: number): boolean => rootSchema.pick({ state: true }).parse(JSON.parse(issueOf(workspace, root, "state"))).state === "CLOSED";
 
 // Returns the root issue's title; throws unless the issue is open.
 export const checkRoot = (workspace: Workspace, root: number): string => {

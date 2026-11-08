@@ -51,3 +51,17 @@ test("planClean: a closed branch checked out in the main tree is kept, the main 
 test("planClean: nothing closed, nothing planned", () => {
   assert.deepEqual(planClean("hub", porcelain, ["sandcastle/hub/issue-1-take-1"], new Set()), { worktrees: [], branches: [], kept: [] });
 });
+
+test("planClean: a detached worktree is removed by its folder name when the root is closed", () => {
+  const detached = (name: string) => `worktree /r/.sandcastle/worktrees/${name}\nHEAD d\ndetached\n\n`;
+  const tree = `worktree /r\nHEAD a\nbranch refs/heads/main\n\n${detached("sandcastle-hub-issue-1-take-2-slug")}${detached("sandcastle-hub-issue-2-take-1")}${detached("scratch")}`;
+  assert.deepEqual(planClean("hub", tree, [], new Set([1])).worktrees, ["/r/.sandcastle/worktrees/sandcastle-hub-issue-1-take-2-slug"]);
+});
+
+test("planClean: without any worktree listed, closed branches are still deleted", () => {
+  assert.deepEqual(planClean("hub", "", ["sandcastle/hub/issue-1-take-1"], new Set([1])), { worktrees: [], branches: ["sandcastle/hub/issue-1-take-1"], kept: [] });
+});
+
+test("parseWorktrees: a block that is not a worktree is skipped", () => {
+  assert.deepEqual(parseWorktrees("junk\n\nworktree /a\nHEAD x\n\n"), [{ path: "/a", branch: null }]);
+});

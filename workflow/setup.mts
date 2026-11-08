@@ -7,7 +7,7 @@ import { log } from "../shared/logger.mjs";
 import { imageName, repoDir } from "../shared/names.mjs";
 import { hostCodexLogin } from "../shared/paths.mjs";
 import { succeeds, sh } from "../shared/shell.mjs";
-import { readLayout, resolveWorkspace, sourcePaths, type Layout, type Workspace } from "../shared/workspace.mjs";
+import { readLayout, resolveWorkspace, sourcePaths, type Layout, type Source, type Workspace } from "../shared/workspace.mjs";
 
 const forwardSlashes = (path: string): string => path.replace(/\\/g, "/");
 const WIZARD = forwardSlashes(fileURLToPath(new URL("./wizard.sh", import.meta.url)));
@@ -58,9 +58,20 @@ const startPodmanMachine = (cwd: string): void => {
   sh(cwd, "podman", "machine", "start");
 };
 
+const exportSecrets = (secrets: Values): void => {
+  for (const [key, value] of Object.entries(secrets)) process.env[key] ??= value;
+};
+
+// The Workspace of the current directory's repo; `.env`'s GH_TOKEN is exported first, as `gh` needs it. No wizard, no labels.
+export const workspaceHere = (layout: Layout = readLayout(process.cwd()), sources: readonly Source[] = sourcePaths(layout)): Workspace => {
+  const { GH_TOKEN } = settingsOf(layout);
+  exportSecrets(GH_TOKEN === undefined ? {} : { GH_TOKEN });
+  return resolveWorkspace(layout, sources);
+};
+
 // Makes the machine ready for the Workspace of the current directory's repo; returns what a run needs.
 // In a terminal, the wizard opens: always for `setup`, only when something is missing for a run.
-export const setup = async (mode: Command["mode"]): Promise<{ readonly workspace: Workspace; readonly env: Env }> => {
+export const setup = async (mode: Exclude<Command["mode"], "clean">): Promise<{ readonly workspace: Workspace; readonly env: Env }> => {
   const layout = readLayout(process.cwd());
   const sources = sourcePaths(layout);
   if (process.stdin.isTTY && (mode === "setup" || missingKeys(settingsOf(layout), hasCodexLogin()).length > 0)) runWizard(layout);
@@ -69,9 +80,9 @@ export const setup = async (mode: Command["mode"]): Promise<{ readonly workspace
   if (left.length > 0) throw new Error(`Missing in .sandcastle/.env: ${withHints(left)}. A human runs \`npm run sandcastle -- setup\` in their terminal.`);
   const env = checkEnv(values, hasCodexLogin());
   if (env.sandbox === "podman") startPodmanMachine(layout.root);
-  const workspace = resolveWorkspace(layout, sources);
+  exportSecrets(env.secrets);
+  const workspace = workspaceHere(layout, sources);
   createLabels(workspace);
-  for (const [key, value] of Object.entries(env.secrets)) process.env[key] ??= value;
   log.info(`Setup done: ${workspace.repos.map((repo) => repo.slug).join(", ")}; sandbox ${env.sandbox}.`);
   return { workspace, env };
 };
