@@ -16,6 +16,7 @@ From the home repo root, in the background (Windows: Git Bash):
 | `take <issue>` | `npm run sandcastle -- take 42` | First run on the issue. |
 | `resume <issue>` | `npm run sandcastle -- resume 42` | Continue its latest take: after a failure, after PR comments. |
 | `setup` | `npm run sandcastle -- setup` | Never from here: interactive, the human runs it. |
+| `clean` | `npm run sandcastle -- clean` | Never from here: the human runs it. Removes worktrees and local branches of takes whose root issue is closed. |
 
 ## 2. Wait
 

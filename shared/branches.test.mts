@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { assertNoOpenTake, freeItemBranch, isTakeBranch, nextTakeBranch, pickLatestTake, runFolderName } from "./branches.mjs";
+import { assertNoOpenTake, freeItemBranch, isTakeBranch, nextTakeBranch, rootOfBranch, pickLatestTake, runFolderName } from "./branches.mjs";
 
 test("nextTakeBranch: no takes gives take 1", () => {
   assert.equal(nextTakeBranch({ home: "hub", root: 42 }, new Set(["main"])), "sandcastle/hub/issue-42-take-1");
@@ -100,4 +100,17 @@ test("runFolderName: resume is one past the highest, gaps and other issues ignor
   const existing = ["issue-42-resume-1", "issue-42-resume-4", "issue-4-resume-9", "issue-142-resume-8", "issue-42-resume-x", "issue-42-resume-"];
   assert.equal(runFolderName("resume", { home: "hub", root: 42 }, "sandcastle/hub/issue-42-take-3", existing), "issue-42-resume-5");
   assert.equal(runFolderName("resume", { home: "hub", root: 4 }, "sandcastle/hub/issue-4-take-1", existing), "issue-4-resume-10");
+});
+
+test("rootOfBranch: integration and item branches map to their root", () => {
+  assert.equal(rootOfBranch("hub", "sandcastle/hub/issue-42-take-2"), 42);
+  assert.equal(rootOfBranch("hub", "sandcastle/hub/issue-42-take-2-fix-thing-3"), 42);
+});
+
+test("rootOfBranch: other branches and other homes map to nothing", () => {
+  assert.equal(rootOfBranch("hub", "main"), undefined);
+  assert.equal(rootOfBranch("hub", "sandcastle/other/issue-42-take-2"), undefined);
+  assert.equal(rootOfBranch("hub", "sandcastle/hub/issue-42-take-2x"), undefined);
+  assert.equal(rootOfBranch("hub", "sandcastle/hub/issue-42-resume-1"), undefined);
+  assert.equal(rootOfBranch("a.b", "sandcastle/aXb/issue-1-take-1"), undefined);
 });
