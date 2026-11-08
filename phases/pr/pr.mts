@@ -19,21 +19,19 @@ import { repoNamed, type Repo } from "../../shared/workspace.mjs";
 const pullRequestSchema = z.object({ url: z.url() });
 const bodySchema = z.object({ body: z.string() });
 
-// One retry: the PR agent runs at most twice.
-const PR_RETRIES = 1;
+const PR_ATTEMPTS = 2;
+
+const prRetry = retry(handleType(ExtractError), { maxAttempts: PR_ATTEMPTS - 1 });
+prRetry.onRetry((reason) => {
+  if ("error" in reason) log.warn(`${message(reason.error)}; running the PR phase once more.`);
+});
 
 // Sub-issues whose merge commit the repo's branch carries, the root left out.
 const subIssuesOn = (run: Run, repo: Repo): readonly number[] => mergedIssues(repo, run.branch).filter((id) => id !== run.root);
 
 // First pass for one repo: the PR agent pushes the branch and opens the PR, or rewrites the open one.
 // Missing or invalid PR output reruns the agent once; a second failure fails the run.
-const prOfRepo = (run: Run, repo: Repo): Promise<Pr> => {
-  const policy = retry(handleType(ExtractError), { maxAttempts: PR_RETRIES });
-  policy.onRetry((reason) => {
-    if ("error" in reason) log.warn(`${message(reason.error)}; running the PR phase once more.`);
-  });
-  return policy.execute(() => openPr(run, repo));
-};
+const prOfRepo = (run: Run, repo: Repo): Promise<Pr> => prRetry.execute(() => openPr(run, repo));
 
 const openPr = async (run: Run, repo: Repo): Promise<Pr> => {
   const { home } = run.workspace;
