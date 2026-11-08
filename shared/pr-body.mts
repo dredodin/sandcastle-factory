@@ -55,33 +55,25 @@ export const reposWithoutPr = (planned: readonly Pick<Item, "repo" | "issue">[],
 
 const issueList = (issues: readonly number[]): string => issues.map((id) => `#${id}`).join(", ");
 
-// Already done and done without code count as fixed: the finding needs no more work.
+// The findings the run left unsettled, one line each: left over (cannot finish, merge conflict) and rejected with the reason.
+// Fixed findings are in the diff, the reports in the run's logs; nothing unsettled is no section.
 export const reviewSection = (repo: string, review: ReviewRecord): string => {
-  const part = (title: string, lines: readonly string[]): readonly string[] =>
-    lines.length === 0 ? [] : ["", `${title}:`, ...lines.map((line) => `- ${line.replaceAll("\n", "\n  ")}`)];
-  const passes = review.passes.flatMap((reports, index) => {
-    const pass = index + 1;
-    const report = reports.get(repo) ?? "";
-    if (report === "") return [];
-    const own = <T extends { readonly item: Item; readonly pass: number }>(entries: readonly T[]): readonly T[] =>
-      entries.filter((entry) => entry.pass === pass && entry.item.repo === repo && entry.item.source === "review");
-    const ended = own(review.ended);
-    const noted = (ends: readonly string[]) => ended.filter(({ end }) => ends.includes(end)).map(({ item, end }) => `${item.work} (${end})`);
-    return [
-      "",
-      `### Pass ${pass}`,
-      "",
-      "<details><summary>Report</summary>",
-      "",
-      report,
-      "",
-      "</details>",
-      ...part("Fixed", [...own(review.merged).map(({ item }) => item.work), ...noted(["already done", "done without code"])]),
-      ...part("Rejected", review.rejected.filter((rejection) => rejection.pass === pass && rejection.repo === repo).map(({ finding, reason }) => `${finding} — ${reason}`)),
-      ...part("Left over", noted(["cannot finish", "merge conflict"])),
-    ];
-  });
-  return passes.length === 0 ? "" : ["## Review", ...passes].join("\n");
+  const line = (text: string): string => text.replace(/\n[\s\S]*$/, "");
+  const mine = (entry: { readonly item: Item }): boolean => entry.item.repo === repo && entry.item.source === "review";
+  // Settled per finding: a left-over is dropped when the same work later merged or ended otherwise. One left over twice shows once.
+  const entries = [...review.merged.map((entry) => ({ ...entry, end: "merged" })), ...review.ended].filter(mine);
+  const same = (a: Item, b: Item): boolean => a.work === b.work || a.branch === b.branch;
+  const leftOver = review.ended
+    .filter((entry) => mine(entry) && (entry.end === "cannot finish" || entry.end === "merge conflict"))
+    .filter((entry, index, all) => !all.slice(index + 1).some((later) => same(later.item, entry.item)))
+    .filter((entry) => !entries.some((later) => later.pass > entry.pass && same(later.item, entry.item) && later.end !== "cannot finish" && later.end !== "merge conflict"))
+    .map(({ item, end }) => `- Left over: ${item.title} (${end})`);
+  const rejections = review.rejected.filter((rejection) => rejection.repo === repo);
+  const rejected = rejections
+    .filter((rejection, index) => !rejections.slice(index + 1).some((later) => later.finding === rejection.finding))
+    .map(({ finding, reason }) => `- Rejected: ${line(finding)} — ${line(reason)}`);
+  const lines = [...leftOver, ...rejected];
+  return lines.length === 0 ? "" : ["## Review", "", ...lines].join("\n");
 };
 
 // One line naming the model each phase ran with.

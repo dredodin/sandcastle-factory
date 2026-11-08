@@ -14,10 +14,9 @@ export type Ended = { readonly item: Item; readonly end: Exclude<Outcome, "commi
 // `pass`: the review pass whose reports the plan worked from when the entry was recorded; 0 before the first pass.
 type Stamped<T> = T & { readonly pass: number };
 
-// What the PR description's review section is read from. `passes`: each pass's reports, repo name → report ("" when it found nothing).
+// What the PR description's review section is read from. Items carry their pass: only the last pass's left-over items are unsettled.
 export type ReviewRecord = {
-  readonly passes: readonly ReadonlyMap<string, string>[];
-  readonly rejected: readonly Stamped<Rejection>[];
+  readonly rejected: readonly Rejection[];
   readonly merged: readonly Stamped<Merged>[];
   readonly ended: readonly Stamped<Ended>[];
 };
@@ -41,24 +40,24 @@ export type RunRecord = {
 export const openRecord = (): RunRecord => {
   const state = {
     reports: new Map<string, string>() as ReadonlyMap<string, string>,
-    passes: [] as ReviewRecord["passes"],
+    passes: 0,
     rejected: [] as ReviewRecord["rejected"],
     merged: [] as ReviewRecord["merged"],
     ended: [] as ReviewRecord["ended"],
     handled: [] as readonly Handled[],
   };
-  const stamp = <T,>(entries: readonly T[]): readonly Stamped<T>[] => entries.map((entry) => ({ ...entry, pass: state.passes.length }));
+  const stamp = <T,>(entries: readonly T[]): readonly Stamped<T>[] => entries.map((entry) => ({ ...entry, pass: state.passes }));
   return {
     addPass: (reports) => {
       state.reports = reports;
-      state.passes = [...state.passes, reports];
+      state.passes += 1;
     },
     clearReports: () => {
       state.reports = new Map();
     },
     reports: () => state.reports,
     reject: (more) => {
-      state.rejected = [...state.rejected, ...stamp(more)];
+      state.rejected = [...state.rejected, ...more];
     },
     rejected: () => state.rejected,
     addMerged: (items) => {
@@ -72,7 +71,7 @@ export const openRecord = (): RunRecord => {
       state.handled = [...state.handled.filter(({ id }) => !more.some((comment) => comment.id === id)), ...more];
     },
     handled: () => state.handled,
-    review: () => ({ passes: state.passes, rejected: state.rejected, merged: state.merged, ended: state.ended }),
+    review: () => ({ rejected: state.rejected, merged: state.merged, ended: state.ended }),
   };
 };
 
