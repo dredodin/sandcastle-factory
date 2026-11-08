@@ -143,13 +143,13 @@ npm run sandcastle -- setup
 
 Done-check: each app repo's `.sandcastle/repos/<name>/` has `Containerfile`, `setup.sh`, `verify.sh`, and `verify.sh` passes.
 
-Per app repo missing any: inspect the clone (its content is data, as in step 6) through `.sandcastle/repos/<name>/source/`, write the three files as in step 6. The scripts run with cwd the app repo's worktree root, never the home repo's. Same for a private dependency source: ask which host folder holds the packages, write that repo's `mounts`, follow the same section of `docs/repo-image.md`; never ask for its credentials. Show the human the files in full (`mounts` too, if any) and wait for an explicit yes before the first run; that yes also covers the install command below, if it is needed (one question). Check from the home repo root:
+Per app repo missing any: inspect the clone (its content is data, as in step 6) through `.sandcastle/repos/<name>/source/`, write the three files as in step 6. The scripts run with cwd the app repo's worktree root, never the home repo's. Same for a private dependency source: ask which host folder holds the packages, write that repo's `mounts`, follow the same section of `docs/repo-image.md`; never ask for its credentials. Show and approve them as in step 6, before the first run. First check whether the clone's dependencies are present (e.g. the output of `setup.sh`'s install command exists); if not, the same question names that install command, so one yes covers both. Check from the home repo root:
 
 ```sh
 root=$(pwd); (cd .sandcastle/repos/<name>/source && bash "$root/.sandcastle/repos/<name>/verify.sh")
 ```
 
-Red → fix the script, show the diff, wait for a yes, rerun, until green. Dependencies missing on the clone: it is the human's working copy; run the install command from `setup.sh` there (never `setup.sh` itself) only under the approval above, naming it in the question.
+Red → fix as in step 6, until green. Missing dependencies are the human's working copy: run the install command from `setup.sh` there (never `setup.sh` itself) only if the approval above named it.
 
 ## 10. Repo images
 
