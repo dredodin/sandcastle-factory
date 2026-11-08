@@ -1,15 +1,15 @@
 import { rootsOfBranches } from "../shared/branches.mjs";
 import { log } from "../shared/logger.mjs";
-import { rootState } from "../shared/repo.mjs";
+import { isRootClosed } from "../shared/repo.mjs";
 import { sh } from "../shared/shell.mjs";
 import type { Workspace } from "../shared/workspace.mjs";
 import { planClean } from "../shared/worktrees.mjs";
 
 // Removes the worktrees and local branches of every take whose root issue is closed, in every repo. Open roots are untouched.
-export const clean = async (workspace: Workspace): Promise<void> => {
+export const clean = (workspace: Workspace): void => {
   const states = new Map<number, boolean>();
   const closedAmong = (roots: readonly number[]): ReadonlySet<number> => {
-    roots.filter((root) => !states.has(root)).forEach((root) => states.set(root, rootState(workspace, root) === "CLOSED"));
+    roots.filter((root) => !states.has(root)).forEach((root) => states.set(root, isRootClosed(workspace, root)));
     return new Set(roots.filter((root) => states.get(root) === true));
   };
   for (const repo of workspace.repos) {
@@ -24,6 +24,6 @@ export const clean = async (workspace: Workspace): Promise<void> => {
       sh(repo.path, "git", "branch", "-D", branch);
       log.info(`${repo.name}: deleted branch ${branch}`);
     }
-    plan.kept.forEach((branch) => log.info(`${repo.name}: kept branch ${branch}: checked out in ${repo.path}`));
+    plan.kept.forEach((branch) => log.info(`${repo.name}: kept branch ${branch}: check out another branch in ${repo.path} and rerun \`clean\``));
   }
 };

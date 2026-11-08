@@ -5,20 +5,28 @@ export type Mode = "take" | "resume";
 // What names a run's branches: the home repo and the root issue.
 export type RunKey = { readonly home: string; readonly root: number };
 
-const takePrefix = ({ home, root }: RunKey): string => `sandcastle/${home}/issue-${root}-take-`;
+// The one writing of the take branch scheme; `home` and `root` are literal text, or regex source when the result is used as one.
+const takePrefix = (home: string, root: string): string => `sandcastle/${home}/issue-${root}-take-`;
+const prefixOf = ({ home, root }: RunKey): string => takePrefix(home, `${root}`);
 
 const takeNumber = (key: RunKey, ref: string): number =>
-  Number(new RegExp(`^${escapeRegExp(takePrefix(key))}([0-9]+)$`).exec(ref)?.[1] ?? 0);
+  Number(new RegExp(`^${takePrefix(escapeRegExp(key.home), `${key.root}`)}([0-9]+)$`).exec(ref)?.[1] ?? 0);
 
 export const isTakeBranch = (key: RunKey, branch: string): boolean => takeNumber(key, branch) > 0;
 
 const takeRoot = (home: string, branch: string): readonly number[] => {
-  const match = new RegExp(`^sandcastle/${escapeRegExp(home)}/issue-([0-9]+)-take-[0-9]+(-|$)`).exec(branch);
+  const match = new RegExp(`^${takePrefix(escapeRegExp(home), "([0-9]+)")}[0-9]+(-|$)`).exec(branch);
   return match === null ? [] : [Number(match[1])];
 };
 
 // The distinct root issues of the take branches (`sandcastle/<home>/issue-<N>-take-<K>` plus any item suffix) among the branches.
 export const rootsOfBranches = (home: string, branches: readonly string[]): readonly number[] => [...new Set(branches.flatMap((branch) => takeRoot(home, branch)))];
+
+// The root of a worktree folder named after a take branch (`/` became `-`, as `sandbox.mts` names it), if it is one.
+export const rootOfFolder = (home: string, folder: string): readonly number[] => {
+  const match = new RegExp(`^${takePrefix(escapeRegExp(home), "([0-9]+)").replaceAll("/", "-")}[0-9]+(-|$)`).exec(folder);
+  return match === null ? [] : [Number(match[1])];
+};
 
 // The branches that belong to one of the roots.
 export const branchesOfRoots = (home: string, branches: readonly string[], roots: ReadonlySet<number>): readonly string[] =>
@@ -36,7 +44,7 @@ export type LatestTake = { readonly branch: string; readonly repos: readonly str
 export const pickLatestTake = (key: RunKey, repoRefs: readonly RepoRefs[]): LatestTake => {
   const highest = Math.max(0, ...repoRefs.flatMap(({ refs }) => [...refs].map((ref) => takeNumber(key, ref))));
   if (highest === 0) throw new Error(`Nothing to resume for #${key.root}: no take branch. Run \`take\`.`);
-  const branch = `${takePrefix(key)}${highest}`;
+  const branch = `${prefixOf(key)}${highest}`;
   return { branch, repos: repoRefs.filter(({ refs }) => refs.has(branch)).map(({ repo }) => repo) };
 };
 
@@ -49,7 +57,7 @@ export const assertNoOpenTake = (key: RunKey, repoPrs: readonly RepoPrs[]): void
 
 // K = 1 + the highest take of this root among the home repo's refs.
 export const nextTakeBranch = (key: RunKey, refs: ReadonlySet<string>): string =>
-  `${takePrefix(key)}${Math.max(0, ...[...refs].map((ref) => takeNumber(key, ref))) + 1}`;
+  `${prefixOf(key)}${Math.max(0, ...[...refs].map((ref) => takeNumber(key, ref))) + 1}`;
 
 // A branch name for the item that no ref uses yet: re-planned items must not reuse an earlier branch.
 export const freeItemBranch = (integration: string, slug: string, refs: ReadonlySet<string>): string => {
