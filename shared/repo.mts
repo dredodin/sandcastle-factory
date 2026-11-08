@@ -7,6 +7,7 @@ import { issuesIn } from "./merge-record.mjs";
 import { githubUrl } from "./names.mjs";
 import { sh, succeeds } from "./shell.mjs";
 import type { Repo, Workspace } from "./workspace.mjs";
+import { parseWorktrees } from "./worktrees.mjs";
 
 export const repoUrl = (repo: Repo): string => githubUrl(repo.slug);
 
@@ -15,10 +16,17 @@ const rootSchema = z.object({
   state: z.string(),
 });
 
-// Returns the root issue's title. Issues live in the home repo only.
-export const checkRoot = (workspace: Workspace, root: number): string => {
+const issueOf = (workspace: Workspace, root: number, fields: string): string => {
   const { home } = workspace;
-  const issue = rootSchema.parse(JSON.parse(sh(home.path, "gh", "issue", "view", `${root}`, "--repo", home.slug, "--json", "title,state")));
+  return sh(home.path, "gh", "issue", "view", `${root}`, "--repo", home.slug, "--json", fields);
+};
+
+// The root issue's state (`OPEN`, `CLOSED`). Issues live in the home repo only.
+export const rootState = (workspace: Workspace, root: number): string => rootSchema.pick({ state: true }).parse(JSON.parse(issueOf(workspace, root, "state"))).state;
+
+// Returns the root issue's title; throws unless the issue is open.
+export const checkRoot = (workspace: Workspace, root: number): string => {
+  const issue = rootSchema.parse(JSON.parse(issueOf(workspace, root, "title,state")));
   if (issue.state !== "OPEN") throw new Error(`#${root} is ${issue.state.toLowerCase()}.`);
   return issue.title;
 };
@@ -107,11 +115,7 @@ export const openPrsText = (workspace: Workspace, branch: string): string => {
 
 // Path of the worktree that has the branch checked out, if any.
 export const worktreeOf = (repo: Repo, branch: string): string | undefined =>
-  sh(repo.path, "git", "worktree", "list", "--porcelain")
-    .split("\n\n")
-    .map((block) => block.split("\n"))
-    .find((lines) => lines.includes(`branch refs/heads/${branch}`))?.[0]
-    ?.replace(/^worktree /, "");
+  parseWorktrees(sh(repo.path, "git", "worktree", "list", "--porcelain")).find((worktree) => worktree.branch === branch)?.path;
 
 // Merges `origin/<branch>` into the local branch in a worktree on it; a conflict is aborted and thrown.
 const mergeOrigin = (cwd: string, repo: Repo, branch: string): void => {

@@ -12,11 +12,17 @@ const takeNumber = (key: RunKey, ref: string): number =>
 
 export const isTakeBranch = (key: RunKey, branch: string): boolean => takeNumber(key, branch) > 0;
 
-// The root issue a branch belongs to: `sandcastle/<home>/issue-<N>-take-<K>` plus any item suffix. Undefined for any other branch.
-export const rootOfBranch = (home: string, branch: string): number | undefined => {
+const takeRoot = (home: string, branch: string): readonly number[] => {
   const match = new RegExp(`^sandcastle/${escapeRegExp(home)}/issue-([0-9]+)-take-[0-9]+(-|$)`).exec(branch);
-  return match === null ? undefined : Number(match[1]);
+  return match === null ? [] : [Number(match[1])];
 };
+
+// The distinct root issues of the take branches (`sandcastle/<home>/issue-<N>-take-<K>` plus any item suffix) among the branches.
+export const rootsOfBranches = (home: string, branches: readonly string[]): readonly number[] => [...new Set(branches.flatMap((branch) => takeRoot(home, branch)))];
+
+// The branches that belong to one of the roots.
+export const branchesOfRoots = (home: string, branches: readonly string[], roots: ReadonlySet<number>): readonly string[] =>
+  branches.filter((branch) => takeRoot(home, branch).some((root) => roots.has(root)));
 
 export type OpenPr = { readonly url: string; readonly headRefName: string };
 
