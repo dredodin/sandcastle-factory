@@ -46,12 +46,14 @@ const listOpenPrs = (repo: Repo): RepoPrs => ({
   prs: prSchema.parse(JSON.parse(sh(repo.path, "gh", "pr", "list", "--repo", repo.slug, "--state", "open", "--limit", "200", "--json", "url,headRefName"))),
 });
 
+const FETCH = ["fetch", "origin"] as const;
+
 const fetchOrigin = (repo: Repo): void => {
-  sh(repo.path, "git", "fetch", "origin");
+  sh(repo.path, "git", ...FETCH);
 };
 
 // Whether `git fetch origin` succeeded; git's stderr reaches the console.
-export const fetched = (repo: Repo): boolean => succeeds(repo.path, "git", "fetch", "origin");
+export const fetched = (repo: Repo): boolean => succeeds(repo.path, "git", ...FETCH);
 
 const runKey = (workspace: Workspace, root: number): RunKey => ({ home: workspace.home.name, root });
 
@@ -130,7 +132,7 @@ const mergeOrigin = (cwd: string, repo: Repo, branch: string): void => {
     throw new Error(
       `Merge conflict syncing ${branch} with ${remote} in ${repo.name}.\n` +
         `Local only:\n${commits(`${remote}..${branch}`)}\nOrigin only:\n${commits(`${branch}..${remote}`)}\n` +
-        `In \`${repo.path}\` or the worktree of \`${branch}\`, run \`git merge ${remote}\`, fix the conflicts, commit, then re-run resume.`,
+        `In the worktree of \`${branch}\` (none: \`git -C ${repo.path} worktree add <dir> ${branch}\`), run \`git merge ${remote}\`, fix the conflicts, commit, then re-run resume.`,
     );
   }
 };

@@ -14,13 +14,13 @@ test("a body in a json fence parses", () => {
 });
 
 test("no tag throws an ExtractError", () => {
-  assert.throws(() => extract("nothing here", "out", schema), (error) => error instanceof ExtractError && /out/.test(error.message));
+  assert.throws(() => extract("nothing here", "out", schema), (error) => error instanceof ExtractError && /printed no <out>/.test(error.message));
 });
 
 test("bad JSON throws an ExtractError", () => {
-  assert.throws(() => extract("<out>{nope</out>", "out", schema), ExtractError);
+  assert.throws(() => extract("<out>{nope</out>", "out", schema), (error) => error instanceof ExtractError && /<out> is invalid/.test(error.message));
 });
 
 test("a schema failure throws an ExtractError", () => {
-  assert.throws(() => extract('<out>{"n":"x"}</out>', "out", schema), ExtractError);
+  assert.throws(() => extract('<out>{"n":"x"}</out>', "out", schema), (error) => error instanceof ExtractError && /<out> is invalid/.test(error.message));
 });
