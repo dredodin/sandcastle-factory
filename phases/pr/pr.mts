@@ -1,8 +1,10 @@
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { handleType, retry } from "cockatiel";
 import { z } from "zod";
-import { extract } from "../../shared/extract.mjs";
+import { message } from "../../shared/cli.mjs";
+import { ExtractError, extract } from "../../shared/extract.mjs";
 import { hasIssue, type Item } from "../../shared/item.mjs";
 import { log, timedPhase } from "../../shared/logger.mjs";
 import { verifyCommand } from "../../shared/names.mjs";
@@ -17,11 +19,21 @@ import { repoNamed, type Repo } from "../../shared/workspace.mjs";
 const pullRequestSchema = z.object({ url: z.url() });
 const bodySchema = z.object({ body: z.string() });
 
+const PR_ATTEMPTS = 2;
+
+const prRetry = retry(handleType(ExtractError), { maxAttempts: PR_ATTEMPTS - 1 });
+prRetry.onRetry((reason) => {
+  if ("error" in reason) log.warn(`${message(reason.error)}; running the PR phase once more.`);
+});
+
 // Sub-issues whose merge commit the repo's branch carries, the root left out.
 const subIssuesOn = (run: Run, repo: Repo): readonly number[] => mergedIssues(repo, run.branch).filter((id) => id !== run.root);
 
 // First pass for one repo: the PR agent pushes the branch and opens the PR, or rewrites the open one.
-const prOfRepo = async (run: Run, repo: Repo): Promise<Pr> => {
+// Missing or invalid PR output reruns the agent once; a second failure fails the run.
+const prOfRepo = (run: Run, repo: Repo): Promise<Pr> => prRetry.execute(() => openPr(run, repo));
+
+const openPr = async (run: Run, repo: Repo): Promise<Pr> => {
   const { home } = run.workspace;
   const issues = subIssuesOn(run, repo);
   const integration = await run.integrations.get(repo);

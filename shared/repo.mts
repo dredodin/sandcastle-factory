@@ -46,9 +46,14 @@ const listOpenPrs = (repo: Repo): RepoPrs => ({
   prs: prSchema.parse(JSON.parse(sh(repo.path, "gh", "pr", "list", "--repo", repo.slug, "--state", "open", "--limit", "200", "--json", "url,headRefName"))),
 });
 
+const FETCH = ["fetch", "origin"] as const;
+
 const fetchOrigin = (repo: Repo): void => {
-  sh(repo.path, "git", "fetch", "origin");
+  sh(repo.path, "git", ...FETCH);
 };
+
+// Whether `git fetch origin` succeeded; git's stderr reaches the console.
+export const fetched = (repo: Repo): boolean => succeeds(repo.path, "git", ...FETCH);
 
 const runKey = (workspace: Workspace, root: number): RunKey => ({ home: workspace.home.name, root });
 
@@ -61,10 +66,9 @@ export const integrationBranch = (workspace: Workspace, root: number): string =>
 
 const MERGE_TREE_CONFLICT = 1;
 
-// Fetches the repo, then whether its branch, if it exists, would conflict merging the default branch.
+// Whether its branch, if it exists, would conflict merging the default branch.
 // A conflict: `git merge-tree` exits 1 and prints the tree; a failure (bad ref, old git) prints nothing and throws.
 export const conflictsWithBase = (repo: Repo, branch: string): boolean => {
-  fetchOrigin(repo);
   if (!branchExists(repo, branch)) return false;
   try {
     sh(repo.path, "git", "merge-tree", "--write-tree", branch, repo.base);
@@ -119,11 +123,17 @@ export const worktreeOf = (repo: Repo, branch: string): string | undefined =>
 
 // Merges `origin/<branch>` into the local branch in a worktree on it; a conflict is aborted and thrown.
 const mergeOrigin = (cwd: string, repo: Repo, branch: string): void => {
+  const remote = `origin/${branch}`;
   try {
-    sh(cwd, "git", "merge", "--no-edit", `origin/${branch}`);
+    sh(cwd, "git", "merge", "--no-edit", remote);
   } catch {
     sh(cwd, "git", "merge", "--abort");
-    throw new Error(`Merge conflict syncing ${branch} with origin/${branch} in ${repo.name}: resolve it by hand.`);
+    const commits = (range: string): string => sh(cwd, "git", "log", "--format=  %h %s", range) || "  (none)";
+    throw new Error(
+      `Merge conflict syncing ${branch} with ${remote} in ${repo.name}.\n` +
+        `Local only:\n${commits(`${remote}..${branch}`)}\nOrigin only:\n${commits(`${branch}..${remote}`)}\n` +
+        `In the worktree of \`${branch}\` (none: \`git -C ${repo.path} worktree add <dir> ${branch}\`), run \`git merge ${remote}\`, fix the conflicts, commit, then re-run resume.`,
+    );
   }
 };
 
