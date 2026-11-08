@@ -31,7 +31,7 @@ Run in your **home repo**: the repo that holds the issues.
    ```sh
    npx skills add dredodin/sandcastle-factory -s onboarding-factory --copy
    ```
-2. In your agent, run `/onboarding-factory`. It installs the factory, asks which app repos to add and links their clones, writes their check scripts and builds their images. Rerun it later to add more repos.
+2. In your agent, run `/onboarding-factory`. It installs the factory, asks which app repos to add and links their clones, writes their check scripts, shows them to you before running them, and builds their images. Rerun it later to add more repos.
 3. When the skill stops and asks, run setup in your own terminal (Windows: Git Bash). It fills `.sandcastle/.env`, which stays yours:
    ```sh
    npm run sandcastle -- setup
@@ -114,6 +114,7 @@ More terms: [GLOSSARY.md](GLOSSARY.md).
 npm run sandcastle -- take <issue>     # start fresh on an issue
 npm run sandcastle -- resume <issue>   # continue its latest take in every repo, e.g. after PR comments
 npm run sandcastle -- setup            # change settings, build missing images
+npm run sandcastle -- clean            # remove worktrees and local branches of takes whose root issue is closed (a branch checked out in the main working tree is kept)
 ```
 
 A PR closes no issue: close the root yourself after the last PR merges. A sub-issue the factory cannot finish, or whose merge conflicts, goes to Backlog with a comment; the PR's Run block lists them.
