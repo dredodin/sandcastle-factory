@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { assertNoOpenTake, freeItemBranch, isTakeBranch, nextTakeBranch, pickLatestTake, runFolderName } from "./branches.mjs";
+import { assertNoOpenTake, branchesOfRoots, freeItemBranch, isTakeBranch, nextTakeBranch, pickLatestTake, rootOfFolder, rootsOfBranches, runFolderName } from "./branches.mjs";
 
 test("nextTakeBranch: no takes gives take 1", () => {
   assert.equal(nextTakeBranch({ home: "hub", root: 42 }, new Set(["main"])), "sandcastle/hub/issue-42-take-1");
@@ -100,4 +100,28 @@ test("runFolderName: resume is one past the highest, gaps and other issues ignor
   const existing = ["issue-42-resume-1", "issue-42-resume-4", "issue-4-resume-9", "issue-142-resume-8", "issue-42-resume-x", "issue-42-resume-"];
   assert.equal(runFolderName("resume", { home: "hub", root: 42 }, "sandcastle/hub/issue-42-take-3", existing), "issue-42-resume-5");
   assert.equal(runFolderName("resume", { home: "hub", root: 4 }, "sandcastle/hub/issue-4-take-1", existing), "issue-4-resume-10");
+});
+
+test("rootsOfBranches: integration and item branches map to their root, once", () => {
+  assert.deepEqual(rootsOfBranches("hub", ["sandcastle/hub/issue-42-take-2", "sandcastle/hub/issue-42-take-2-fix-thing-3", "sandcastle/hub/issue-7-take-1"]), [42, 7]);
+});
+
+test("rootsOfBranches: other branches and other homes map to nothing", () => {
+  const others = ["main", "sandcastle/other/issue-42-take-2", "sandcastle/hub/issue-42-take-2x", "sandcastle/hub/issue-42-resume-1", "sandcastle/aXb/issue-1-take-1"];
+  assert.deepEqual(rootsOfBranches("hub", others), []);
+  assert.deepEqual(rootsOfBranches("a.b", others), []);
+});
+
+test("branchesOfRoots: only branches of the given roots", () => {
+  const branches = ["main", "sandcastle/hub/issue-1-take-1", "sandcastle/hub/issue-1-take-2-x", "sandcastle/hub/issue-2-take-1"];
+  assert.deepEqual(branchesOfRoots("hub", branches, new Set([1])), ["sandcastle/hub/issue-1-take-1", "sandcastle/hub/issue-1-take-2-x"]);
+});
+
+test("rootOfFolder: the root of a take branch's worktree folder, none for others", () => {
+  assert.deepEqual(rootOfFolder("hub", "sandcastle-hub-issue-12-take-3"), [12]);
+  assert.deepEqual(rootOfFolder("hub", "sandcastle-hub-issue-12-take-3-item"), [12]);
+  assert.deepEqual(rootOfFolder("hub", "sandcastle-hub-issue-12-take-3x"), []);
+  assert.deepEqual(rootOfFolder("hub", "x-sandcastle-hub-issue-12-take-3"), []);
+  assert.deepEqual(rootOfFolder("hub", "sandcastle-other-issue-12-take-3"), []);
+  assert.deepEqual(rootOfFolder("h.b", "sandcastle-hub-issue-12-take-3"), []);
 });

@@ -1,6 +1,6 @@
-# Solution Architecture Document: sandcastle-factory v0.6.0
+# Solution Architecture Document: sandcastle-factory v0.6.2
 
-Snapshot of v0.6.0. Frozen: never edited after merge.
+Snapshot of v0.6.2. Frozen: never edited after merge.
 
 | Ver. | Description of change | Author | Date |
 | --- | --- | --- | --- |
@@ -8,10 +8,11 @@ Snapshot of v0.6.0. Frozen: never edited after merge.
 | 3.0 | As-built SAD for v0.5.0: agents only read GitHub; review reports and PR comments become in-run work (ADR-0008). | Dmitrii Bessonov | 03-Nov-2026 |
 | 3.1 | As-built SAD for v0.5.4: a run claims its root through a named pipe per root (ADR-0009). | Dmitrii Bessonov | 03-Nov-2026 |
 | 4.0 | As-built SAD for v0.6.0: app repo paths leave `.env`; the `.sandcastle/repos/` folders are the Workspace; onboarding links clones. | Dmitrii Bessonov | 07-Nov-2026 |
+| 4.1 | As-built SAD for v0.6.2: the `clean` command removes worktrees and local branches of takes of closed root issues. | Dmitrii Bessonov | 08-Nov-2026 |
 
 | Ref. | Name |
 | --- | --- |
-| R1 | Factory repository: github.com/dredodin/sandcastle-factory, tag v0.6.0 |
+| R1 | Factory repository: github.com/dredodin/sandcastle-factory, tag v0.6.2 |
 | R2 | Agent library: github.com/ai-hero-dev/sandcastle (`@ai-hero/sandcastle` 0.12.0) |
 | R3 | Interactive skills: github.com/mattpocock/skills, github.com/humanlayer/skills |
 | R4 | Factory glossary: `GLOSSARY.md` in R1 |
@@ -208,9 +209,10 @@ Long AFK runs are possible because the plan is agreed before the run, and becaus
 #### 7.2.1 Components
 
 ```text
-main.mts                 # CLI: setup | take N | resume N
+main.mts                 # CLI: setup | clean | take N | resume N
 workflow/
-├── setup.mts, wizard.sh # reads the layout, opens the wizard, checks the source links, creates repo labels
+├── setup.mts, wizard.sh # reads the layout, opens the wizard, checks the source links, creates repo labels; workspaceHere exports .env's GH_TOKEN and resolves the Workspace (also for clean)
+├── clean.mts            # removes worktrees and local branches of takes whose root issue is closed
 ├── take.mts             # new integration branches, cycles, finish
 ├── resume.mts           # finds the latest take, syncs with origin, cycles, finish
 └── cycle.mts            # cycle loop (≤10), review passes (≤2), PR phase
@@ -221,6 +223,7 @@ shared/
 ├── workspace.mts        # home repo + app repos from the .sandcastle/repos/ folders
 ├── claim/               # the run claim: start-decision.mts (pure: pipe name, hold / clear stale / refuse), pipe-claim.mts (thin shell: listens on the root's pipe), tests beside
 ├── env.mts, agents.mts  # .env schema; provider, model and effort for each phase
+├── worktrees.mts        # pure: worktree parsing, the clean plan
 └── branches.mts, pr-body.mts, …  # pure naming and assembly logic
 skills/onboarding-factory/
 skills/run-factory/       # SKILL.md and known-issues.md: failure phrase → fix table
@@ -259,7 +262,7 @@ flowchart TD
 - **Implement** writes the item test-first where there is a seam. Then it starts fresh-context subagents: Standards (when the diff has code), Docs (when the diff has code or Markdown) and Spec (always). It fixes their findings, runs the verify script and commits. It reports one outcome: `committed`, `done without code`, `already done` or `cannot finish`. A work item moves no card: its outcome is only logged.
 - **Merge** first tries one script chain: merge each item branch in order, then run the verify script. When the chain fails, it resets, and the merge agent resolves the conflicts. The default branch is merged in first when the integration branch conflicts with it.
 - **Review** reads the whole integration branch of one repo against its default branch. It applies a code review (Standards and Spec) and a doc review (Convention and Spec). It commits nothing and writes nothing to GitHub. It prints one review report; the second pass gets the findings the plan rejected after the first (ADR-0003, ADR-0008).
-- **PR** pushes the integration branch and opens or rewrites the PR. The PR closes no issue. The harness then adds a run block: the models, the merge order across repos, the repos without a PR, the sub-issues left in Backlog, and the repo's unsettled review findings, one line each (left over, or rejected with the reason; nothing unsettled, no section). Then it posts one reply under each handled PR comment ("fixed in <merge commit>", the reason, or the question) and resolves it, needs info excepted.
+- **PR** pushes the integration branch and opens or rewrites the PR. The PR closes no issue. The harness then adds a run block: the models, the merge order across repos, the repos without a PR, the sub-issues left in Backlog, and the review outcome of the repo per pass (its report, then findings fixed, rejected with reasons, left over). Then it posts one reply under each handled PR comment ("fixed in <merge commit>", the reason, or the question) and resolves it, needs info excepted.
 
 #### 7.2.3 Kanban state machine
 
@@ -352,7 +355,7 @@ flowchart TB
 
 #### 7.5.3 Traceability
 
-- An item is an issue or work the plan wrote. Review findings and PR comments become work, not issues; the PR description lists the findings the run left unsettled, one line each; the run log holds the full reports.
+- An item is an issue or work the plan wrote. Review findings and PR comments become work, not issues; the PR description records each review's findings, and the run log holds the full reports.
 - Each commit refers to its issue, or to the root issue for work. The factory comments on each sub-issue when it moves it.
 - The PR run block shows the models of each phase and the merge order across repos.
 

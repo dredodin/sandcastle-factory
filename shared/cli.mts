@@ -10,12 +10,12 @@ export const fail = (failure: string): never => {
   return process.exit(1);
 };
 
-export type Command = { readonly mode: Mode; readonly root: number } | { readonly mode: "setup" };
+export type Command = { readonly mode: Mode; readonly root: number } | { readonly mode: "setup" | "clean" };
 
 export const parseArgs = (argv: readonly string[]): Command => {
   const [mode, issue = "", ...extra] = argv;
-  if (mode === "setup" && issue === "" && extra.length === 0) return { mode };
+  if ((mode === "setup" || mode === "clean") && issue === "" && extra.length === 0) return { mode };
   if ((mode === "take" || mode === "resume") && extra.length === 0 && /^[1-9][0-9]*$/.test(issue)) return { mode, root: Number(issue) };
-  console.error("Usage: npm run sandcastle -- <setup | take <issue> | resume <issue>>");
+  console.error("Usage: npm run sandcastle -- <setup | clean | take <issue> | resume <issue>>");
   return process.exit(2);
 };

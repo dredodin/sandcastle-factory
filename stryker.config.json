@@ -19,7 +19,8 @@
     "shared/names.mts",
     "shared/parallel.mts",
     "shared/pr-body.mts",
-    "shared/prompt.mts"
+    "shared/prompt.mts",
+    "shared/worktrees.mts"
   ],
   "mutator": { "excludedMutations": ["Regex"] },
   "tsconfigFile": "no-tsconfig.json",
