@@ -3,6 +3,7 @@ import { test } from "node:test";
 import type { Handled } from "./comments.mjs";
 import type { Item } from "./item.mjs";
 import { cycleEnds, openRecord, rejectedText, reportsText } from "./record.mjs";
+import { reviewReport } from "./review-report.mjs";
 
 test("rejections accumulate over the run", () => {
   const record = openRecord();
@@ -22,7 +23,7 @@ test("a comment handled again replaces its earlier entry", () => {
 test("merged and ended entries carry the pass whose reports the plan worked from; cleared reports leave the pass", () => {
   const record = openRecord();
   record.addEnded([{ item: item("a"), end: "cannot finish" }]);
-  record.addPass(new Map([["app", "- x"]]), new Map([["app", "- n"]]));
+  record.addPass(new Map([["app", { report: "- x", notes: "- n" }]]));
   record.clearReports();
   record.addEnded([{ item: item("b"), end: "cannot finish" }]);
   assert.deepEqual(record.review().ended.map(({ item: { branch }, pass }) => `${branch} ${pass}`), ["a 0", "b 1"]);
@@ -59,4 +60,11 @@ test("reports text lists only repos with findings", () => {
 test("rejected text gives each finding its reason", () => {
   assert.equal(rejectedText([]), "(none)");
   assert.equal(rejectedText([{ repo: "app", finding: "f", reason: "ADR-0001" }]), "- app: f — rejected: ADR-0001");
+});
+
+test("a notes-only result gives an empty plan input while the notes stay", () => {
+  const record = openRecord();
+  record.addPass(new Map([["app", reviewReport("<review></review><review-notes>- a.ts:3 — note</review-notes>")]]));
+  assert.equal(reportsText(record.reports()), "(none)");
+  assert.equal(record.notes().get("app"), "- a.ts:3 — note");
 });

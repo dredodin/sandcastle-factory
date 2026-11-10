@@ -3,12 +3,14 @@
 // A missing `<review>` tag (or one never closed) is not an error: `warning` says so and the findings are empty.
 export type ReviewReport = { readonly report: string; readonly notes: string; readonly warning: string };
 
-const lastTag = (stdout: string, tag: string): string | undefined =>
-  [...stdout.matchAll(new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`, "g"))].at(-1)?.[1]?.trim();
+const lastTag = (stdout: string, tag: string): { readonly found: boolean; readonly body: string } => {
+  const last = [...stdout.matchAll(new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`, "g"))].at(-1);
+  return { found: last !== undefined, body: last?.[1]?.trim() ?? "" };
+};
 
 export const reviewReport = (stdout: string): ReviewReport => {
-  const report = lastTag(stdout, "review");
-  const notes = lastTag(stdout, "review-notes") ?? "";
-  if (report === undefined) return { report: "", notes, warning: "The review printed no <review>…</review>; treated as nothing found." };
-  return { report, notes, warning: "" };
+  const review = lastTag(stdout, "review");
+  const { body: notes } = lastTag(stdout, "review-notes");
+  if (!review.found) return { report: "", notes, warning: "The review printed no <review>…</review>; treated as nothing found." };
+  return { report: review.body, notes, warning: "" };
 };
