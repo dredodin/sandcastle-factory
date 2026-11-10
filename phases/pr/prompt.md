@@ -21,13 +21,13 @@ AFK rules of this run: commit subjects start with `SANDCASTLE:`, the body has `I
 
 4. Review notes: the last review pass's notes on this repo, never work, for the maintainer to read:
 
-{{REVIEW_NOTES}}
+   {{REVIEW_NOTES}}
 
    None: skip this step. Otherwise post them as one PR review, event `COMMENT` (never request changes), via `gh api repos/{{REPO_SLUG}}/pulls/<number>/reviews`. One thread per note, anchored to the note's `<file>:<line>` on the PR's diff (`comments` entries with `path`, `line`, `side: RIGHT`), each body starting with this line, then a blank line, then the note:
 
    {{DISCLAIMER}}
 
-   First read the PR's existing review threads and their comments (`gh api` or `gh pr view --json reviews,comments`) and post no note already there. Every note already posted: no review.
+   First read the PR's inline review comments (`gh api repos/{{REPO_SLUG}}/pulls/<number>/comments`) and post no note already there. Then check each note's line against `gh pr diff`: a note whose line is no longer on the RIGHT side of the diff goes into the review body with its `<file>:<line>`, not as a thread, so one stale note cannot make GitHub reject the review. Every note already posted: no review.
 
 ## Body template
 

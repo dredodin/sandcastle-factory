@@ -72,7 +72,7 @@ What branch review prints for one repo: its findings inside `<review>` tags and 
 _Avoid_: review issue
 
 **Review note**:
-A review observation that is never work: a smell judgement call on a line the branch added, or a breach in pre-existing code that a line of the branch triggers. Each names that diff line. The PR phase posts them on the PR.
+A review observation that is never work: a smell judgement call on a line the branch added, or a breach in pre-existing code that a line of the branch triggers. Each names that diff line.
 _Avoid_: nit, suggestion
 
 **Item**:
@@ -111,7 +111,7 @@ The repo's own check every agent runs before each commit. A red verify script me
 _Avoid_: CI, pre-commit hook
 
 **Deep verify script**:
-The repo's own slow check, optional, run once over a whole branch at each review pass. What it reports goes into the Review report like any review finding, unless it concerns pre-existing code.
+The repo's own slow check, optional, run once over a whole branch at each review pass. What it reports are findings too, unless it concerns pre-existing code this branch does not affect: a Review note when a diff line triggers it, else nothing.
 _Avoid_: slow verify, nightly check
 
 **Plan check script**:

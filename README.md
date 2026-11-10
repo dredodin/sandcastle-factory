@@ -81,7 +81,7 @@ flowchart LR
     pr --> you([You read and merge])
 ```
 
-Each agent checks its own work before committing. Review reads the whole branch and only prints a Review report (findings and Review notes); the plan turns the findings into work or rejects them, and the next cycles fix what is planned; the PR phase posts the Review notes on the PR. At most two review passes per run.
+Each agent checks its own work before committing. Review reads the whole branch and only prints a Review report (findings and Review notes); the plan turns the findings into work or rejects them, and the next cycles fix what is planned; the PR phase posts the Review notes ([ADR-0008](docs/adr/0008-agents-only-read-github.md)). At most two review passes per run.
 
 ## Where things live
 

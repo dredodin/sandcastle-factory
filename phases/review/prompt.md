@@ -22,7 +22,7 @@ The spec is the root issue, its sub-issues, and the open PR's comments of this b
 Review the whole branch and print what you find.
 
 1. Read the diff: `git diff {{BASE_BRANCH}}...HEAD` and the commit list `git log {{BASE_BRANCH}}..HEAD --oneline`. Code in it (source, scripts, config, tests) → the **code review** below. Markdown in it → the **doc review** below. Both → code first.
-2. Deep verify script, when its file is in the worktree: `{{DEEP_VERIFY}}`, once, now. It is slow. What it reports are findings too, unless it concerns pre-existing code.
+2. Deep verify script, when its file is in the worktree: `{{DEEP_VERIFY}}`, once, now. It is slow. What it reports are findings too, unless it concerns pre-existing code this branch does not affect: a Review note when a diff line triggers it, else nothing.
 3. Print the Review report of repo `{{REPO_NAME}}`: two parts, kept apart, each inside its own tags. Nothing in a part: empty tags. Always print both.
    - `<review>`: the **findings**, each with file, axis, what is wrong and how to fix it. They become work.
    - `<review-notes>`: the **Review notes**, one per line as `- <file>:<line> — <what and the recommendation>`, `<file>:<line>` the diff line that triggers it, not necessarily the line to change. They never become work: a human reads them on the PR.
