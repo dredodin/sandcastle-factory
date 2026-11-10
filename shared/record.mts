@@ -41,8 +41,8 @@ export type RunRecord = {
 
 export const openRecord = (): RunRecord => {
   const state = {
-    reports: new Map() as ReadonlyMap<string, string>,
-    notes: new Map() as ReadonlyMap<string, string>,
+    reports: new Map<string, string>() as ReadonlyMap<string, string>,
+    notes: new Map<string, string>() as ReadonlyMap<string, string>,
     passes: 0,
     rejected: [] as ReviewRecord["rejected"],
     merged: [] as ReviewRecord["merged"],
