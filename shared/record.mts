@@ -22,8 +22,9 @@ export type ReviewRecord = {
 };
 
 export type RunRecord = {
-  // A review pass's reports; the plan reads them until `clearReports`.
-  readonly addPass: (reports: ReadonlyMap<string, string>) => void;
+  // A review pass's reports (the plan reads them until `clearReports`) and its Review notes (kept for the PR phase, never planned).
+  readonly addPass: (reports: ReadonlyMap<string, string>, notes: ReadonlyMap<string, string>) => void;
+  readonly notes: () => ReadonlyMap<string, string>;
   readonly clearReports: () => void;
   readonly reports: () => ReadonlyMap<string, string>;
   readonly reject: (rejections: readonly Rejection[]) => void;
@@ -40,6 +41,7 @@ export type RunRecord = {
 export const openRecord = (): RunRecord => {
   const state = {
     reports: new Map<string, string>() as ReadonlyMap<string, string>,
+    notes: new Map<string, string>() as ReadonlyMap<string, string>,
     passes: 0,
     rejected: [] as ReviewRecord["rejected"],
     merged: [] as ReviewRecord["merged"],
@@ -48,14 +50,16 @@ export const openRecord = (): RunRecord => {
   };
   const stamp = <T,>(entries: readonly T[]): readonly Stamped<T>[] => entries.map((entry) => ({ ...entry, pass: state.passes }));
   return {
-    addPass: (reports) => {
+    addPass: (reports, notes) => {
       state.reports = reports;
+      state.notes = notes;
       state.passes += 1;
     },
     clearReports: () => {
       state.reports = new Map();
     },
     reports: () => state.reports,
+    notes: () => state.notes,
     reject: (more) => {
       state.rejected = [...state.rejected, ...more];
     },

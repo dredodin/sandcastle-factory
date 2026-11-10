@@ -131,11 +131,14 @@ export const finish = async (run: Run, openPrsText: string, touched: () => reado
   for (let pass = 1; pass <= REVIEW_PASSES; pass++) {
     const repos = touched();
     const passed = await inParallel(repos, (repo) => repo.name, async (repo) => [repo.name, await review(run, repo)] as const);
-    run.record.addPass(new Map(passed));
+    run.record.addPass(
+      new Map(passed.map(([name, { report }]) => [name, report])),
+      new Map(passed.map(([name, { notes }]) => [name, notes])),
+    );
     const found = await cycles(run, openPrsText, `Review ${pass}`);
     items = [...items, ...found];
     // Nothing planned ends the reviews unless a report had findings the plan rejected: pass 2 checks the rest.
-    if (found.length === 0 && passed.map(([, report]) => report).every((report) => report === "")) break;
+    if (found.length === 0 && passed.every(([, { report }]) => report === "")) break;
   }
   const text = await pr(run, touched(), items);
   postReplies(run);

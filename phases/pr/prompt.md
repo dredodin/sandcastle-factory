@@ -19,6 +19,16 @@ AFK rules of this run: commit subjects start with `SANDCASTLE:`, the body has `I
 
 3. Existing PR: `gh pr list --repo {{REPO_SLUG}} --head {{INTEGRATION_BRANCH}} --state open --json url`. One found: reuse it, rewriting its body: `gh pr edit <url> --body-file /tmp/pr-body.md`. None: `gh pr create --repo {{REPO_SLUG}} --base {{DEFAULT_BRANCH}} --head {{INTEGRATION_BRANCH}} --title "<title above>" --body-file /tmp/pr-body.md`. Never `--draft`. A later step adds the models, the run's PR list and the review outcome to the body: leave a block between `<!-- sandcastle-run -->` and `<!-- /sandcastle-run -->` as it is.
 
+4. Review notes: the last review pass's notes on this repo, never work, for the maintainer to read:
+
+{{REVIEW_NOTES}}
+
+   None: skip this step. Otherwise post them as one PR review, event `COMMENT` (never request changes), via `gh api repos/{{REPO_SLUG}}/pulls/<number>/reviews`. One thread per note, anchored to the note's `<file>:<line>` on the PR's diff (`comments` entries with `path`, `line`, `side: RIGHT`), each body starting with this line, then a blank line, then the note:
+
+   {{DISCLAIMER}}
+
+   First read the PR's existing review threads and their comments (`gh api` or `gh pr view --json reviews,comments`) and post no note already there. Every note already posted: no review.
+
 ## Body template
 
 ```markdown
