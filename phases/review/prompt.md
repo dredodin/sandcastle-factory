@@ -22,7 +22,7 @@ The spec is the root issue, its sub-issues, and the open PR's comments of this b
 Review the whole branch and print what you find.
 
 1. Read the diff: `git diff {{BASE_BRANCH}}...HEAD` and the commit list `git log {{BASE_BRANCH}}..HEAD --oneline`. Code in it (source, scripts, config, tests) → the **code review** below. Markdown in it → the **doc review** below. Both → code first.
-2. Deep verify script, when its file is in the worktree: `{{DEEP_VERIFY}}`, once, now. It is slow. What it reports are findings too, unless it concerns pre-existing code this branch does not affect: a Review note when a diff line triggers it, else nothing.
+2. Deep verify script, when its file is in the worktree: `{{DEEP_VERIFY}}`, once, now. It is slow. What it reports about lines this branch added is a finding; about pre-existing code, a Review note when a diff line triggers it, else nothing.
 3. Print the Review report of repo `{{REPO_NAME}}`: two parts, kept apart, each inside its own tags. Nothing in a part: empty tags. Always print both.
    - `<review>`: the **findings**, each with file, axis, what is wrong and how to fix it. They become work.
    - `<review-notes>`: the **Review notes**, one per line as `- <file>:<line> — <what and the recommendation>`, `<file>:<line>` the diff line that triggers it, not necessarily the line to change. They never become work: a human reads them on the PR.
@@ -58,7 +58,7 @@ Two axes, kept apart: a change can pass one and fail the other. Report each sepa
 
 Two axes, kept apart.
 
-**Convention**: does the Markdown agree with the rest of the repo? Check its terms against the glossary, its claims against ADRs and format docs, that each fact lives in one file, that paths, links and commands resolve, and that it follows the repo's writing style. When the diff has code, also find the docs that describe the changed code and say what is now wrong. A hard breach is a finding; a judgement call is a Review note. Docs that predate the branch follow the same split as code.
+**Convention**: does the Markdown agree with the rest of the repo? Check its terms against the glossary, its claims against ADRs and format docs, that each fact lives in one file, that paths, links and commands resolve, and that it follows the repo's writing style. When the diff has code, also find the docs that describe the changed code and say what is now wrong. A hard breach is a finding; a judgement call is a Review note. A doc that describes code this branch changed and is now wrong is a finding: the branch broke it. Only a breach that was already there before the branch is a Review note when a diff line triggers it, else nothing.
 
 **Spec**: (a) asked for, missing or partial; (b) in the diff, not asked for, edits included, the fix being to revert; (c) done, but wrong. Quote the spec line for each.
 
