@@ -34,10 +34,10 @@ The same change may continue in other repos, on the same branch name. Their bran
 
 1. Write the work, test first where there is a seam.
 2. Review it: launch fresh-context subagents in parallel on `git diff <start commit>`, each reporting alone.
-   - **Standards**, if the diff has code: the repo's documented standards, `.sandcastle/repos/{{REPO_NAME}}/CODING_STANDARDS.md` when present (wins on conflict), and code smells as judgement calls.
+   - **Standards**, if the diff has code: breaches of the repo's documented standards in your own lines, `.sandcastle/repos/{{REPO_NAME}}/CODING_STANDARDS.md` when present (wins on conflict). No smell judgement calls, nothing about pre-existing code.
    - **Docs**, if the diff has code or Markdown: the changed Markdown, and docs that describe the changed code and are now wrong.
    - **Spec**, always: anything missing, extra or wrong, quoting the spec line.
-3. Fix every finding, except one that contradicts the task or an ADR: name it in the commit body.
+3. Fix every finding of the review step, except one that contradicts the task or an ADR: name it in the commit body.
 4. `{{VERIFY}}`, commit.
 
 # Outcome
