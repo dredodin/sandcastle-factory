@@ -12,7 +12,7 @@ import { inParallel } from "../../shared/parallel.mjs";
 import { mergedIssues } from "../../shared/repo.mjs";
 import { promptPath } from "../../shared/paths.mjs";
 import { blockersFromJson, modelsLine, reposWithoutPr, reviewSection, runBlock, withRunBlock, type BlockedBy, type Pr } from "../../shared/pr-body.mjs";
-import { IDLE_TIMEOUT_SECONDS, phaseAgent, type Run } from "../../shared/run.mjs";
+import { DISCLAIMER, IDLE_TIMEOUT_SECONDS, phaseAgent, type Run } from "../../shared/run.mjs";
 import { sh } from "../../shared/shell.mjs";
 import { repoNamed, type Repo } from "../../shared/workspace.mjs";
 
@@ -49,6 +49,8 @@ const openPr = async (run: Run, repo: Repo): Promise<Pr> => {
       REPO_SLUG: repo.slug,
       DEFAULT_BRANCH: repo.defaultBranch,
       BASE_BRANCH: repo.base,
+      DISCLAIMER,
+      REVIEW_NOTES: run.record.notes().get(repo.name) || "(none)",
     },
     maxIterations: 1,
     completionSignal: "</pull-request>",

@@ -68,8 +68,12 @@ One step in a run: plan, implement, merge, review or PR. Each is an agent's, exc
 _Avoid_: stage, step
 
 **Review report**:
-What branch review prints for one repo inside `<review>` tags: its findings, empty when it found nothing. It creates no issue; the harness hands it to the next cycle's plan, which turns findings into work or rejects them. It lives only in the run.
+What branch review prints for one repo: its findings inside `<review>` tags and its Review notes inside `<review-notes>` tags, each empty when none. It creates no issue and lives only in the run.
 _Avoid_: review issue
+
+**Review note**:
+A review observation that is never work: a smell judgement call on a line the branch added, or a breach in pre-existing code that a line of the branch triggers. Each names that diff line.
+_Avoid_: nit, suggestion
 
 **Item**:
 One unit of work a plan hands to one implement agent: an unblocked sub-issue in Ready for agent, the root issue when it has none, or work the plan wrote as text from a Review report, PR comments or plan check output (no issue, no Kanban card). Always in exactly one repo.
@@ -107,7 +111,7 @@ The repo's own check every agent runs before each commit. A red verify script me
 _Avoid_: CI, pre-commit hook
 
 **Deep verify script**:
-The repo's own slow check, optional, run once over a whole branch at each review pass. What it reports goes into the Review report like any review finding.
+The repo's own slow check, optional, run once over a whole branch at each review pass. What it reports feeds the Review report.
 _Avoid_: slow verify, nightly check
 
 **Plan check script**:
