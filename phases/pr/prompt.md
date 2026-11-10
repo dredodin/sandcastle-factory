@@ -23,11 +23,11 @@ AFK rules of this run: commit subjects start with `SANDCASTLE:`, the body has `I
 
    {{REVIEW_NOTES}}
 
-   None: skip this step. Otherwise post them as one PR review, event `COMMENT` (never request changes), via `gh api repos/{{REPO_SLUG}}/pulls/<number>/reviews`. One thread per note, anchored to the note's `<file>:<line>` on the PR's diff (`comments` entries with `path`, `line`, `side: RIGHT`), each body starting with this line, then a blank line, then the note:
+   None: skip this step. Otherwise post them as one PR review, event `COMMENT` (never request changes), via `gh api repos/{{REPO_SLUG}}/pulls/<number>/reviews`. One thread per note, anchored to the note's quoted line on the PR's diff (`comments` entries with `path`, `line`, `side: RIGHT`), each body starting with this line, then a blank line, then the note:
 
    {{DISCLAIMER}}
 
-   First read the PR's inline review comments (`gh api repos/{{REPO_SLUG}}/pulls/<number>/comments`) and post no note already there. Then check each note's line against `gh pr diff`: a note whose line is no longer on the RIGHT side of the diff is dropped silently, never posted, never in the review body. The review body stays empty. Every note dropped or already posted: no review.
+   First read the PR's inline review comments (`gh api --paginate repos/{{REPO_SLUG}}/pulls/<number>/comments`) and post no note already there. Then find each note's quoted line in `<file>` of the current `gh pr diff` (the line number may have shifted) and anchor the note to that line's current number: a note whose quoted line is not on the RIGHT side of the diff is dropped silently, never posted, never in the review body. The review body stays empty. Every note dropped or already posted: no review.
 
 ## Body template
 
