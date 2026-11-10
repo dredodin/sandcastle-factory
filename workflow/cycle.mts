@@ -135,7 +135,7 @@ export const finish = async (run: Run, openPrsText: string, touched: () => reado
     const found = await cycles(run, openPrsText, `Review ${pass}`);
     items = [...items, ...found];
     // Nothing planned ends the reviews unless a report had findings the plan rejected: pass 2 checks the rest.
-    if (found.length === 0 && passed.every(([, { report }]) => report === "")) break;
+    if (found.length === 0 && passed.every(([, { findings }]) => findings === "")) break;
   }
   const text = await pr(run, touched(), items);
   postReplies(run);
