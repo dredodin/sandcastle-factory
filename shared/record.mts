@@ -2,7 +2,7 @@
 import type { Handled } from "./comments.mjs";
 import type { Item } from "./item.mjs";
 import type { Outcome } from "./kanban.mjs";
-import type { ReviewReport } from "./review-report.mjs";
+import type { ReviewPass } from "./review-report.mjs";
 
 // A review finding the plan rejected, with the repo whose report it came from.
 export type Rejection = { readonly repo: string; readonly finding: string; readonly reason: string };
@@ -24,7 +24,7 @@ export type ReviewRecord = {
 
 export type RunRecord = {
   // A review pass's reports (the plan reads them until `clearReports`) and its Review notes (kept for the PR phase, never planned).
-  readonly addPass: (pass: ReadonlyMap<string, Pick<ReviewReport, "report" | "notes">>) => void;
+  readonly addPass: (pass: ReadonlyMap<string, ReviewPass>) => void;
   readonly notes: () => ReadonlyMap<string, string>;
   readonly clearReports: () => void;
   readonly reports: () => ReadonlyMap<string, string>;
@@ -41,7 +41,7 @@ export type RunRecord = {
 
 export const openRecord = (): RunRecord => {
   const state = {
-    pass: new Map() as ReadonlyMap<string, Pick<ReviewReport, "report" | "notes">>,
+    pass: new Map() as ReadonlyMap<string, ReviewPass>,
     cleared: false,
     passes: 0,
     rejected: [] as ReviewRecord["rejected"],
@@ -59,7 +59,7 @@ export const openRecord = (): RunRecord => {
     clearReports: () => {
       state.cleared = true;
     },
-    reports: () => new Map(state.cleared ? [] : [...state.pass].map(([repo, { report }]) => [repo, report])),
+    reports: () => new Map(state.cleared ? [] : [...state.pass].map(([repo, { findings }]) => [repo, findings])),
     notes: () => new Map([...state.pass].map(([repo, { notes }]) => [repo, notes])),
     reject: (more) => {
       state.rejected = [...state.rejected, ...more];

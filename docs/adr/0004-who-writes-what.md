@@ -12,7 +12,7 @@ Each phase prompt repeated its own "never push, never close, never touch the Kan
 
 **The harness changes issues and the Kanban; only the PR phase pushes.**
 
-- Agents never merge a PR, close an issue, comment on an issue or PR, or move a card. The only exception is the PR phase's writes ([ADR-0008](0008-agents-only-read-github.md) lists them). [ADR-0008](0008-agents-only-read-github.md) removed the review and plan exceptions; the harness posts the PR-comment replies.
+- Agents never merge a PR, close an issue, comment on an issue or PR, or move a card. The only exception is the PR phase's writes; [ADR-0008](0008-agents-only-read-github.md) lists them and removed the review and plan exceptions; the harness posts the PR-comment replies.
 - The harness reads an agent's reported result and makes the matching issue and Kanban writes.
 - Prompts state goals and what the phase may write, not prohibitions.
 
