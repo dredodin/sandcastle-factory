@@ -27,7 +27,7 @@ AFK rules of this run: commit subjects start with `SANDCASTLE:`, the body has `I
 
    {{DISCLAIMER}}
 
-   First read the PR's inline review comments (`gh api repos/{{REPO_SLUG}}/pulls/<number>/comments`) and review bodies (`gh api repos/{{REPO_SLUG}}/pulls/<number>/reviews`) and post no note already in either. Then check each note's line against `gh pr diff`: a note whose line is no longer on the RIGHT side of the diff goes into the review body with its `<file>:<line>`, not as a thread; a non-empty review body also starts with `{{DISCLAIMER}}` and a blank line. This way one stale note cannot make GitHub reject the review. Every note already posted: no review.
+   First read the PR's inline review comments (`gh api repos/{{REPO_SLUG}}/pulls/<number>/comments`) and post no note already there. Then check each note's line against `gh pr diff`: a note whose line is no longer on the RIGHT side of the diff is dropped silently, never posted, never in the review body. The review body stays empty. Every note dropped or already posted: no review.
 
 ## Body template
 

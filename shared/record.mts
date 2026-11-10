@@ -41,8 +41,8 @@ export type RunRecord = {
 
 export const openRecord = (): RunRecord => {
   const state = {
-    pass: new Map() as ReadonlyMap<string, ReviewPass>,
-    cleared: false,
+    reports: new Map() as ReadonlyMap<string, string>,
+    notes: new Map() as ReadonlyMap<string, string>,
     passes: 0,
     rejected: [] as ReviewRecord["rejected"],
     merged: [] as ReviewRecord["merged"],
@@ -52,15 +52,15 @@ export const openRecord = (): RunRecord => {
   const stamp = <T,>(entries: readonly T[]): readonly Stamped<T>[] => entries.map((entry) => ({ ...entry, pass: state.passes }));
   return {
     addPass: (pass) => {
-      state.pass = pass;
-      state.cleared = false;
+      state.reports = new Map([...pass].map(([repo, { findings }]) => [repo, findings]));
+      state.notes = new Map([...pass].map(([repo, { notes }]) => [repo, notes]));
       state.passes += 1;
     },
     clearReports: () => {
-      state.cleared = true;
+      state.reports = new Map();
     },
-    reports: () => new Map(state.cleared ? [] : [...state.pass].map(([repo, { findings }]) => [repo, findings])),
-    notes: () => new Map([...state.pass].map(([repo, { notes }]) => [repo, notes])),
+    reports: () => state.reports,
+    notes: () => state.notes,
     reject: (more) => {
       state.rejected = [...state.rejected, ...more];
     },
