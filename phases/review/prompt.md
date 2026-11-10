@@ -25,7 +25,7 @@ Review the whole branch and print what you find.
 2. Deep verify script, when its file is in the worktree: `{{DEEP_VERIFY}}`, once, now. It is slow. What it reports about lines this branch added is a finding; about pre-existing code, a Review note when a diff line triggers it, else nothing.
 3. Print the Review report of repo `{{REPO_NAME}}`: two parts, kept apart, each inside its own tags. Nothing in a part: empty tags. Always print both.
    - `<review>`: the **findings**, each with file, axis, what is wrong and how to fix it. They become work.
-   - `<review-notes>`: the **Review notes**, one per line as `- <file>:<line> — <what and the recommendation>`, `<file>:<line>` the diff line that triggers it, not necessarily the line to change. They never become work: a human reads them on the PR.
+   - `<review-notes>`: the **Review notes**, one per line as `` - <file>:<line> `<quoted line>` — <what and the recommendation> ``, `<file>:<line>` the diff line that triggers it, not necessarily the line to change, `<quoted line>` that line's text. They never become work: a human reads them on the PR.
 
 **Minimal**: the diff is the smallest one the task needs; a nearby improvement is separate work. The review enforces it and files nothing the rule excludes under findings:
 
