@@ -12,19 +12,19 @@ Terms (home repo, app repo, Workspace, repo image, verify script, setup wizard):
 
 ## 1. Engineering skills
 
-Done-check: each skill below has a folder in `.claude/skills/`.
+Done-check: each skill below has a folder in `.agents/skills/` and an entry in `.claude/skills/`. Either missing: (re)install that skill.
 
 Each missing one, from `mattpocock/skills`:
 
 ```sh
-npx skills add mattpocock/skills -a claude-code -s <name> --copy -y
+npx skills add mattpocock/skills -a claude-code codex -s <name> -y
 ```
 
 code-review, codebase-design, diagnosing-bugs, domain-modeling, grill-with-docs, grilling, handoff, implement, improve-codebase-architecture, pr, research, retro, setup-matt-pocock-skills, tdd, to-spec, to-tickets, triage, wait-what, wayfinder, writing-for-agents.
 
-`show-me`: `npx skills add humanlayer/skills -a claude-code -s show-me --copy -y`.
+`show-me`: `npx skills add humanlayer/skills -a claude-code codex -s show-me -y`.
 
-`--copy` always: real files, no `.agents/`, no junction. Never `skills update`: it has no `--copy`.
+The original lands in `.agents/skills/` (Codex, Copilot); `.claude/skills/<name>` is a link to it, made by the skills CLI.
 
 ## 1b. Agent instructions file
 
