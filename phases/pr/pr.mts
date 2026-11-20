@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { handleType, retry } from "cockatiel";
 import { z } from "zod";
 import { message } from "../../shared/cli.mjs";
+import { cappedCommits } from "../../shared/commit-list.mjs";
 import { ExtractError, extract } from "../../shared/extract.mjs";
 import { hasIssue, type Item } from "../../shared/item.mjs";
 import { log, timedPhase } from "../../shared/logger.mjs";
@@ -20,6 +21,7 @@ const pullRequestSchema = z.object({ url: z.url() });
 const bodySchema = z.object({ body: z.string() });
 
 const PR_ATTEMPTS = 2;
+const COMMITS_CAP = 4000;
 
 const prRetry = retry(handleType(ExtractError), { maxAttempts: PR_ATTEMPTS - 1 });
 prRetry.onRetry((reason) => {
@@ -48,7 +50,7 @@ const openPr = async (run: Run, repo: Repo): Promise<Pr> => {
       VERIFY: verifyCommand(repo.name),
       REPO_SLUG: repo.slug,
       DEFAULT_BRANCH: repo.defaultBranch,
-      BASE_BRANCH: repo.base,
+      COMMITS: cappedCommits(sh(repo.path, "git", "log", "--format=%h %s", `${repo.base}..${run.branch}`).split("\n").filter(Boolean), COMMITS_CAP),
       DISCLAIMER,
       REVIEW_NOTES: run.record.notes().get(repo.name) || "(none)",
     },
