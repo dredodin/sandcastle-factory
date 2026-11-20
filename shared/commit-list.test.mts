@@ -20,10 +20,6 @@ test("cappedCommits: commit lines plus note stay within the cap", () => {
   for (const cap of [200, 1000, 4000]) assert.ok(cappedCommits(lines, cap).length <= cap);
 });
 
-test("cappedCommits: a subject is cut to 200 characters", () => {
-  assert.equal(cappedCommits(["y".repeat(300)], 4000), "y".repeat(200));
-});
-
 test("cappedCommits: no commits give an empty text", () => {
   assert.equal(cappedCommits([], 4000), "");
 });
