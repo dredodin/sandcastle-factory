@@ -12,7 +12,7 @@ AFK rules of this run: commit subjects start with `SANDCASTLE:`, the body has `I
 
 Subjects only, capped at 4000 characters (the prompt travels in a command line, Windows allows 32,767):
 
-!`git log --format='%h %s' {{BASE_BRANCH}}..HEAD | awk 'BEGIN{m=4000} {l=substr($0,1,200); n++; if(!c && len+length(l)+1<=m){print l; len+=length(l)+1; k++} else c=1} END{if(c) printf "(list truncated: %d of %d commits left out; run git log for more)\n", n-k, n}'`
+{{COMMITS}}
 
 ## Steps
 
