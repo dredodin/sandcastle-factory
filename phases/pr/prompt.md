@@ -10,7 +10,9 @@ AFK rules of this run: commit subjects start with `SANDCASTLE:`, the body has `I
 
 ## Commits
 
-!`git log --format='%h %s%n%b' {{BASE_BRANCH}}..HEAD`
+Subjects only, capped at 4000 characters (the prompt travels in a command line, Windows allows 32,767):
+
+{{COMMITS}}
 
 ## Steps
 
