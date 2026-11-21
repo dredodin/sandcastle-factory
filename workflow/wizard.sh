@@ -478,9 +478,7 @@ prerequisites_stage() {
   local node_major item ok=() missing=()
   node_major=$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0)
   if (( node_major >= 22 )); then ok+=("Node $node_major"); else missing+=("Node 22+: https://nodejs.org/en/download"); fi
-  if ! command -v gh >/dev/null 2>&1; then missing+=("gh: https://cli.github.com")
-  elif ! gh auth status >/dev/null 2>&1; then missing+=("gh login: run gh auth login")
-  else ok+=("gh logged in"); fi
+  if command -v gh >/dev/null 2>&1; then ok+=("gh installed"); else missing+=("gh: https://cli.github.com"); fi
   if (( DONE )) && (( ${#missing[@]} == 0 )) && sandbox_ready "$(current SANDBOX)"; then skip; return 0; fi
   stage "Prerequisites"
   for item in "${ok[@]+"${ok[@]}"}"; do say "${GREEN}✓${RESET} $item"; done
