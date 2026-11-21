@@ -525,13 +525,34 @@ token_page() {
   if filled "$1"; then note "for a new one: $2"; else open_url "$2"; fi
 }
 
+# Prints the README lines between the <!-- $1:start --> and <!-- $1:end --> markers; fails when there are none.
+readme_block() {
+  local readme line found=0 on=0
+  readme="$(dirname "${BASH_SOURCE[0]}")/../README.md"
+  [[ -r "$readme" ]] || return 1
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line="${line#"${line%%[![:space:]]*}"}"
+    if [[ "$line" == "<!-- $1:end -->" ]]; then on=0
+    elif (( on )); then say "$line"; found=1
+    elif [[ "$line" == "<!-- $1:start -->" ]]; then on=1
+    fi
+  done < "$readme"
+  (( found ))
+}
+
 gh_token_stage() {
   if (( DONE )) && filled GH_TOKEN; then skip; return 0; fi
   stage "GitHub token"
+  local missing=0
   say "One token for every repo of the Workspace and the Kanban. Its kind follows the Kanban's owner:"
   step "personal account: classic token (fine-grained ones cannot reach a user-owned Project): https://github.com/settings/tokens/new"
+  readme_block gh-token-personal || missing=1
   step "organisation: a fine-grained token for it is enough: https://github.com/settings/personal-access-tokens/new"
-  step "Scopes or permissions: the ones README.md names under Requirements."
+  readme_block gh-token-organisation || missing=1
+  if (( missing )); then
+    step "Scopes or permissions: the ones README.md names under Requirements."
+    warn "README.md scope markers not found."
+  fi
   note "Agents get this token with all its rights: make it the smallest that works."
   step "Generate token, copy it."
   ask_token GH_TOKEN "Paste the token:"
