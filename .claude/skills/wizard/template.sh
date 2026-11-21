@@ -118,18 +118,31 @@ ask() {
   printf -v "$key" '%s' "$input"
 }
 
-# ask_secret KEY "Prompt" is like ask, but input is hidden.
+# _strip_paste VALUE prints VALUE without bracketed-paste markers (ESC[200~, ESC[201~).
+_strip_paste() {
+  local v="$1" e=$'\033'
+  v="${v//"$e[200~"/}"
+  printf '%s' "${v//"$e[201~"/}"
+}
+
+# ask_secret KEY "Prompt" is like ask, but input is hidden. Paste markers are
+# stripped; a value still holding control characters is refused and asked again.
 ask_secret() {
   local key="$1" prompt="$2" current input rc=0
   current=$(_existing "$key" || true)
-  if [[ -n "$current" ]]; then
-    printf '  %s%s%s %s[Enter keeps current]%s ' "$BOLD" "$prompt" "$RESET" "$DIM" "$RESET"
-  else
-    printf '  %s%s%s ' "$BOLD" "$prompt" "$RESET"
-  fi
-  read -rs input || rc=1
-  printf '\n'
-  if (( rc )) && [[ -z "$input" ]]; then return 1; fi
+  while :; do
+    if [[ -n "$current" ]]; then
+      printf '  %s%s%s %s[Enter keeps current]%s ' "$BOLD" "$prompt" "$RESET" "$DIM" "$RESET"
+    else
+      printf '  %s%s%s ' "$BOLD" "$prompt" "$RESET"
+    fi
+    read -rs input || rc=1
+    printf '\n'
+    if (( rc )) && [[ -z "$input" ]]; then return 1; fi
+    input=$(_strip_paste "$input")
+    [[ "$input" =~ [[:cntrl:]] ]] || break
+    warn "input holds control characters, not saved; try again"
+  done
   [[ -z "$input" && -n "$current" ]] && input="$current"
   printf -v "$key" '%s' "$input"
 }
