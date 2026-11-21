@@ -543,11 +543,16 @@ readme_block() {
 gh_token_stage() {
   if (( DONE )) && filled GH_TOKEN; then skip; return 0; fi
   stage "GitHub token"
+  local missing=0
   say "One token for every repo of the Workspace and the Kanban. Its kind follows the Kanban's owner:"
   step "personal account: classic token (fine-grained ones cannot reach a user-owned Project): https://github.com/settings/tokens/new"
-  readme_block gh-token-personal || warn "README.md has no scope list: see Requirements there."
+  readme_block gh-token-personal || missing=1
   step "organisation: a fine-grained token for it is enough: https://github.com/settings/personal-access-tokens/new"
-  readme_block gh-token-organisation || warn "README.md has no permission list: see Requirements there."
+  readme_block gh-token-organisation || missing=1
+  if (( missing )); then
+    step "Scopes or permissions: the ones README.md names under Requirements."
+    warn "README.md scope markers not found."
+  fi
   note "Agents get this token with all its rights: make it the smallest that works."
   step "Generate token, copy it."
   ask_token GH_TOKEN "Paste the token:"
