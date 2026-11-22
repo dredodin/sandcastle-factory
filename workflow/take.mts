@@ -1,5 +1,5 @@
 // `take <N>`: delivers issue N's tree as one PR per touched repo.
-// plan → implement in parallel → merge → re-plan …, then review (two passes at most, each followed by cycles on what the plan makes of its reports) per repo against its default branch, then the PR phase.
+// plan → implement in parallel → merge → re-plan …, then review (two passes at most, each followed by cycles) per repo, then the PR phase; the plan agent then runs again: a new Wave only for cross-repo `blockedBy`, else the run ends.
 
 import { loadAgents } from "../shared/agents.mjs";
 import type { Env } from "../shared/env.mjs";

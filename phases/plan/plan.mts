@@ -4,7 +4,6 @@ import { handledOf, handledText } from "../../shared/comments.mjs";
 import { extract } from "../../shared/extract.mjs";
 import { hasIssue, itemId, takenItems } from "../../shared/item.mjs";
 import { log, timedPhase } from "../../shared/logger.mjs";
-import { planCheckCommand } from "../../shared/names.mjs";
 import { planOutputSchema } from "../../shared/plan-output.mjs";
 import { promptPath } from "../../shared/paths.mjs";
 import { fillPrompt } from "../../shared/prompt.mjs";
@@ -38,7 +37,6 @@ export const plan = async (cycle: Cycle, openPrsText: string, session: PlanSessi
     REPOS: reposText(home.name, repos),
     READY: ready.length === 0 ? "(none)" : ready.map((issue) => `#${issue}`).join(", "),
     OPEN_PRS: openPrsText,
-    PLAN_CHECK: planCheckCommand(home.name),
     REVIEW_REPORTS: reportsText(cycle.record.reports()),
     REJECTED: rejectedText(cycle.record.rejected()),
     HANDLED: handledText(cycle.record.handled()),

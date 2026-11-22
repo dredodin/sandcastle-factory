@@ -1,10 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { deepVerifyCommand, imageName, isCloneRoot, logFileName, planCheckCommand, slugFromRemote } from "./names.mjs";
+import { deepVerifyCommand, imageName, isCloneRoot, logFileName, slugFromRemote } from "./names.mjs";
 
-test("deepVerifyCommand and planCheckCommand: scripts in the repo's folder", () => {
+test("deepVerifyCommand: script in the repo's folder", () => {
   assert.equal(deepVerifyCommand("app", "origin/main"), "bash .sandcastle/repos/app/deep-verify.sh origin/main");
-  assert.equal(planCheckCommand("hub"), "bash .sandcastle/repos/hub/plan-check.sh");
 });
 
 test("slugFromRemote: https, ssh, with and without .git", () => {
