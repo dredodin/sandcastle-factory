@@ -64,7 +64,7 @@ One plan → implement → merge pass inside a run. A run repeats cycles until t
 _Avoid_: round, iteration
 
 **Wave**:
-One stretch of cycles, review passes and the PR phase. A run is one or more Waves; a new Wave starts only for cross-repo `blockedBy`, once the blocker repo's PR has a preview.
+Cycles, review passes and the PR phase, in that order. A run is one or more Waves; a new Wave starts only for cross-repo `blockedBy`, once the blocker repo's PR has a preview.
 _Avoid_: round, iteration, pass, stretch
 
 **Phase**:
