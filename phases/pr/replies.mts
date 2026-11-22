@@ -23,17 +23,18 @@ const post = (cwd: string, { comment, body, resolve }: Reply, file: string): voi
   if (resolve && comment.kind === "comment") sh(cwd, "gh", "api", "graphql", "-f", `query=${MINIMIZE}`, "-f", `id=${comment.id}`);
 };
 
-// After the push: a reply under each handled comment, and the comment closed unless it needs info.
-// A comment whose item has no merge commit gets nothing and stays open. A failed post is logged, never stops the run.
+// After the push: a reply under each handled comment not yet answered, and the comment closed unless it needs info.
+// A comment whose item has no merge commit gets nothing and stays open. A failed post is logged, never stops the run; both are tried again after the next PR phase.
 export const postReplies = (run: Run): void => {
   const commits = new Map(run.record.merged().flatMap(({ item, commit }) => (commit === "" ? [] : [[item.branch, commit] as const])));
   const dir = mkdtempSync(join(tmpdir(), "sandcastle-reply-"));
   const cwd = run.workspace.home.path;
-  run.record.handled().forEach((comment, index) => {
+  run.record.unposted().forEach((comment, index) => {
     const reply = replyOf(comment, commits);
     if (reply === null) return log.warn(`  Comment ${comment.id}: its item has no merge commit; left open.`);
     try {
       post(cwd, reply, join(dir, `${index}.md`));
+      run.record.markPosted([comment]);
     } catch (error) {
       log.warn(`  Comment ${comment.id}: reply failed: ${message(error)}`);
     }

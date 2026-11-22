@@ -20,6 +20,17 @@ test("a comment handled again replaces its earlier entry", () => {
   assert.deepEqual(record.handled().map(({ id, decision }) => `${id} ${decision}`), ["c2 needs info", "c1 planned"]);
 });
 
+test("posted comments are not unposted again, unless handled again", () => {
+  const record = openRecord();
+  const comment: Handled = { id: "c1", pr: "p", url: "u", kind: "thread", decision: "needs info", text: "which?", branch: "" };
+  record.handle([comment, { ...comment, id: "c2" }]);
+  record.markPosted(record.unposted());
+  assert.deepEqual(record.unposted(), []);
+  assert.equal(record.handled().length, 2);
+  record.handle([{ ...comment, decision: "planned" }]);
+  assert.deepEqual(record.unposted().map(({ id }) => id), ["c1"]);
+});
+
 test("merged and ended entries carry the pass whose reports the plan worked from; cleared reports leave the pass", () => {
   const record = openRecord();
   record.addEnded([{ item: item("a"), end: "cannot finish" }]);
