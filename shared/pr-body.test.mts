@@ -2,11 +2,12 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { Item } from "./item.mjs";
 import type { ReviewRecord } from "./record.mjs";
-import { blockersFromJson, mergeOrder, modelsLine, prRef, reposWithoutPr, reviewSection, runBlock, withRunBlock, type Pr } from "./pr-body.mjs";
+import { blockersFromJson, externalLinks, mergeOrder, modelsLine, prRef, referencesSection, reposWithoutPr, reviewSection, runBlock, withRunBlock, type Pr } from "./pr-body.mjs";
 
 const hub: Pr = { repo: "hub", url: "https://github.com/acme/hub/pull/9", issues: [3] };
 const app: Pr = { repo: "app", url: "https://github.com/acme/app/pull/12", issues: [4, 5] };
 const lib: Pr = { repo: "lib", url: "https://github.com/acme/lib/pull/2", issues: [6] };
+const REF = "## References\n\n- acme/hub#7";
 
 test("blockersFromJson: numbers of gh's blockedBy nodes", () => {
   assert.deepEqual(blockersFromJson('{"blockedBy":{"nodes":[{"number":4},{"number":9}],"totalCount":2}}'), [4, 9]);
@@ -45,16 +46,20 @@ test("modelsLine: every phase's model, provider and effort, in phase order", () 
 });
 
 test("runBlock: only the models line for a single PR with nothing left out", () => {
-  assert.equal(runBlock("Models: m.", "acme/hub", 7, [hub], [], {}, [], ""), "<!-- sandcastle-run -->\nModels: m.\n<!-- /sandcastle-run -->");
+  assert.equal(runBlock("Models: m.", "acme/hub", 7, [hub], [], {}, [], REF, ""), "<!-- sandcastle-run -->\nModels: m.\n\n## References\n\n- acme/hub#7\n<!-- /sandcastle-run -->");
 });
 
 test("runBlock: PR list in merge order, and the repo without a PR with its open issues", () => {
-  const block = runBlock("Models: m.", "acme/hub", 7, [hub, app], [{ repo: "lib", open: [6, 8] }], { 3: [5] }, [], "");
+  const block = runBlock("Models: m.", "acme/hub", 7, [hub, app], [{ repo: "lib", open: [6, 8] }], { 3: [5] }, [], REF, "");
   assert.equal(
     block,
     [
       "<!-- sandcastle-run -->",
       "Models: m.",
+      "",
+      "## References",
+      "",
+      "- acme/hub#7",
       "",
       "## Run",
       "",
@@ -70,19 +75,19 @@ test("runBlock: PR list in merge order, and the repo without a PR with its open 
 });
 
 test("runBlock: one PR and a repo left without one still list the PR", () => {
-  assert.match(runBlock("Models: m.", "acme/hub", 7, [hub], [{ repo: "lib", open: [6] }], {}, [], ""), /1\. acme\/hub#9 \(hub\)\n\nNo PR in `lib`/);
+  assert.match(runBlock("Models: m.", "acme/hub", 7, [hub], [{ repo: "lib", open: [6] }], {}, [], REF, ""), /1\. acme\/hub#9 \(hub\)\n\nNo PR in `lib`/);
 });
 
 test("runBlock: several PRs with nothing left out still list the merge order", () => {
-  assert.match(runBlock("Models: m.", "acme/hub", 7, [hub, app], [], {}, [], ""), /1\. acme\/hub#9 \(hub\)\n2\. acme\/app#12 \(app\)/);
+  assert.match(runBlock("Models: m.", "acme/hub", 7, [hub, app], [], {}, [], REF, ""), /1\. acme\/hub#9 \(hub\)\n2\. acme\/app#12 \(app\)/);
 });
 
 test("runBlock: sub-issues left in Backlog are listed, even for a single PR", () => {
   assert.equal(
-    runBlock("Models: m.", "acme/hub", 7, [hub], [], {}, [4, 9], ""),
-    "<!-- sandcastle-run -->\nModels: m.\n\n## Run\n\nLeft in Backlog, not delivered: #4, #9.\n<!-- /sandcastle-run -->",
+    runBlock("Models: m.", "acme/hub", 7, [hub], [], {}, [4, 9], REF, ""),
+    "<!-- sandcastle-run -->\nModels: m.\n\n## References\n\n- acme/hub#7\n\n## Run\n\nLeft in Backlog, not delivered: #4, #9.\n<!-- /sandcastle-run -->",
   );
-  assert.match(runBlock("Models: m.", "acme/hub", 7, [hub, app], [], {}, [4], ""), /2\. acme\/app#12 \(app\)\n\nLeft in Backlog, not delivered: #4\.\n</);
+  assert.match(runBlock("Models: m.", "acme/hub", 7, [hub, app], [], {}, [4], REF, ""), /2\. acme\/app#12 \(app\)\n\nLeft in Backlog, not delivered: #4\.\n</);
 });
 
 test("reposWithoutPr: repos with planned work and no PR, with their issues once each", () => {
@@ -179,5 +184,31 @@ test("reviewSection: everything fixed or nothing found is no section", () => {
 });
 
 test("runBlock: the review section ends the block", () => {
-  assert.equal(runBlock("Models: m.", "acme/hub", 7, [hub], [], {}, [], "## Review"), "<!-- sandcastle-run -->\nModels: m.\n\n## Review\n<!-- /sandcastle-run -->");
+  assert.equal(runBlock("Models: m.", "acme/hub", 7, [hub], [], {}, [], REF, "## Review"), "<!-- sandcastle-run -->\nModels: m.\n\n## References\n\n- acme/hub#7\n\n## Review\n<!-- /sandcastle-run -->");
+});
+
+test("externalLinks: non-GitHub-issue URLs once each, trailing punctuation and markdown parens dropped", () => {
+  const body = "See https://acme.atlassian.net/browse/ABC-1, [doc](https://example.com/d) and https://github.com/acme/hub/issues/3.\nAgain https://acme.atlassian.net/browse/ABC-1 https://github.com/acme/app/pull/4";
+  assert.deepEqual(externalLinks(body), ["https://acme.atlassian.net/browse/ABC-1", "https://example.com/d"]);
+  assert.deepEqual(externalLinks("no links"), []);
+});
+
+test("referencesSection: root, own sub-issues by full slug, then external links; no closing keyword", () => {
+  const section = referencesSection("acme/hub", 7, [4, 5], ["https://acme.atlassian.net/browse/ABC-1"]);
+  assert.equal(section, "## References\n\n- acme/hub#7\n- acme/hub#4\n- acme/hub#5\n- https://acme.atlassian.net/browse/ABC-1");
+  assert.doesNotMatch(section, /close|fix|resolve/i);
+  assert.equal(referencesSection("acme/hub", 7, [], []), "## References\n\n- acme/hub#7");
+});
+
+test("runBlock: carries the references for a single-repo run", () => {
+  assert.match(runBlock("Models: m.", "acme/hub", 7, [hub], [], {}, [], referencesSection("acme/hub", 7, [3], []), ""), /## References\n\n- acme\/hub#7\n- acme\/hub#3\n/);
+});
+
+test("runBlock: each PR's block names the root and only its own sub-issues, an external link in every one, no closing keyword", () => {
+  const link = ["https://acme.atlassian.net/browse/ABC-1"];
+  const blocks = [hub, app].map((pr) => runBlock("Models: m.", "acme/hub", 7, [hub, app], [], {}, [], referencesSection("acme/hub", 7, pr.issues, link), ""));
+  assert.match(blocks[0] ?? "", /- acme\/hub#7\n- acme\/hub#3\n- https:\/\/acme\.atlassian\.net\/browse\/ABC-1\n/);
+  assert.doesNotMatch(blocks[0] ?? "", /#4|#5/);
+  assert.match(blocks[1] ?? "", /- acme\/hub#7\n- acme\/hub#4\n- acme\/hub#5\n- https:\/\/acme\.atlassian/);
+  assert.doesNotMatch(blocks.join("\n"), /\b(close[sd]?|fix(es|ed)?|resolve[sd]?)\b/i);
 });
