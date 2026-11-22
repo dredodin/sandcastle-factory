@@ -10,3 +10,4 @@ Failures of any home repo, by a phrase of the failure. Home-repo specifics never
 | `already has an open take PR` | none | `resume <issue>` |
 | `— run onboarding` | Ask the human, link the clone as onboarding step 2 does | `resume <issue>` |
 | `Nothing to resume for #<issue>: no take branch` | none | `take <issue>` |
+| `Uncommitted changes on …`, `git status` of the named worktree shows only untracked files under `.sandcastle/repos/` (pre-v0.7.1 factory restoring a script the branch deleted) | Delete the file in that worktree, every other kept worktree, and the host checkout | `resume <issue>` |

@@ -80,7 +80,9 @@ const forceLfWorktrees = (repo: Repo): void => addToGitInfo(repo, "attributes", 
 const homeFile = (workspace: Workspace, repo: Repo, file: string): string => `${workspace.root}/${repoDir(repo.name)}/${file}`;
 
 // The repo's own scripts and personal standards live in the home repo; the worktree gets those that exist, at the same path.
+// A home worktree already holds its branch's own: a copy from the host checkout would bring back a file the branch deleted, as an uncommitted change.
 const copyRepoFiles = (workspace: Workspace, repo: Repo, worktreePath: string): void => {
+  if (repo.isHome) return;
   for (const file of COPIED_FILES) {
     const from = homeFile(workspace, repo, file);
     const to = `${worktreePath}/${repoDir(repo.name)}/${file}`;

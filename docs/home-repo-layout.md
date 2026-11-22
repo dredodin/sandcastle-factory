@@ -12,7 +12,7 @@ What the factory reads from the [home repo](../GLOSSARY.md). `/onboarding-factor
     ├── Containerfile      # the repo image
     ├── setup.sh           # runs in the sandbox once the worktree is ready
     ├── verify.sh          # agents run it before every commit
-    ├── sparse-checkout    # optional; what sandbox worktrees check out (git non-cone patterns)
+    ├── sparse-checkout    # optional; what sandbox worktrees check out (git non-cone patterns); the home repo's keeps `.sandcastle/repos/`
     ├── mounts             # optional; host folders the sandbox sees, `<host path> -> <sandbox path>` per line, ` (rw)` at the end to allow writing
     ├── deep-verify.sh     # optional; slow check, run once per review pass, base branch as $1
     ├── CODING_STANDARDS.md  # optional; your standards, copied into every worktree; reviewers read them on top of the repo's own; yours win on conflict
