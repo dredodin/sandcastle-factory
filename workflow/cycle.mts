@@ -55,7 +55,8 @@ const cycle = async (
   const { items, next } = await plan(current, openPrsText, session);
   // The reports reach the plan agent once, in the cycle after their pass.
   run.record.clearReports();
-  if (conflicting.length === 0 && items.length === 0) {
+  // A Wave plans after the PR phase: merging defaults then would leave an unpushed commit.
+  if (items.length === 0 && (conflicting.length === 0 || stretch === "Wave")) {
     log.info("Nothing to do: plan is empty.");
     return { items: [], next, stop: false };
   }
