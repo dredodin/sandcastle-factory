@@ -12,7 +12,7 @@ import { verifyCommand } from "../../shared/names.mjs";
 import { inParallel } from "../../shared/parallel.mjs";
 import { mergedIssues } from "../../shared/repo.mjs";
 import { promptPath } from "../../shared/paths.mjs";
-import { blockersFromJson, modelsLine, reposWithoutPr, reviewSection, runBlock, withRunBlock, type BlockedBy, type Pr } from "../../shared/pr-body.mjs";
+import { blockersFromJson, externalLinks, modelsLine, referencesSection, reposWithoutPr, reviewSection, runBlock, withRunBlock, type BlockedBy, type Pr } from "../../shared/pr-body.mjs";
 import { DISCLAIMER, IDLE_TIMEOUT_SECONDS, phaseAgent, type Run } from "../../shared/run.mjs";
 import { sh } from "../../shared/shell.mjs";
 import { repoNamed, type Repo } from "../../shared/workspace.mjs";
@@ -76,14 +76,19 @@ const blockedByOf = (home: Repo, issues: readonly number[]): BlockedBy =>
     }),
   );
 
-// Opens or updates the PR of each touched repo in two passes: every PR first, then every body gets the models and the run's PR list and merge order.
+// External ticket links of the root issue's body.
+const rootLinks = (home: Repo, root: number): readonly string[] =>
+  externalLinks(bodySchema.parse(JSON.parse(sh(home.path, "gh", "issue", "view", `${root}`, "--repo", home.slug, "--json", "body"))).body);
+
+// Opens or updates the PR of each touched repo in two passes: every PR first, then every body gets the models, the references, and the run's PR list and merge order.
 // Returns one line per PR.
 export const pr = async (run: Run, touched: readonly Repo[], planned: readonly Item[]): Promise<string> => {
   const { home } = run.workspace;
   const prs = await inParallel(touched, (repo) => repo.name, (repo) => prOfRepo(run, repo));
 
   const blockedBy = blockedByOf(home, [...new Set(prs.flatMap((pr) => pr.issues))]);
-  const blockOf = (repo: string): string =>
+  const external = rootLinks(home, run.root);
+  const blockOf = (pr: Pr): string =>
     runBlock(
       modelsLine(run.context.env.phases),
       home.slug,
@@ -92,14 +97,15 @@ export const pr = async (run: Run, touched: readonly Repo[], planned: readonly I
       reposWithoutPr(planned.filter(hasIssue), prs.map((pr) => pr.repo)),
       blockedBy,
       run.kanban.inStatus("Backlog"),
-      reviewSection(repo, run.record.review()),
+      referencesSection(home.slug, run.root, pr.issues, external),
+      reviewSection(pr.repo, run.record.review()),
     );
   const dir = mkdtempSync(join(tmpdir(), "sandcastle-pr-"));
   for (const pr of prs) {
     const repo = repoNamed(run.workspace, pr.repo);
     const { body } = bodySchema.parse(JSON.parse(sh(repo.path, "gh", "pr", "view", pr.url, "--json", "body")));
     const file = join(dir, `${pr.repo}.md`);
-    writeFileSync(file, withRunBlock(body, blockOf(pr.repo)));
+    writeFileSync(file, withRunBlock(body, blockOf(pr)));
     sh(repo.path, "gh", "pr", "edit", pr.url, "--body-file", file);
   }
   return prs.map((pr) => `${pr.repo}: ${pr.url}`).join("\n");

@@ -53,6 +53,16 @@ export const reposWithoutPr = (planned: readonly Pick<Item, "repo" | "issue">[],
       open: [...new Set(planned.filter((item) => item.repo === repo).map((item) => Number(item.issue)))],
     }));
 
+// Links in the root issue's body that are not GitHub issue or PR links, e.g. Jira tickets, once each in order.
+export const externalLinks = (body: string): readonly string[] => {
+  const links = (body.match(/https?:\/\/[^\s<>()[\]"'`]+/g) ?? []).map((link) => link.replace(/[.,;:!?*_]+$/, ""));
+  return [...new Set(links.filter((link) => !/^https?:\/\/(www\.)?github\.com\/[^/]+\/[^/]+\/(issues|pull)\/[0-9]+/.test(link)))];
+};
+
+// The tickets a PR relates to, as plain references that close nothing: the root, its own merged sub-issues, the root's external links.
+export const referencesSection = (homeSlug: string, root: number, issues: readonly number[], external: readonly string[]): string =>
+  ["## References", "", ...[`${homeSlug}#${root}`, ...issues.map((id) => `${homeSlug}#${id}`), ...external].map((ref) => `- ${ref}`)].join("\n");
+
 const issueList = (issues: readonly number[]): string => issues.map((id) => `#${id}`).join(", ");
 
 // The findings the run left unsettled, one line each: left over (cannot finish, merge conflict) and rejected with the reason.
@@ -80,9 +90,9 @@ export const reviewSection = (repo: string, review: ReviewRecord): string => {
 export const modelsLine = (phases: Readonly<Record<Phase, PhaseSetting>>): string =>
   `Models: ${PHASES.map((phase) => `${phase} \`${phases[phase].model}\` (${phases[phase].provider}, ${phases[phase].effort})`).join(", ")}.`;
 
-// The block every PR of the run ends with: the models line, then the run's PR list when it has several PRs or a repo left out,
+// The block every PR of the run ends with: the models line, the references, then the run's PR list when it has several PRs or a repo left out,
 // and the sub-issues left in Backlog, which this run did not deliver.
-export const runBlock = (models: string, homeSlug: string, root: number, prs: readonly Pr[], noPr: readonly NoPr[], blockedBy: BlockedBy, backlog: readonly number[], review: string): string => {
+export const runBlock = (models: string, homeSlug: string, root: number, prs: readonly Pr[], noPr: readonly NoPr[], blockedBy: BlockedBy, backlog: readonly number[], references: string, review: string): string => {
   const several = prs.length > 1 || noPr.length > 0;
   const run =
     !several && backlog.length === 0
@@ -101,7 +111,7 @@ export const runBlock = (models: string, homeSlug: string, root: number, prs: re
             : []),
           ...(backlog.length > 0 ? [`\nLeft in Backlog, not delivered: ${issueList(backlog)}.`] : []),
         ];
-  return [START, models, ...run, ...(review === "" ? [] : ["", review]), END].join("\n");
+  return [START, models, "", references, ...run, ...(review === "" ? [] : ["", review]), END].join("\n");
 };
 
 // The body with the run block replaced, or appended on a first pass.
