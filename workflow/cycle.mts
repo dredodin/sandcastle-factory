@@ -127,9 +127,11 @@ export const cycles = (run: Run, openPrsText: string, stretch: string): Promise<
 
 const REVIEW_PASSES = 2;
 
-// One Wave's tail: up to two review passes per touched repo over its whole branch, cycles on what the plan makes of each pass's reports (none planned: stop), then the one PR phase.
+// One Wave's tail: merge the conflicting default branches, up to two review passes per touched repo over its whole branch, cycles on what the plan makes of each pass's reports (none planned: stop), then the one PR phase.
 // `touched` is read anew after each cycles stretch. `items` is every item planned in the run so far; the items the reviews plan are added to it.
 const wave = async (run: Run, openPrs: string, touched: () => readonly Repo[], items: Item[]): Promise<string> => {
+  // An empty plan merges nothing: bring the branch up to date once, so the PR phase never pushes a conflicting branch.
+  await mergeDefaults({ ...run, number: 0 }, run.workspace.repos.filter((repo) => conflictsWithBase(repo, run.branch)));
   for (let pass = 1; pass <= REVIEW_PASSES; pass++) {
     const repos = touched();
     const passed = await inParallel(repos, (repo) => repo.name, async (repo) => [repo.name, await review(run, repo)] as const);
