@@ -85,7 +85,7 @@ export const modelsLine = (phases: Readonly<Record<Phase, PhaseSetting>>): strin
 // and the sub-issues left in Backlog, which this run did not deliver.
 export const runBlock = (models: string, homeSlug: string, root: number, self: Pr, prs: readonly Pr[], noPr: readonly NoPr[], blockedBy: BlockedBy, backlog: readonly number[], review: string): string => {
   const several = prs.length > 1 || noPr.length > 0;
-  const references = [root, ...self.issues.filter((issue) => issue !== root)].map((issue) => `${homeSlug}#${issue}`).join(", ");
+  const references = [root, ...self.issues].map((issue) => `${homeSlug}#${issue}`).join(", ");
   const run = [
           "",
           "## Run",
