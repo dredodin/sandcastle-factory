@@ -83,24 +83,24 @@ export const pr = async (run: Run, touched: readonly Repo[], planned: readonly I
   const prs = await inParallel(touched, (repo) => repo.name, (repo) => prOfRepo(run, repo));
 
   const blockedBy = blockedByOf(home, [...new Set(prs.flatMap((pr) => pr.issues))]);
-  const blockOf = (repo: string): string =>
+  const blockOf = (self: Pr): string =>
     runBlock(
       modelsLine(run.context.env.phases),
       home.slug,
       run.root,
-      prs.find((pr) => pr.repo === repo) ?? { repo, url: "", issues: [] },
+      self,
       prs,
       reposWithoutPr(planned.filter(hasIssue), prs.map((pr) => pr.repo)),
       blockedBy,
       run.kanban.inStatus("Backlog"),
-      reviewSection(repo, run.record.review()),
+      reviewSection(self.repo, run.record.review()),
     );
   const dir = mkdtempSync(join(tmpdir(), "sandcastle-pr-"));
   for (const pr of prs) {
     const repo = repoNamed(run.workspace, pr.repo);
     const { body } = bodySchema.parse(JSON.parse(sh(repo.path, "gh", "pr", "view", pr.url, "--json", "body")));
     const file = join(dir, `${pr.repo}.md`);
-    writeFileSync(file, withRunBlock(body, blockOf(pr.repo)));
+    writeFileSync(file, withRunBlock(body, blockOf(pr)));
     sh(repo.path, "gh", "pr", "edit", pr.url, "--body-file", file);
   }
   return prs.map((pr) => `${pr.repo}: ${pr.url}`).join("\n");
