@@ -51,8 +51,10 @@ For each open PR listed above, read every kind of comment on it with one GraphQL
 
 1. **Work items**: the root's direct sub-issues. No sub-issues: the root is the single work item. One level only: a sub-issue's own sub-issues are never items.
 2. **Candidates**: the open sub-issues listed above. A root without sub-issues is the single item while it is open. A review finding or a PR comment adds a `work` candidate.
-3. **Blocking**: you take blocking only from `blockedBy`, blockers outside the tree included. A blocker in the item's own repo clears when it is closed. A blocker in another repo clears only when that repo's PR of this run is open (see "Open PRs of this run") and a published preview (a release whose version contains `-pr.`, read from that repo's GitHub releases) contains the blocker's work; until then do not plan the item. Work that depends on another repo's code but has no `blockedBy` edge is not blocked.
-   - **Waiting**: when every remaining candidate waits on such a preview and the blocker repo's PR is already listed under "Open PRs of this run", wait for the preview yourself, re-reading GitHub, then plan the blocked work. Never give up while that preview may still come. Without that PR listed, plan nothing: the PR phase opens it. Plan nothing too when no remaining candidate can ever clear.
+3. **Blocking**: only `blockedBy` blocks.
+   - Blocker in the same repo: clears when closed.
+   - Blocker in another repo: clears when that repo's PR of this run has a published preview with its work.
+   - Only such work left: PR open → wait for the preview, then plan it. No PR yet → plan nothing; the PR phase opens it.
 4. **Labels never decide eligibility**; they only route an item to a repo.
 5. **All unblocked candidates** go into the plan. None: empty plan.
 6. **One repo per item, every item an issue or `work`.** An item belongs to the repo its label names. Work that is not an issue (PR comments, review findings) is a `work` item: its text says what to change, with the comments' words verbatim where a command is given. A `work` item names its `source`: `review` or `comment`; never mix sources in one item. PR comments: the repo its work is done in is the one the comment shows (a path, a name, what it asks for); the comment does not show it: the repo of the PR it is on. A comment asking for changes in two repos becomes one item per repo. As few items as possible: group by meaning, ideally one, at most four across all repos.
