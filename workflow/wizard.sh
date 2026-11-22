@@ -231,8 +231,9 @@ read -r -a PROVIDERS <<< "$(awk '{ printf "%s ", $1 }' <<< "$WIZARD_EFFORTS")"
 CLAUDE_ALIASES=(opus sonnet haiku fable)
 PROV=(); MODEL=(); EFF=()   # per phase, in PHASES order
 COPILOT_MODELS=(); COPILOT_READ=0
-# Fixed list, kept by hand like the Claude aliases; goes stale.
-CODEX_MODELS=(gpt-5.5 gpt-5.4 gpt-5.4-mini gpt-5.3-codex)
+CODEX_READ=0
+# Fallback when load_codex_models reads nothing; kept by hand like the Claude aliases, goes stale.
+CODEX_MODELS=(gpt-6.2-sol gpt-6.1-sol gpt-5.6-sol gpt-5.5)
 DONE=0                      # "done, keep the rest": skip every filled stage
 
 # ── Arrow-key menus: our addition, not wizard library ─────────────────────
@@ -354,11 +355,28 @@ load_copilot_models() {
   done <<< "$out"
 }
 
+# load_codex_models replaces the fallback CODEX_MODELS with the Codex CLI's bundled catalog, once;
+# no login needed. Hidden entries are skipped; any failure or empty list keeps the fallback.
+load_codex_models() {
+  local out m read_models=()
+  if (( CODEX_READ )); then return 0; fi
+  CODEX_READ=1
+  note "reading Codex models…"
+  out=$(npx -y @openai/codex debug models --bundled 2>/dev/null | node -e '
+    const { models } = JSON.parse(require("fs").readFileSync(0, "utf8"));
+    for (const m of models) if (m.visibility === "list" && m.slug) console.log(m.slug);' 2>/dev/null) || out=""
+  while IFS= read -r m; do
+    if [[ -n "$m" ]]; then read_models+=("$m"); fi
+  done <<< "$out"
+  if (( ${#read_models[@]} )); then CODEX_MODELS=("${read_models[@]}"); fi
+}
+
 # pick_model "Title" PROVIDER MODEL opens the model list, cursor on MODEL; sets
 # PICK_PROVIDER and PICK_MODEL. Fails on Esc.
 pick_model() {
   local title="$1" providers=() models=() items=() m cur choice
   load_copilot_models
+  load_codex_models
   for m in "${CLAUDE_ALIASES[@]}"; do providers+=(claudeCode); models+=("$m"); done
   for m in "${COPILOT_MODELS[@]+"${COPILOT_MODELS[@]}"}"; do providers+=(copilot); models+=("$m"); done
   for m in "${CODEX_MODELS[@]}"; do providers+=(codex); models+=("$m"); done
