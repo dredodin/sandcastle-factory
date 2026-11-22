@@ -80,16 +80,17 @@ export const reviewSection = (repo: string, review: ReviewRecord): string => {
 export const modelsLine = (phases: Readonly<Record<Phase, PhaseSetting>>): string =>
   `Models: ${PHASES.map((phase) => `${phase} \`${phases[phase].model}\` (${phases[phase].provider}, ${phases[phase].effort})`).join(", ")}.`;
 
-// The block every PR of the run ends with: the models line, then the run's PR list when it has several PRs or a repo left out,
+// The block every PR of the run ends with: the models line, the references to the root and the sub-issues merged into `self`
+// (plain, closing nothing), the run's PR list when it has several PRs or a repo left out,
 // and the sub-issues left in Backlog, which this run did not deliver.
-export const runBlock = (models: string, homeSlug: string, root: number, prs: readonly Pr[], noPr: readonly NoPr[], blockedBy: BlockedBy, backlog: readonly number[], review: string): string => {
+export const runBlock = (models: string, homeSlug: string, root: number, self: Pr, prs: readonly Pr[], noPr: readonly NoPr[], blockedBy: BlockedBy, backlog: readonly number[], review: string): string => {
   const several = prs.length > 1 || noPr.length > 0;
-  const run =
-    !several && backlog.length === 0
-      ? []
-      : [
+  const references = [root, ...self.issues].map((issue) => `${homeSlug}#${issue}`).join(", ");
+  const run = [
           "",
           "## Run",
+          "",
+          `References: ${references}.`,
           ...(several
             ? [
                 "",
@@ -100,7 +101,7 @@ export const runBlock = (models: string, homeSlug: string, root: number, prs: re
               ]
             : []),
           ...(backlog.length > 0 ? [`\nLeft in Backlog, not delivered: ${issueList(backlog)}.`] : []),
-        ];
+  ];
   return [START, models, ...run, ...(review === "" ? [] : ["", review]), END].join("\n");
 };
 

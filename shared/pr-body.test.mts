@@ -44,12 +44,15 @@ test("modelsLine: every phase's model, provider and effort, in phase order", () 
   );
 });
 
-test("runBlock: only the models line for a single PR with nothing left out", () => {
-  assert.equal(runBlock("Models: m.", "acme/hub", 7, [hub], [], {}, [], ""), "<!-- sandcastle-run -->\nModels: m.\n<!-- /sandcastle-run -->");
+test("runBlock: a single PR references the root and its merged sub-issues by full slug", () => {
+  assert.equal(
+    runBlock("Models: m.", "acme/hub", 7, hub, [hub], [], {}, [], ""),
+    "<!-- sandcastle-run -->\nModels: m.\n\n## Run\n\nReferences: acme/hub#7, acme/hub#3.\n<!-- /sandcastle-run -->",
+  );
 });
 
-test("runBlock: PR list in merge order, and the repo without a PR with its open issues", () => {
-  const block = runBlock("Models: m.", "acme/hub", 7, [hub, app], [{ repo: "lib", open: [6, 8] }], { 3: [5] }, [], "");
+test("runBlock: each PR references only its own sub-issues; the PR list is in merge order, with the repo without a PR", () => {
+  const block = runBlock("Models: m.", "acme/hub", 7, app, [hub, app], [{ repo: "lib", open: [6, 8] }], { 3: [5] }, [], "");
   assert.equal(
     block,
     [
@@ -57,6 +60,8 @@ test("runBlock: PR list in merge order, and the repo without a PR with its open 
       "Models: m.",
       "",
       "## Run",
+      "",
+      "References: acme/hub#7, acme/hub#4, acme/hub#5.",
       "",
       "One change over several repos, root acme/hub#7. Merge in this order:",
       "",
@@ -67,22 +72,24 @@ test("runBlock: PR list in merge order, and the repo without a PR with its open 
       "<!-- /sandcastle-run -->",
     ].join("\n"),
   );
+  assert.doesNotMatch(runBlock("Models: m.", "acme/hub", 7, hub, [hub, app], [], {}, [], ""), /hub#4/);
+});
+
+test("runBlock: no closing keyword", () => {
+  assert.doesNotMatch(runBlock("Models: m.", "acme/hub", 7, app, [hub, app], [], {}, [4], ""), /\b(close[sd]?|fix(e[sd])?|resolve[sd]?)\b/i);
 });
 
 test("runBlock: one PR and a repo left without one still list the PR", () => {
-  assert.match(runBlock("Models: m.", "acme/hub", 7, [hub], [{ repo: "lib", open: [6] }], {}, [], ""), /1\. acme\/hub#9 \(hub\)\n\nNo PR in `lib`/);
+  assert.match(runBlock("Models: m.", "acme/hub", 7, hub, [hub], [{ repo: "lib", open: [6] }], {}, [], ""), /1\. acme\/hub#9 \(hub\)\n\nNo PR in `lib`/);
 });
 
 test("runBlock: several PRs with nothing left out still list the merge order", () => {
-  assert.match(runBlock("Models: m.", "acme/hub", 7, [hub, app], [], {}, [], ""), /1\. acme\/hub#9 \(hub\)\n2\. acme\/app#12 \(app\)/);
+  assert.match(runBlock("Models: m.", "acme/hub", 7, hub, [hub, app], [], {}, [], ""), /1\. acme\/hub#9 \(hub\)\n2\. acme\/app#12 \(app\)/);
 });
 
 test("runBlock: sub-issues left in Backlog are listed, even for a single PR", () => {
-  assert.equal(
-    runBlock("Models: m.", "acme/hub", 7, [hub], [], {}, [4, 9], ""),
-    "<!-- sandcastle-run -->\nModels: m.\n\n## Run\n\nLeft in Backlog, not delivered: #4, #9.\n<!-- /sandcastle-run -->",
-  );
-  assert.match(runBlock("Models: m.", "acme/hub", 7, [hub, app], [], {}, [4], ""), /2\. acme\/app#12 \(app\)\n\nLeft in Backlog, not delivered: #4\.\n</);
+  assert.match(runBlock("Models: m.", "acme/hub", 7, hub, [hub], [], {}, [4, 9], ""), /References: acme\/hub#7, acme\/hub#3\.\n\nLeft in Backlog, not delivered: #4, #9\.\n</);
+  assert.match(runBlock("Models: m.", "acme/hub", 7, hub, [hub, app], [], {}, [4], ""), /2\. acme\/app#12 \(app\)\n\nLeft in Backlog, not delivered: #4\.\n</);
 });
 
 test("reposWithoutPr: repos with planned work and no PR, with their issues once each", () => {
@@ -179,5 +186,5 @@ test("reviewSection: everything fixed or nothing found is no section", () => {
 });
 
 test("runBlock: the review section ends the block", () => {
-  assert.equal(runBlock("Models: m.", "acme/hub", 7, [hub], [], {}, [], "## Review"), "<!-- sandcastle-run -->\nModels: m.\n\n## Review\n<!-- /sandcastle-run -->");
+  assert.equal(runBlock("Models: m.", "acme/hub", 7, hub, [hub], [], {}, [], "## Review"), "<!-- sandcastle-run -->\nModels: m.\n\n## Run\n\nReferences: acme/hub#7, acme/hub#3.\n\n## Review\n<!-- /sandcastle-run -->");
 });
