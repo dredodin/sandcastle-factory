@@ -36,6 +36,9 @@ export type RunRecord = {
   // A comment handled again replaces its earlier entry: one reply per comment.
   readonly handle: (comments: readonly Handled[]) => void;
   readonly handled: () => readonly Handled[];
+  // The handled comments not yet marked posted; a comment handled again is unposted again.
+  readonly unposted: () => readonly Handled[];
+  readonly markPosted: (comments: readonly Handled[]) => void;
   readonly review: () => ReviewRecord;
 };
 
@@ -48,6 +51,7 @@ export const openRecord = (): RunRecord => {
     merged: [] as ReviewRecord["merged"],
     ended: [] as ReviewRecord["ended"],
     handled: [] as readonly Handled[],
+    posted: new Set<string>(),
   };
   const stamp = <T,>(entries: readonly T[]): readonly Stamped<T>[] => entries.map((entry) => ({ ...entry, pass: state.passes }));
   return {
@@ -73,9 +77,12 @@ export const openRecord = (): RunRecord => {
       state.ended = [...state.ended, ...stamp(items)];
     },
     handle: (more) => {
+      more.forEach(({ id }) => state.posted.delete(id));
       state.handled = [...state.handled.filter(({ id }) => !more.some((comment) => comment.id === id)), ...more];
     },
     handled: () => state.handled,
+    unposted: () => state.handled.filter(({ id }) => !state.posted.has(id)),
+    markPosted: (comments) => comments.forEach(({ id }) => state.posted.add(id)),
     review: () => ({ rejected: state.rejected, merged: state.merged, ended: state.ended }),
   };
 };

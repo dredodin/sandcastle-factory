@@ -143,9 +143,11 @@ const wave = async (run: Run, openPrsText: string, touched: () => readonly Repo[
 };
 
 // Waves until the plan agent, asked after each PR phase with the run's open PRs recomputed, plans nothing.
-// A further Wave exists only when work waits for another repo's preview (cross-repo `blockedBy`).
+// No further Wave once the root was worked as the single item. A further Wave exists only when work waits for another repo's preview (cross-repo `blockedBy`).
 export const finish = async (run: Run, openPrsText: string, touched: () => readonly Repo[], planned: readonly Item[]): Promise<string> => {
   const done = await wave(run, openPrsText, touched, planned);
+  // The root as item was worked: planning it again would start a Wave that repeats the same end.
+  if (done.items.some((item) => hasIssue(item) && Number(item.issue) === run.root)) return done.text;
   const prsText = openPrs(run.workspace, run.branch);
   const next = await cycles(run, prsText, "Wave");
   if (next.length === 0) return done.text;
