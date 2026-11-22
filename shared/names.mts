@@ -25,8 +25,6 @@ export const verifyCommand = (repo: string): string => `bash ${repoDir(repo)}/ve
 // The command the review agent runs once per review pass, when the repo has a deep verify script.
 export const deepVerifyCommand = (repo: string, base: string): string => `bash ${repoDir(repo)}/deep-verify.sh ${base}`;
 
-// The command the plan agent runs each cycle, when the home repo has a plan check script.
-export const planCheckCommand = (repo: string): string => `bash ${repoDir(repo)}/plan-check.sh`;
 
 // A log file name. `number`: run-wide, so the folder sorts in start order.
 export const logFileName = (number: number, base: string, repo: string): string => `${String(number).padStart(3, "0")}-${base}-${repo}.log`;

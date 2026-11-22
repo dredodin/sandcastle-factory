@@ -20,7 +20,7 @@ const TEARDOWN_BACKOFF_MS = 500;
 const NO_SUCH_CONTAINER = /no such container/i;
 const SPARSE_LIST = "sparse-checkout";
 const MOUNTS_FILE = "mounts";
-const COPIED_FILES = ["setup.sh", "verify.sh", "deep-verify.sh", "plan-check.sh", "CODING_STANDARDS.md"] as const;
+const COPIED_FILES = ["setup.sh", "verify.sh", "deep-verify.sh", "CODING_STANDARDS.md"] as const;
 const SETUP_OUTPUT_TAIL = 2000;
 
 const teardownRetry = retry(handleAll, { maxAttempts: TEARDOWN_ATTEMPTS - 1, backoff: new ConstantBackoff(TEARDOWN_BACKOFF_MS) });

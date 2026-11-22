@@ -86,10 +86,11 @@ flowchart LR
     plan -- nothing left --> review[Review]
     review -- Review report --> plan
     review -- done --> pr([Pull request<br/>one per repo])
+    pr -- cross-repo blockedBy --> plan
     pr --> you([You read and merge])
 ```
 
-Each agent checks its own work before committing. Review reads the whole branch and only prints a Review report (findings and Review notes); the plan turns the findings into work or rejects them, and the next cycles fix what is planned ([ADR-0008](docs/adr/0008-agents-only-read-github.md)). At most two review passes per run.
+Each agent checks its own work before committing. Review reads the whole branch and only prints a Review report (findings and Review notes); the plan turns the findings into work or rejects them, and the next cycles fix what is planned ([ADR-0008](docs/adr/0008-agents-only-read-github.md)). At most two review passes per Wave; a run is one or more Waves ([GLOSSARY.md](GLOSSARY.md)).
 
 ## Where things live
 

@@ -13,7 +13,7 @@ import { log, openRunLog, runLogs, type RunLogs } from "../shared/logger.mjs";
 import { inParallel } from "../shared/parallel.mjs";
 import { mergeCommitOf } from "../shared/merge-record.mjs";
 import { cycleEnds } from "../shared/record.mjs";
-import { conflictsWithBase, fetched, mergeSubjects } from "../shared/repo.mjs";
+import { conflictsWithBase, fetched, mergeSubjects, openPrsText } from "../shared/repo.mjs";
 import type { Run } from "../shared/run.mjs";
 import { withSandbox } from "../shared/sandbox.mjs";
 import { repoNamed, type Repo, type Workspace } from "../shared/workspace.mjs";
@@ -33,6 +33,9 @@ export const startRun = (
   log.info(configBlock({ mode, root, title, branch, logDir, repos: workspace.repos.map((repo) => repo.slug), sandbox: env.sandbox, settings, maxCycles: MAX_CYCLES }));
   return runLogs(logDir);
 };
+
+// Whether the root issue is among the items.
+const worksRoot = (items: readonly Item[], root: number): boolean => items.some((item) => hasIssue(item) && Number(item.issue) === root);
 
 // One cycle: plan, merge default branches (the conflicting ones), implement each item in parallel in its repo, merge.
 // Resolves to the planned items, none when the plan is empty, whether the root as item was worked (the cycles stop), and the next cycle's plan session.
@@ -55,7 +58,7 @@ const cycle = async (
   const { items, next } = await plan(current, openPrsText, session);
   // The reports reach the plan agent once, in the cycle after their pass.
   run.record.clearReports();
-  if (conflicting.length === 0 && items.length === 0) {
+  if (items.length === 0) {
     log.info("Nothing to do: plan is empty.");
     return { items: [], next, stop: false };
   }
@@ -102,7 +105,7 @@ const cycle = async (
     else await run.kanban.move(Number(item.issue), "merged", `Done: merged into \`${run.branch}\`.`);
   }
   // The root as item is worked once, merged, left out or ended without code: planning it again would repeat the same end.
-  return { items, next, stop: items.some((item) => hasIssue(item) && Number(item.issue) === run.root) };
+  return { items, next, stop: worksRoot(items, run.root) };
 };
 
 // Cycles until the plan is empty or the cap is reached; one after another, each plans on the last one's merge.
@@ -124,20 +127,36 @@ export const cycles = (run: Run, openPrsText: string, stretch: string): Promise<
 
 const REVIEW_PASSES = 2;
 
-// Up to two review passes per touched repo over its whole branch, cycles on what the plan makes of each pass's reports (none planned: stop), then the one PR phase.
-// `touched` is read anew after each cycles stretch.
-export const finish = async (run: Run, openPrsText: string, touched: () => readonly Repo[], planned: readonly Item[]): Promise<string> => {
-  let items = planned;
+// One Wave's tail: merge the conflicting default branches, up to two review passes per touched repo over its whole branch, cycles on what the plan makes of each pass's reports (none planned: stop), then the one PR phase.
+// `touched` is read anew after each cycles stretch. `items` is every item planned in the run so far; the items the reviews plan are added to it.
+const wave = async (run: Run, openPrs: string, touched: () => readonly Repo[], items: Item[]): Promise<string> => {
+  // An empty plan merges nothing: bring the branch up to date once, so the PR phase never pushes a conflicting branch.
+  await mergeDefaults({ ...run, number: 0 }, run.workspace.repos.filter((repo) => conflictsWithBase(repo, run.branch)));
   for (let pass = 1; pass <= REVIEW_PASSES; pass++) {
     const repos = touched();
     const passed = await inParallel(repos, (repo) => repo.name, async (repo) => [repo.name, await review(run, repo)] as const);
     run.record.addPass(new Map(passed));
-    const found = await cycles(run, openPrsText, `Review ${pass}`);
-    items = [...items, ...found];
+    const found = await cycles(run, openPrs, `Review ${pass}`);
+    items.push(...found);
     // Nothing planned ends the reviews unless a report had findings the plan rejected: pass 2 checks the rest.
     if (found.length === 0 && passed.every(([, { findings }]) => findings === "")) break;
   }
-  const text = await pr(run, touched(), items);
+  return `PR:\n${await pr(run, touched(), items)}`;
+};
+
+// Waves until the plan agent, asked after each PR phase with the run's open PRs recomputed, plans nothing; then the replies, once.
+// No further Wave once the root was worked as an item. A further Wave exists only when work waits for another repo's preview (cross-repo `blockedBy`).
+export const finish = async (run: Run, openPrs: string, touched: () => readonly Repo[], planned: readonly Item[]): Promise<string> => {
+  const all = [...planned];
+  let prs = openPrs;
+  let text: string;
+  let next: readonly Item[] = [];
+  do {
+    all.push(...next);
+    text = await wave(run, prs, touched, all);
+    prs = openPrsText(run.workspace, run.branch);
+    next = worksRoot(all, run.root) ? [] : await cycles(run, prs, "Wave");
+  } while (next.length > 0);
   postReplies(run);
-  return `PR:\n${text}`;
+  return text;
 };

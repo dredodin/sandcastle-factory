@@ -2,8 +2,8 @@ import { z } from "zod";
 import { DISCLAIMER, type Cycle } from "./run.mjs";
 import { githubUrl, verifyCommand } from "./names.mjs";
 
-// Where an item comes from: an issue, or `work` the plan made from a review report, PR comments or plan check output.
-const SOURCES = ["issue", "review", "comment", "plan check"] as const;
+// Where an item comes from: an issue, or `work` the plan made from a review report or PR comments.
+const SOURCES = ["issue", "review", "comment"] as const;
 
 // One unit of work the planner hands out, and the branch it is worked on: a sub-issue, or the root when it has none,
 // or `work`: the task text the plan wrote, with no issue. Exactly one of `issue` and `work` is set; the other is "".

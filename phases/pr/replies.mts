@@ -23,7 +23,7 @@ const post = (cwd: string, { comment, body, resolve }: Reply, file: string): voi
   if (resolve && comment.kind === "comment") sh(cwd, "gh", "api", "graphql", "-f", `query=${MINIMIZE}`, "-f", `id=${comment.id}`);
 };
 
-// After the push: a reply under each handled comment, and the comment closed unless it needs info.
+// Once, after the last Wave: a reply under each handled comment, and the comment closed unless it needs info.
 // A comment whose item has no merge commit gets nothing and stays open. A failed post is logged, never stops the run.
 export const postReplies = (run: Run): void => {
   const commits = new Map(run.record.merged().flatMap(({ item, commit }) => (commit === "" ? [] : [[item.branch, commit] as const])));

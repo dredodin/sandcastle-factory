@@ -4,7 +4,6 @@ import { handledOf, handledText } from "../../shared/comments.mjs";
 import { extract } from "../../shared/extract.mjs";
 import { hasIssue, itemId, takenItems } from "../../shared/item.mjs";
 import { log, timedPhase } from "../../shared/logger.mjs";
-import { planCheckCommand } from "../../shared/names.mjs";
 import { planOutputSchema } from "../../shared/plan-output.mjs";
 import { promptPath } from "../../shared/paths.mjs";
 import { fillPrompt } from "../../shared/prompt.mjs";
@@ -21,7 +20,7 @@ export const freshPlan = (run: Run): PlanSession => async (prompt, options) =>
   (await run.integrations.get(run.workspace.home)).run({ ...options, agent: run.agents.PLAN, prompt, maxIterations: 1 });
 
 // What to do now: the unblocked sub-issues among those the Kanban has in Ready for agent, moved to Agent working; the root when it has no sub-issues.
-// The plan agent runs in the home repo's integration worktree; `openPrsText` lists the run's open PRs to read comments from (resume only).
+// The plan agent runs in the home repo's integration worktree; `openPrsText` lists the run's open PRs to read comments from (resume, and each Wave after the first).
 // `next` resumes this plan's session when the provider can (sandcastle's `resume`), else starts fresh.
 export const plan = async (cycle: Cycle, openPrsText: string, session: PlanSession): Promise<Plan & { readonly next: PlanSession }> => {
   const { workspace, branch } = cycle;
@@ -38,7 +37,6 @@ export const plan = async (cycle: Cycle, openPrsText: string, session: PlanSessi
     REPOS: reposText(home.name, repos),
     READY: ready.length === 0 ? "(none)" : ready.map((issue) => `#${issue}`).join(", "),
     OPEN_PRS: openPrsText,
-    PLAN_CHECK: planCheckCommand(home.name),
     REVIEW_REPORTS: reportsText(cycle.record.reports()),
     REJECTED: rejectedText(cycle.record.rejected()),
     HANDLED: handledText(cycle.record.handled()),

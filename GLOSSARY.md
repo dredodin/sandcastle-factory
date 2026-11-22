@@ -63,6 +63,10 @@ A take whose pull requests are still open. A root issue has at most one.
 One plan → implement → merge pass inside a run. A run repeats cycles until the plan comes back empty.
 _Avoid_: round, iteration
 
+**Wave**:
+Cycles, review passes and the PR phase, in that order. A run is one or more Waves; a new Wave starts only for cross-repo `blockedBy`, once the blocker repo's PR has a preview.
+_Avoid_: round, iteration, pass, stretch
+
 **Phase**:
 One step in a run: plan, implement, merge, review or PR. Each is an agent's, except a merge without conflicts and with a green verify script: a script does it.
 _Avoid_: stage, step
@@ -76,7 +80,7 @@ A review observation that is never work: a smell judgement call on a line the br
 _Avoid_: nit, suggestion
 
 **Item**:
-One unit of work a plan hands to one implement agent: an unblocked sub-issue in Ready for agent, the root issue when it has none, or work the plan wrote as text from a Review report, PR comments or plan check output (no issue, no Kanban card). Always in exactly one repo.
+One unit of work a plan hands to one implement agent: an unblocked sub-issue in Ready for agent, the root issue when it has none, or work the plan wrote as text from a Review report or PR comments (no issue, no Kanban card). Always in exactly one repo.
 _Avoid_: task, job, work unit, ticket (when you mean any sub-issue)
 
 **Claim**:
@@ -113,10 +117,6 @@ _Avoid_: CI, pre-commit hook
 **Deep verify script**:
 The repo's own slow check, optional, run once over a whole branch at each review pass. What it reports feeds the Review report.
 _Avoid_: slow verify, nightly check
-
-**Plan check script**:
-The home repo's own check of what work is due, optional, run by the plan agent every cycle. Passing means no work; what a failing one prints becomes a work item, every cycle until it passes.
-_Avoid_: pre-plan hook
 
 ## Kanban
 
