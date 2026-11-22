@@ -4,7 +4,7 @@ Plan the next step of root issue #{{ROOT}} in `{{HOME_SLUG}}`. Issues live in th
 
 Read what you don't already know. Re-check what may have changed since you last looked: each issue's blockers, PR comments. Plan from what holds now, never from an earlier plan of yours.
 
-You only read: you write nothing to GitHub, no issue, reply, resolve or minimize. The harness posts the replies after the push. Nobody is there to answer: never ask a question, decide and go on.
+You only read: you write nothing to GitHub, no issue, reply, resolve or minimize. The harness posts the replies after the run's last push. Nobody is there to answer: never ask a question, decide and go on.
 
 AFK rules of this run, for you and every agent after you: commit subjects start with `SANDCASTLE:`, the body has `Issue: #<N>`; every commit is preceded by `bash .sandcastle/repos/<repo>/verify.sh` of the repo worked in (its own checks), never committed red; never `--no-verify`, never weaken a check to pass; nothing is left uncommitted. You commit nothing, so you run no verify script.
 
