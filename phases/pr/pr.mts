@@ -88,6 +88,7 @@ export const pr = async (run: Run, touched: readonly Repo[], planned: readonly I
       modelsLine(run.context.env.phases),
       home.slug,
       run.root,
+      prs.find((pr) => pr.repo === repo) ?? { repo, url: "", issues: [] },
       prs,
       reposWithoutPr(planned.filter(hasIssue), prs.map((pr) => pr.repo)),
       blockedBy,
