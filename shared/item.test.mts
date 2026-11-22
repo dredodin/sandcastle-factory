@@ -62,7 +62,7 @@ test("implementRunOf: an app repo's issue is read from the home repo", () => {
   assert.equal(inputs.promptArgs["VERIFY"], "bash .sandcastle/repos/app/verify.sh");
 });
 
-const work: Item = { issue: "", work: "Fix a.ts:3", source: "plan check", repo: "app", title: "Fix check", branch: "int-work-2-3" };
+const work: Item = { issue: "", work: "Fix a.ts:3", source: "review", repo: "app", title: "Fix check", branch: "int-work-2-3" };
 
 test("implementRunOf: a work item gets its text, the root as issue, and names from its branch", () => {
   assert.deepEqual(implementRunOf(work, { root: 7 }, context), {

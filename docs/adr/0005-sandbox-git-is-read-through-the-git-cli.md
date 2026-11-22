@@ -10,7 +10,7 @@ In a sandbox the `git` CLI works, but libraries that open the repo themselves (l
 
 ## Decision
 
-**A repo's verify, deep verify and plan check scripts read git through the `git` CLI. The libgit2 failure is left undiagnosed until a script cannot do without libgit2.**
+**A repo's verify and deep verify scripts read git through the `git` CLI. The libgit2 failure is left undiagnosed until a script cannot do without libgit2.**
 
 ## Consequences
 

@@ -13,7 +13,7 @@ import { log, openRunLog, runLogs, type RunLogs } from "../shared/logger.mjs";
 import { inParallel } from "../shared/parallel.mjs";
 import { mergeCommitOf } from "../shared/merge-record.mjs";
 import { cycleEnds } from "../shared/record.mjs";
-import { conflictsWithBase, fetched, mergeSubjects } from "../shared/repo.mjs";
+import { conflictsWithBase, fetched, mergeSubjects, openPrsText as openPrs } from "../shared/repo.mjs";
 import type { Run } from "../shared/run.mjs";
 import { withSandbox } from "../shared/sandbox.mjs";
 import { repoNamed, type Repo, type Workspace } from "../shared/workspace.mjs";
@@ -124,9 +124,9 @@ export const cycles = (run: Run, openPrsText: string, stretch: string): Promise<
 
 const REVIEW_PASSES = 2;
 
-// Up to two review passes per touched repo over its whole branch, cycles on what the plan makes of each pass's reports (none planned: stop), then the one PR phase.
+// One Wave's tail: up to two review passes per touched repo over its whole branch, cycles on what the plan makes of each pass's reports (none planned: stop), then the one PR phase.
 // `touched` is read anew after each cycles stretch.
-export const finish = async (run: Run, openPrsText: string, touched: () => readonly Repo[], planned: readonly Item[]): Promise<string> => {
+const wave = async (run: Run, openPrsText: string, touched: () => readonly Repo[], planned: readonly Item[]): Promise<{ readonly text: string; readonly items: readonly Item[] }> => {
   let items = planned;
   for (let pass = 1; pass <= REVIEW_PASSES; pass++) {
     const repos = touched();
@@ -139,5 +139,15 @@ export const finish = async (run: Run, openPrsText: string, touched: () => reado
   }
   const text = await pr(run, touched(), items);
   postReplies(run);
-  return `PR:\n${text}`;
+  return { text: `PR:\n${text}`, items };
+};
+
+// Waves until the plan agent, asked after each PR phase with the run's open PRs recomputed, plans nothing.
+// A further Wave exists only when work waits for another repo's preview (cross-repo `blockedBy`).
+export const finish = async (run: Run, openPrsText: string, touched: () => readonly Repo[], planned: readonly Item[]): Promise<string> => {
+  const done = await wave(run, openPrsText, touched, planned);
+  const prsText = openPrs(run.workspace, run.branch);
+  const next = await cycles(run, prsText, "Wave");
+  if (next.length === 0) return done.text;
+  return finish(run, prsText, touched, [...done.items, ...next]);
 };
