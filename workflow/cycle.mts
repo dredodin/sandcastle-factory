@@ -58,7 +58,7 @@ const cycle = async (
   const { items, next } = await plan(current, openPrsText, session);
   // The reports reach the plan agent once, in the cycle after their pass.
   run.record.clearReports();
-  if (items.length === 0 && conflicting.length === 0) {
+  if (items.length === 0) {
     log.info("Nothing to do: plan is empty.");
     return { items: [], next, stop: false };
   }
